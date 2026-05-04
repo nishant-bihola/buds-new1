@@ -1,0 +1,55 @@
+language: "en-US"
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+      - dev
+
+  path_filters:
+    - "!dist/**"
+    - "!node_modules/**"
+    - "!.claude/**"
+    - "!**/*.lock"
+    - "!**/*.png"
+    - "!**/*.mp4"
+    - "!**/*.svg"
+
+  path_instructions:
+    - path: "src/components/**"
+      instructions: |
+        Review React components for:
+        - Accessibility: aria-labels on icon-only buttons, form labels, alt text
+        - Performance: unnecessary re-renders, missing React.memo, large inline objects
+        - No emoji used as UI icons (use Lucide SVG instead)
+        - cursor-pointer on all interactive elements
+        - Tailwind class ordering consistency
+    - path: "src/pages/**"
+      instructions: |
+        Review pages for:
+        - All forms must have real validation and Firestore submission
+        - Loading and error states must be handled
+        - No fake/placeholder submit handlers
+        - Proper TypeScript types, no `any`
+    - path: "server.ts"
+      instructions: |
+        Review backend for:
+        - Input validation and sanitization on all API endpoints
+        - Rate limiting applied
+        - No API keys or secrets hardcoded
+        - Error messages must not leak internal details to the client
+    - path: "src/context/**"
+      instructions: |
+        Review React context for proper TypeScript interface coverage — all
+        values provided must be declared in the context type.
+
+chat:
+  auto_reply: true

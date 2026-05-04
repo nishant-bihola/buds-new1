@@ -1,0 +1,268 @@
+{
+  "products": [
+    {
+      "id": "flower-01",
+      "name": "Nano Banana Kush",
+      "price": 35,
+      "image": "/images/nano_banana_kush.png",
+      "category": "Dried Flower",
+      "description": "Ultra-smooth, high potency, tropical banana notes. A perfectly crafted hybrid from BC's finest cultivators.",
+      "thc": "28%",
+      "cbd": "0.1%",
+      "terpenes": [
+        "Myrcene",
+        "Limonene",
+        "Caryophyllene"
+      ],
+      "brand": "Endgame",
+      "weight": "3.5g",
+      "strain": "Hybrid",
+      "inStock": true,
+      "isBestSeller": true,
+      "sortOrder": 1
+    },
+    {
+      "id": "flower-02",
+      "name": "Island Pink Kush",
+      "price": 32,
+      "image": "/images/island_pink_kush.png",
+      "category": "Dried Flower",
+      "description": "Classic BC bud. Heavy resin, deep body relaxation, floral sweetness.",
+      "thc": "24%",
+      "cbd": "0.1%",
+      "terpenes": [
+        "Linalool",
+        "Myrcene",
+        "Pinene"
+      ],
+      "brand": "Purple Hills",
+      "weight": "3.5g",
+      "strain": "Indica",
+      "inStock": true,
+      "isBestSeller": false,
+      "sortOrder": 2
+    },
+    {
+      "id": "edible-01",
+      "name": "Sour Peach Rings",
+      "price": 19.99,
+      "image": "/images/sour_peach_rings.png",
+      "category": "Edible",
+      "description": "Consistent THC dosing, fan favourite. Classic sour peach candy with a kick.",
+      "thc": "10mg",
+      "cbd": "0mg",
+      "brand": "BoxHot",
+      "inStock": true,
+      "isBestSeller": true,
+      "sortOrder": 3
+    },
+    {
+      "id": "preroll-01",
+      "name": "Back Forty Pre-Roll Pack",
+      "price": 24.99,
+      "image": "/images/preroll.png",
+      "category": "Pre-Roll",
+      "description": "Ready-to-spark pre-rolls from the award-winning Back Forty farm.",
+      "thc": "22%",
+      "brand": "Back Forty",
+      "weight": "3×0.5g",
+      "strain": "Hybrid",
+      "inStock": true,
+      "isBestSeller": false,
+      "sortOrder": 4
+    },
+    {
+      "id": "vape-01",
+      "name": "Spinach Disposable Vape",
+      "price": 44.99,
+      "image": "/images/vape.png",
+      "category": "Vape",
+      "description": "Sleek, pocket-friendly disposable. Berry Creamsicle flavour. Sativa-forward uplift.",
+      "thc": "85%",
+      "cbd": "0%",
+      "brand": "Spinach",
+      "strain": "Sativa",
+      "inStock": true,
+      "isBestSeller": false,
+      "sortOrder": 5
+    },
+    {
+      "id": "concentrate-01",
+      "name": "Dab Bods Live Resin",
+      "price": 54.99,
+      "image": "/images/concentrate.png",
+      "category": "Concentrate",
+      "description": "High-terpene live resin extract. Bold, pungent, full-spectrum experience.",
+      "thc": "70%",
+      "cbd": "0.5%",
+      "terpenes": [
+        "Terpinolene",
+        "Ocimene",
+        "Myrcene"
+      ],
+      "brand": "Dab Bods",
+      "weight": "1g",
+      "inStock": true,
+      "isBestSeller": false,
+      "sortOrder": 6
+    }
+  ],
+  "orders": [],
+  "customers": [],
+  "automations": [
+    {
+      "key": "order_confirmation_customer",
+      "enabled": true
+    },
+    {
+      "key": "new_order_alert_admin",
+      "enabled": true
+    },
+    {
+      "key": "order_dispatched_customer",
+      "enabled": true
+    },
+    {
+      "key": "order_delivered_customer",
+      "enabled": true
+    },
+    {
+      "key": "ready_for_pickup_customer",
+      "enabled": true
+    },
+    {
+      "key": "welcome_email_customer",
+      "enabled": true
+    },
+    {
+      "key": "abandoned_cart_email",
+      "enabled": false
+    }
+  ],
+  "promoCodes": [
+    {
+      "id": "promo-01",
+      "code": "WELCOME10",
+      "discount": 10,
+      "type": "percent",
+      "active": true,
+      "usageCount": 0,
+      "maxUses": 100
+    },
+    {
+      "id": "promo-02",
+      "code": "BUDS5",
+      "discount": 5,
+      "type": "fixed",
+      "active": true,
+      "usageCount": 0,
+      "maxUses": 50
+    }
+  ],
+  "deliveryZones": [
+    {
+      "id": "zone-01",
+      "name": "Sherwood Park Core",
+      "postalPrefix": "T8A",
+      "fee": 0,
+      "minOrder": 40,
+      "active": true
+    },
+    {
+      "id": "zone-02",
+      "name": "Sherwood Park East",
+      "postalPrefix": "T8B",
+      "fee": 0,
+      "minOrder": 40,
+      "active": true
+    },
+    {
+      "id": "zone-03",
+      "name": "Sherwood Park South",
+      "postalPrefix": "T8H",
+      "fee": 2.99,
+      "minOrder": 50,
+      "active": true
+    },
+    {
+      "id": "zone-04",
+      "name": "Edmonton Metro",
+      "postalPrefix": "T5",
+      "fee": 5.99,
+      "minOrder": 60,
+      "active": true
+    }
+  ],
+  "storeHours": [
+    {
+      "day": "Monday",
+      "open": "10:00",
+      "close": "02:00",
+      "closed": false
+    },
+    {
+      "day": "Tuesday",
+      "open": "10:00",
+      "close": "02:00",
+      "closed": false
+    },
+    {
+      "day": "Wednesday",
+      "open": "10:00",
+      "close": "02:00",
+      "closed": false
+    },
+    {
+      "day": "Thursday",
+      "open": "10:00",
+      "close": "02:00",
+      "closed": false
+    },
+    {
+      "day": "Friday",
+      "open": "10:00",
+      "close": "02:00",
+      "closed": false
+    },
+    {
+      "day": "Saturday",
+      "open": "10:00",
+      "close": "02:00",
+      "closed": false
+    },
+    {
+      "day": "Sunday",
+      "open": "10:00",
+      "close": "02:00",
+      "closed": false
+    }
+  ],
+  "drivers": [
+    {
+      "id": "driver-01",
+      "name": "Jake M.",
+      "phone": "(825) 555-0101",
+      "active": true
+    },
+    {
+      "id": "driver-02",
+      "name": "Sara L.",
+      "phone": "(825) 555-0102",
+      "active": true
+    }
+  ],
+  "abandonedCarts": [
+    {
+      "sessionKey": "0b57c0ec-bb17-47df-aab4-785d9882bd13",
+      "items": [
+        {
+          "name": "Premium Buds Grinder",
+          "price": 24.99,
+          "quantity": 1
+        }
+      ],
+      "total": 24.99,
+      "updatedAt": "2026-05-04T20:55:24.868Z"
+    }
+  ]
+}

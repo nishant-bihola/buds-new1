@@ -1,0 +1,250 @@
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
+import { ShoppingCart, Menu, X, ArrowRight } from "lucide-react";
+import { useCart } from "../context/CartContext";
+
+export function Navbar() {
+  const { cartCount, openCart } = useCart();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => { setIsMenuOpen(false); }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    document.body.style.overflow = isMenuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isMenuOpen]);
+
+  const navLinks = [
+    { name: "Home", path: "/" },
+    { name: "Shop", path: "/shop" },
+    { name: "About", path: "/about" },
+  ];
+
+  const exploreCategories = [
+    { name: "Dried Flower", path: "/shop?category=Dried Flower" },
+    { name: "Edibles", path: "/shop?category=Edible" },
+    { name: "Vapes", path: "/shop?category=Vape" },
+    { name: "Pre-Rolls", path: "/shop?category=Pre-Roll" },
+    { name: "Concentrates", path: "/shop?category=Concentrate" },
+    { name: "Beverages", path: "/shop?category=Beverage" },
+  ];
+
+  const CartButton = ({ size = 18, className = "" }: { size?: number; className?: string }) => (
+    <button
+      type="button"
+      aria-label={`Open cart — ${cartCount} item${cartCount !== 1 ? "s" : ""}`}
+      onClick={openCart}
+      className={`relative p-2 rounded-full transition-all hover:scale-110 ${className}`}
+    >
+      <ShoppingCart size={size} strokeWidth={2.5} />
+      {cartCount > 0 && (
+        <motion.span
+          key={cartCount}
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="absolute -top-1 -right-1 text-[9px] w-5 h-5 flex items-center justify-center rounded-full font-black shadow-lg bg-brand-light-green text-brand-green"
+        >
+          {cartCount > 9 ? "9+" : cartCount}
+        </motion.span>
+      )}
+    </button>
+  );
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-500 px-3 sm:px-4 md:px-8 pt-4 sm:pt-6 pointer-events-none">
+      <div
+        className={`max-w-7xl mx-auto h-16 sm:h-20 flex items-center px-4 sm:px-6 lg:px-10 rounded-full border transition-all duration-500 pointer-events-auto shadow-2xl relative ${
+          isScrolled
+            ? "bg-brand-earth/95 backdrop-blur-xl border-brand-green/10"
+            : "bg-brand-green/95 backdrop-blur-md border-white/5"
+        }`}
+      >
+        {/* Mobile */}
+        <div className="flex lg:hidden items-center justify-between w-full gap-4">
+          <Link to="/" className="shrink-0">
+            <img
+              src="/images/buds_n_buddies_logo.png"
+              alt="Bud n' Buddies"
+              className={`h-11 w-auto object-contain transition-all duration-300 ${!isScrolled ? "brightness-0 invert" : ""}`}
+            />
+          </Link>
+          <div className="flex items-center gap-3">
+            <CartButton
+              size={18}
+              className={isScrolled ? "bg-brand-green/5 text-brand-green" : "bg-white/10 text-white"}
+            />
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className={`p-2 rounded-full ${isScrolled ? "bg-brand-green text-brand-earth" : "bg-brand-earth text-brand-green"}`}
+            >
+              {isMenuOpen ? <X size={18} strokeWidth={3} /> : <Menu size={18} strokeWidth={3} />}
+            </motion.button>
+          </div>
+        </div>
+
+        {/* Desktop */}
+        <div className="hidden lg:flex items-center w-full gap-8 xl:gap-10">
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`flex items-center gap-3 px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-[0.2em] transition-colors shrink-0 ${
+              isScrolled ? "bg-brand-green text-brand-earth" : "bg-brand-earth text-brand-green"
+            }`}
+          >
+            {isMenuOpen ? <X size={14} strokeWidth={3} /> : <Menu size={14} strokeWidth={3} />}
+            <span>Explore</span>
+          </motion.button>
+
+          <Link to="/" className="group shrink-0">
+            <img
+              src="/images/buds_n_buddies_logo.png"
+              alt="Bud n' Buddies"
+              className={`h-11 xl:h-11 w-auto object-contain transition-all duration-500 group-hover:scale-105 ${
+                !isScrolled ? "brightness-0 invert" : ""
+              }`}
+              loading="eager"
+            />
+          </Link>
+
+          <div className="flex items-center gap-7 xl:gap-9">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                to={link.path}
+                className={`text-[11px] font-black uppercase tracking-[0.2em] transition-all hover:scale-110 whitespace-nowrap ${
+                  location.pathname === link.path
+                    ? isScrolled ? "text-brand-green" : "text-brand-light-green"
+                    : isScrolled ? "text-brand-green/70 hover:text-brand-green" : "text-white/70 hover:text-white"
+                }`}
+              >
+                {link.name}
+              </Link>
+            ))}
+          </div>
+
+          <div className="ml-auto flex items-center gap-3">
+            <CartButton
+              size={18}
+              className={isScrolled ? "bg-brand-green/5 text-brand-green" : "bg-white/10 text-white"}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Fullscreen menu overlay */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, clipPath: "circle(0% at 60px 48px)" }}
+            animate={{ opacity: 1, clipPath: "circle(150% at 60px 48px)" }}
+            exit={{ opacity: 0, clipPath: "circle(0% at 60px 48px)" }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 bg-brand-green z-[60] flex flex-col overflow-y-auto pointer-events-auto"
+          >
+            <div className="flex justify-between items-center px-6 sm:px-12 pt-6 sm:pt-10 shrink-0 relative z-10">
+              <Link to="/" onClick={() => setIsMenuOpen(false)}>
+                <img
+                  src="/images/buds_n_buddies_logo.png"
+                  alt="Bud n' Buddies"
+                  className="h-12 sm:h-12 w-auto object-contain brightness-0 invert"
+                />
+              </Link>
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setIsMenuOpen(false)}
+                className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-brand-earth/10 border border-brand-earth/20 flex items-center justify-center text-brand-earth hover:bg-brand-earth/20 transition-all"
+              >
+                <X size={24} strokeWidth={2.5} />
+              </motion.button>
+            </div>
+
+            <div className="flex-1 flex flex-col lg:flex-row items-center lg:items-start justify-center gap-12 lg:gap-24 px-6 sm:px-12 py-12">
+              <div className="flex flex-col items-center lg:items-start gap-4 sm:gap-6">
+                <span className="text-brand-earth/40 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Navigate</span>
+                {navLinks.map((link, i) => (
+                  <motion.div
+                    key={link.name}
+                    initial={{ opacity: 0, x: -30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.05 + i * 0.04, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <Link
+                      to={link.path}
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`block text-[clamp(2.5rem,8vw,5rem)] font-black uppercase tracking-tighter leading-none transition-all hover:translate-x-4 ${
+                        location.pathname === link.path ? "text-brand-light-green" : "text-brand-earth hover:text-brand-light-green"
+                      }`}
+                    >
+                      {link.name}
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="flex flex-col items-center lg:items-start gap-3 sm:gap-5 pt-8 lg:pt-4 lg:border-l lg:border-brand-earth/10 lg:pl-24">
+                <span className="text-brand-earth/40 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Shop by Category</span>
+                {exploreCategories.map((cat, i) => (
+                  <motion.div
+                    key={cat.name}
+                    initial={{ opacity: 0, x: 30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 + i * 0.03, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <Link
+                      to={cat.path}
+                      onClick={() => setIsMenuOpen(false)}
+                      className="group flex items-center gap-3 text-lg sm:text-2xl font-bold uppercase tracking-tight text-brand-earth hover:text-brand-light-green transition-colors"
+                    >
+                      {cat.name}
+                      <ArrowRight size={18} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="shrink-0 px-6 sm:px-12 pb-10 sm:pb-14 flex flex-col sm:flex-row items-center justify-between gap-6 text-brand-earth/40"
+            >
+              <div className="text-center sm:text-left flex flex-col gap-1">
+                <p className="font-black uppercase tracking-[0.2em] text-[10px] mb-1">Our Location</p>
+                <p className="font-bold uppercase tracking-widest text-[11px] text-brand-earth">
+                  130-75 Salisbury Way, Sherwood Park, AB
+                </p>
+              </div>
+              <div className="flex gap-8 text-[10px] font-black uppercase tracking-[0.2em]">
+                <div className="text-center sm:text-right">
+                  <p className="mb-1">Call Us</p>
+                  <a href="tel:+18252188234" className="text-[11px] text-brand-earth hover:text-brand-light-green transition-colors">(825) 218-8234</a>
+                </div>
+                <div className="text-center sm:text-right">
+                  <p className="mb-1 text-brand-earth/40">Hours</p>
+                  <p className="text-[11px] text-brand-earth">Open Until 2AM</p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
+  );
+}

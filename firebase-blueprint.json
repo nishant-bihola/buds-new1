@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A coffee product available for purchase.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "description": { "type": "string" },
+        "isBestSeller": { "type": "boolean" },
+        "category": { "type": "string" }
+      },
+      "required": ["name", "price", "image"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A customer review for the products.",
+      "type": "object",
+      "properties": {
+        "reviewerName": { "type": "string" },
+        "rating": { "type": "number" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reviewerName", "rating", "content"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection of coffee products."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Collection of customer testimonials."
+    }
+  }
+}
