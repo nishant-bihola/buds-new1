@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "motion/react";
 import type { Product } from "../types";
 import { Link } from "react-router-dom";
@@ -40,81 +41,104 @@ export function ProductGrid({ products, loading }: ProductGridProps) {
   );
 }
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product, viewMode = "grid" }: { product: Product; viewMode?: "grid" | "list" }) {
   const { addToCart } = useCart();
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  if (viewMode === "list") {
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="group relative flex items-center gap-4 p-3 sm:p-4 bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl hover:bg-white/10 transition-all active:scale-[0.98]"
+      >
+        <Link to={`/product/${product.id}`} className="absolute inset-0 z-10" />
+        <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 bg-brand-light-green/5 rounded-xl sm:rounded-2xl overflow-hidden flex items-center justify-center">
+          {!imageLoaded && <div className="absolute inset-0 animate-pulse bg-white/5" />}
+          <img 
+            src={product.image} 
+            alt={product.name} 
+            onLoad={() => setImageLoaded(true)}
+            className={`w-full h-full object-contain p-2 transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`} 
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base sm:text-lg font-black uppercase tracking-tight truncate">{product.name}</h3>
+          <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-white/30">{product.category}</p>
+        </div>
+        <div className="text-right flex flex-col items-end gap-2">
+          <p className="text-lg sm:text-xl font-black">${product.price.toFixed(2)}</p>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(product); }}
+            className="relative z-20 p-2.5 sm:p-3 bg-brand-light-green text-brand-green rounded-xl hover:scale-110 active:scale-90 transition-transform shadow-lg shadow-brand-light-green/10"
+          >
+            <Plus size={16} strokeWidth={3} />
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
-      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "50px" }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
+      transition={{ duration: 0.4 }}
       whileHover="hover"
-      className="group relative flex flex-col pt-6 sm:pt-10 pb-6 sm:pb-8 px-5 sm:px-8 bg-[#1e4d2b] rounded-[36px] sm:rounded-[48px] overflow-hidden shadow-2xl cursor-pointer isolate transition-transform duration-200 ease-out hover:scale-[1.02]"
+      className="group relative flex flex-col pt-6 sm:pt-8 pb-6 sm:pb-8 px-5 sm:px-8 bg-[#1e4d2b] rounded-[32px] sm:rounded-[40px] overflow-hidden shadow-2xl cursor-pointer transition-all duration-300 hover:shadow-brand-light-green/10"
     >
-      {/* Vibrant gradient overlay — fades in on hover */}
       <motion.div
         aria-hidden
-        className="absolute inset-0 pointer-events-none rounded-[36px] sm:rounded-[48px] -z-10"
+        className="absolute inset-0 pointer-events-none -z-10"
         variants={{ hover: { opacity: 1 } }}
         initial={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        style={{
-          background: "linear-gradient(135deg, #1e5c30 0%, #22c55e 60%, #16a34a 100%)",
-        }}
+        transition={{ duration: 0.3 }}
+        style={{ background: "linear-gradient(135deg, #1e5c30 0%, #22c55e 60%, #16a34a 100%)" }}
       />
 
-      <Link to={`/product/${product.id}`} className="absolute inset-0 z-30" aria-label={`View ${product.name}`} />
+      <Link to={`/product/${product.id}`} className="absolute inset-0 z-30" />
 
-      {/* Top Bar */}
-      <div className="flex justify-between items-center mb-6 sm:mb-10 relative z-20 pointer-events-none">
+      <div className="flex justify-between items-center mb-6 relative z-20">
         {product.isBestSeller ? (
-          <span className="bg-brand-light-green text-brand-green px-3 sm:px-4 py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-lg">
+          <span className="bg-brand-light-green text-brand-green px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg">
             Best Seller
           </span>
-        ) : (
-          <div />
-        )}
-        <span className="text-xl sm:text-2xl font-black text-white tracking-tighter">
-          ${product.price.toFixed(2)}
-        </span>
+        ) : <div />}
+        <span className="text-xl sm:text-2xl font-black text-white tracking-tighter">${product.price.toFixed(2)}</span>
       </div>
 
-      {/* Image */}
-      <div className="relative h-[200px] sm:h-[260px] md:h-[300px] flex items-center justify-center mb-6 sm:mb-8 pointer-events-none">
+      <div className="relative h-[200px] sm:h-[240px] flex items-center justify-center mb-6">
         <motion.div
           aria-hidden
-          className="absolute w-[160px] sm:w-[200px] h-[160px] sm:h-[200px] bg-brand-light-green/20 rounded-full blur-[60px]"
-          variants={{ hover: { scale: 1.4, opacity: 0.6 } }}
-          initial={{ scale: 1, opacity: 0.25 }}
-          transition={{ duration: 0.6 }}
+          className="absolute w-[140px] h-[140px] bg-brand-light-green/20 rounded-full blur-[50px]"
+          variants={{ hover: { scale: 1.3, opacity: 0.5 } }}
+          initial={{ scale: 1, opacity: 0.2 }}
         />
+        {!imageLoaded && <div className="absolute inset-0 animate-pulse bg-white/5 rounded-full" />}
         <motion.img
           src={product.image}
           alt={product.name}
-          className="relative z-10 w-[160px] h-[160px] sm:w-[220px] sm:h-[220px] md:w-[260px] md:h-[260px] object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
-          variants={{ hover: { rotate: 8, scale: 1.1, y: -15 } }}
-          initial={{ rotate: 0, scale: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          onLoad={() => setImageLoaded(true)}
+          className={`relative z-10 w-[180px] h-[180px] sm:w-[220px] sm:h-[220px] object-contain drop-shadow-2xl transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+          variants={{ hover: { rotate: 5, scale: 1.05 } }}
+          transition={{ type: "spring", stiffness: 200, damping: 15 }}
         />
       </div>
 
-      {/* Bottom */}
       <div className="mt-auto flex items-center justify-between relative z-20">
-        <div className="flex-1 min-w-0 mr-3 pointer-events-none">
-          <h3 className="text-lg sm:text-xl md:text-2xl font-black text-white uppercase tracking-tighter leading-tight group-hover:text-brand-light-green transition-colors truncate">
+        <div className="flex-1 min-w-0 mr-3">
+          <h3 className="text-lg sm:text-xl font-black text-white uppercase tracking-tighter leading-tight group-hover:text-brand-light-green transition-colors truncate">
             {product.name}
           </h3>
-          <p className="text-white/30 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mt-1 sm:mt-2">
-            {product.category}
-          </p>
+          <p className="text-white/30 text-[9px] font-black uppercase tracking-[0.2em] mt-1">{product.category}</p>
         </div>
         <motion.button
-          whileHover={{ scale: 1.1, backgroundColor: "#c5e1a5", color: "#1e4d2b" }}
+          whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(product); }}
-          className="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center bg-white/10 text-white border border-white/10 rounded-full transition-all shadow-xl shrink-0 pointer-events-auto relative z-40 backdrop-blur-md"
-          aria-label={`Add ${product.name} to cart`}
+          className="w-12 h-12 flex items-center justify-center bg-white/10 text-white border border-white/10 rounded-2xl transition-all shadow-xl backdrop-blur-md hover:bg-brand-light-green hover:text-brand-green"
         >
           <Plus size={20} strokeWidth={3} />
         </motion.button>

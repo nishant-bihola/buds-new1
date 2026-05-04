@@ -1,181 +1,324 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Search } from "lucide-react";
+import { Search, SlidersHorizontal, ChevronDown, X, Grid, List as ListIcon, Info } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
 import type { Product } from "../types";
-import { INITIAL_PRODUCTS } from "../constants";
 import { ProductCard } from "../components/ProductGrid";
+import { TRANSITIONS, VARIANTS } from "@/lib/animations";
 
 export function ShopPage() {
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
-  const categoryParam = searchParams.get("category") || "All";
   
-  const [selectedCategory, setSelectedCategory] = useState(categoryParam);
-  const [searchQuery, setSearchQuery] = useState("");
+  const categoryParam = searchParams.get("category") || "All";
+  const sortParam = searchParams.get("sort") || "newest";
+  const searchParam = searchParams.get("q") || "";
+
+  const [searchQuery, setSearchQuery] = useState(searchParam);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const categories = ["All", "Dried Flower", "Edible", "Vape", "Pre-Roll", "Beverage", "Accessories"];
+  const sortOptions = [
+    { label: "Newest Arrivals", value: "newest" },
+    { label: "Price: Low to High", value: "price-low" },
+    { label: "Price: High to Low", value: "price-high" },
+  ];
 
-  useEffect(() => {
-    setSelectedCategory(categoryParam);
-  }, [categoryParam]);
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (categoryParam !== "All") params.append("category", categoryParam);
+      if (searchParam) params.append("search", searchParam);
+      if (sortParam) params.append("sort", sortParam);
 
-  useEffect(() => {
-    async function fetchProducts() {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/products");
-        const data = await res.json();
-        if (data.products && data.products.length > 0) {
-          setProducts(data.products);
-        }
-      } catch (err) {
-        console.error("API Fetch Error:", err);
-        // local fallback
-      } finally {
-        setLoading(false);
-      }
+      const res = await fetch(`/api/products?${params.toString()}`);
+      const data = await res.json();
+      setProducts(data.products || []);
+    } catch (err) {
+      console.error("API Fetch Error:", err);
+    } finally {
+      setLoading(false);
     }
+  }, [categoryParam, searchParam, sortParam]);
+
+  useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
+
+  // Debounced search update to URL
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== searchParam) {
+        if (searchQuery) searchParams.set("q", searchQuery);
+        else searchParams.delete("q");
+        setSearchParams(searchParams);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, searchParam, searchParams, setSearchParams]);
 
   const handleCategoryChange = (cat: string) => {
-    setSelectedCategory(cat);
-    if (cat === "All") {
-      searchParams.delete("category");
-    } else {
-      searchParams.set("category", cat);
-    }
+    if (cat === "All") searchParams.delete("category");
+    else searchParams.set("category", cat);
+    setSearchParams(searchParams);
+    setIsFilterOpen(false);
+  };
+
+  const handleSortChange = (sort: string) => {
+    searchParams.set("sort", sort);
     setSearchParams(searchParams);
   };
 
-  const filteredProducts = products.filter((p) => {
-    const matchesCategory = selectedCategory === "All" || p.category === selectedCategory;
-    const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-
   return (
-    <div className="bg-[#060b08] min-h-screen">
-      {/* ── High-End Shop Header ────────────────────────────────────────── */}
-      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-4 overflow-hidden border-b border-white/5">
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-b from-brand-green/20 via-transparent to-transparent opacity-50" />
-          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-brand-green/10 rounded-full blur-[120px] -translate-y-1/2" />
+    <div className="bg-[#060b08] min-h-screen text-white selection:bg-brand-light-green selection:text-brand-green overflow-x-hidden">
+      {/* ── Minimalist Premium Header ───────────────────────────────────── */}
+      <section className="relative pt-32 pb-16 md:pt-44 md:pb-28 px-6 overflow-hidden border-b border-white/5 isolate">
+        <div className="absolute inset-0 -z-10 pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-b from-brand-green/30 via-transparent to-transparent opacity-40" />
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-full max-w-6xl h-[500px] bg-brand-light-green/5 blur-[140px] rounded-full" />
         </div>
 
-        <div className="max-w-7xl mx-auto relative z-10">
+        <div className="max-w-7xl mx-auto relative z-10 text-center">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col md:flex-row md:items-end justify-between gap-10"
+            variants={VARIANTS.FADE_UP}
+            initial="hidden"
+            animate="visible"
           >
-            <div className="max-w-2xl">
-              <span className="text-brand-light-green text-[10px] sm:text-[11px] font-black uppercase tracking-[0.5em] mb-4 block">
-                Premium Selection
-              </span>
-              <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black uppercase tracking-tighter text-white leading-[0.85] mb-6">
-                The<br />
-                <span className="text-brand-light-green italic font-display normal-case tracking-normal">Collection.</span>
-              </h1>
-              <p className="text-white/60 text-sm sm:text-lg font-medium leading-relaxed max-w-md">
-                Hand-selected craft flower and premium accessories. Every item verified for potency and purity.
-              </p>
-            </div>
-
-            {/* Search Bar — Premium Style */}
-            <div className="relative w-full md:max-w-sm group">
-              <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
-                <Search className="text-white/40 group-focus-within:text-brand-light-green transition-colors" size={20} />
-              </div>
-              <input
-                type="text"
-                placeholder="Search the collection..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 pl-16 pr-8 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-brand-light-green/20 focus:border-brand-light-green/40 transition-all font-medium backdrop-blur-md"
-              />
-            </div>
+            <span className="inline-block text-brand-light-green text-[10px] font-black uppercase tracking-[0.5em] mb-6">
+              Curated Experience
+            </span>
+            <h1 className="text-6xl sm:text-8xl lg:text-9xl font-black uppercase tracking-tighter leading-[0.8] mb-10">
+              SHOP THE<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-light-green via-white/80 to-white/40 italic font-display normal-case tracking-normal">Menu.</span>
+            </h1>
           </motion.div>
         </div>
       </section>
 
-      {/* ── Filter Bar ────────────────────────────────────────────────── */}
-      <div className="sticky top-20 z-40 bg-[#060b08]/80 backdrop-blur-xl border-b border-white/5 py-4">
-        <div className="max-w-7xl mx-auto px-4 overflow-x-auto hide-scrollbar">
-          <div className="flex items-center gap-2 min-w-max">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => handleCategoryChange(cat)}
-                className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                  selectedCategory === cat
-                    ? "bg-brand-light-green text-brand-green shadow-[0_0_20px_rgba(197,225,165,0.3)]"
-                    : "text-white/60 hover:text-white hover:bg-white/5"
-                }`}
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="flex flex-col lg:flex-row gap-16">
+          
+          {/* ── Sidebar Filters (Desktop) ────────────────────────────────── */}
+          <aside className="hidden lg:block w-72 flex-shrink-0">
+            <div className="sticky top-32 space-y-12">
+              <motion.div
+                variants={VARIANTS.FADE_UP}
+                initial="hidden"
+                animate="visible"
               >
-                {cat}
-              </button>
-            ))}
-          </div>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-8">Categories</h3>
+                <div className="flex flex-col gap-3">
+                  {categories.map((cat, i) => (
+                    <motion.button
+                      key={cat}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 + i * 0.05 }}
+                      onClick={() => handleCategoryChange(cat)}
+                      className={`text-left px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all border ${
+                        categoryParam === cat
+                          ? "bg-brand-light-green/10 border-brand-light-green/30 text-brand-light-green shadow-xl shadow-brand-light-green/5"
+                          : "border-transparent text-white/40 hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      {cat}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+
+              <motion.div
+                variants={VARIANTS.SCALE_IN}
+                initial="hidden"
+                animate="visible"
+                className="p-8 rounded-[40px] bg-white/5 border border-white/10 backdrop-blur-md"
+              >
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-10 h-10 rounded-2xl bg-brand-light-green/10 flex items-center justify-center text-brand-light-green">
+                    <Info size={20} />
+                  </div>
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">Budtender Tip</h4>
+                </div>
+                <p className="text-sm text-white/40 leading-relaxed font-medium">
+                  Looking for a specific vibe? Search by flavor profile or effect to find your perfect match.
+                </p>
+              </motion.div>
+            </div>
+          </aside>
+
+          {/* ── Main Content ─────────────────────────────────────────────── */}
+          <main className="flex-1 min-w-0">
+            {/* ── Toolbar ────────────────────────────────────────────────── */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="relative flex-1 max-w-xl group">
+                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-brand-light-green transition-colors" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Search premium strains..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-[24px] py-5 pl-16 pr-8 text-sm font-medium focus:outline-none focus:ring-8 focus:ring-brand-light-green/5 focus:border-brand-light-green/30 transition-all placeholder:text-white/10"
+                  />
+                </div>
+                <button
+                  onClick={() => setIsFilterOpen(true)}
+                  className="lg:hidden p-5 rounded-[24px] bg-white/5 border border-white/10 hover:bg-white/10 transition-colors shadow-xl"
+                >
+                  <SlidersHorizontal size={22} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-8 self-end md:self-auto">
+                <div className="flex items-center gap-2 bg-white/5 p-2 rounded-2xl border border-white/10 shadow-inner">
+                  <button
+                    onClick={() => setViewMode("grid")}
+                    className={`p-3 rounded-xl transition-all ${viewMode === "grid" ? "bg-white/10 text-brand-light-green" : "text-white/20 hover:text-white"}`}
+                  >
+                    <Grid size={20} />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`p-3 rounded-xl transition-all ${viewMode === "list" ? "bg-white/10 text-brand-light-green" : "text-white/20 hover:text-white"}`}
+                  >
+                    <ListIcon size={20} />
+                  </button>
+                </div>
+
+                <div className="relative group min-w-[200px]">
+                  <select
+                    value={sortParam}
+                    onChange={(e) => handleSortChange(e.target.value)}
+                    className="w-full appearance-none bg-white/5 border border-white/10 rounded-[24px] py-5 pl-8 pr-14 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-8 focus:ring-brand-light-green/5 cursor-pointer"
+                  >
+                    {sortOptions.map(opt => (
+                      <option key={opt.value} value={opt.value} className="bg-brand-green text-white font-black">{opt.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" size={16} />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Products Grid ──────────────────────────────────────────── */}
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <motion.div 
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8"
+                >
+                  {Array(6).fill(0).map((_, i) => (
+                    <div key={i} className="bg-white/5 rounded-[40px] aspect-[4/5] animate-pulse border border-white/5" />
+                  ))}
+                </motion.div>
+              ) : products.length > 0 ? (
+                <motion.div
+                  key="products"
+                  layout
+                  className={viewMode === "grid" 
+                    ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8"
+                    : "flex flex-col gap-8"
+                  }
+                >
+                  {products.map((product, idx) => (
+                    <motion.div
+                      key={product.id}
+                      layout
+                      variants={VARIANTS.FADE_UP}
+                      custom={idx % 6}
+                      initial="hidden"
+                      animate="visible"
+                    >
+                      <ProductCard product={product} viewMode={viewMode} />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="empty"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="py-48 text-center"
+                >
+                  <div className="inline-flex items-center justify-center w-32 h-32 rounded-[40px] bg-white/5 mb-10 border border-white/10">
+                    <Search size={48} className="text-white/10" />
+                  </div>
+                  <h3 className="text-4xl font-black uppercase tracking-tighter mb-4">No Strains Found.</h3>
+                  <p className="text-white/30 text-lg font-medium mb-12 max-w-sm mx-auto">We couldn't find anything matching your filters or search query.</p>
+                  <button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSearchParams({});
+                    }}
+                    className="px-10 py-5 bg-brand-light-green text-brand-green rounded-[24px] text-[11px] font-black uppercase tracking-[0.3em] hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-brand-light-green/10"
+                  >
+                    Clear All Filters
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </main>
         </div>
       </div>
 
-      {/* ── Main Grid ─────────────────────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 py-16 md:py-24">
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
-            {Array(6).fill(0).map((_, i) => (
-              <div key={i} className="bg-white/5 rounded-[40px] aspect-[4/5] animate-pulse" />
-            ))}
-          </div>
-        ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
-            <AnimatePresence mode="popLayout">
-              {filteredProducts.map((product, idx) => (
-                <motion.div
-                  key={product.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ 
-                    duration: 0.2, 
-                    delay: idx % 3 * 0.05,
-                    ease: "easeOut"
-                  }}
-                >
-                  <ProductCard product={product} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="py-32 text-center"
-          >
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/5 mb-6">
-              <Search className="text-white/20" size={32} />
-            </div>
-            <h3 className="text-2xl font-black uppercase tracking-tight text-white mb-2">No results found</h3>
-            <p className="text-white/40 font-medium">Try adjusting your filters or search query.</p>
-            <button
-              onClick={() => { setSelectedCategory("All"); setSearchQuery(""); }}
-              className="mt-8 text-brand-light-green font-black uppercase tracking-widest text-[11px] hover:underline"
+      {/* ── Mobile Filter Drawer ───────────────────────────────────────── */}
+      <AnimatePresence>
+        {isFilterOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsFilterOpen(false)}
+              className="fixed inset-0 bg-black/90 backdrop-blur-md z-[200]"
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 35, stiffness: 350, mass: 0.8 }}
+              className="fixed right-0 top-0 bottom-0 w-full max-w-sm bg-[#060b08] border-l border-white/10 z-[210] p-10 flex flex-col"
             >
-              Reset All Filters
-            </button>
-          </motion.div>
+              <div className="flex items-center justify-between mb-16">
+                <h2 className="text-3xl font-black uppercase tracking-tighter text-brand-light-green">Filters</h2>
+                <button 
+                  onClick={() => setIsFilterOpen(false)} 
+                  className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-2xl hover:bg-white/10 transition-colors"
+                >
+                  <X size={24} strokeWidth={3} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-16 custom-scrollbar pr-2">
+                <div>
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 mb-8">Categories</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => handleCategoryChange(cat)}
+                        className={`px-6 py-5 rounded-[24px] text-[10px] font-black uppercase tracking-widest border transition-all ${
+                          categoryParam === cat
+                            ? "bg-brand-light-green border-brand-light-green text-brand-green shadow-xl shadow-brand-light-green/10"
+                            : "border-white/5 text-white/40 bg-white/[0.02]"
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
-      </main>
+      </AnimatePresence>
     </div>
   );
 }

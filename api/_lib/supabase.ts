@@ -14,6 +14,17 @@ export async function getProducts(adminAll = false) {
   return data ?? [];
 }
 
+export async function upsertProduct(product: any) {
+  const { data, error } = await supabase.from("products").upsert(product).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteProduct(id: string) {
+  const { error } = await supabase.from("products").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function getOrders() {
   const { data } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
   return data ?? [];

@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { isAutomationEnabled, logEmailEvent } from "./supabase";
+import { isAutomationEnabled, logEmailEvent } from "./supabase.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 

@@ -1,17 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { Hero } from "../components/Hero";
-import { BrandStatement } from "../components/BrandStatement";
-import { LogoMarquee } from "../components/LogoMarquee";
-import { Intro } from "../components/Intro";
-import { ProductGrid } from "../components/ProductGrid";
-import { Reviews } from "../components/Reviews";
-import { BestSellerFeature } from "../components/BestSellerFeature";
-import { About } from "../components/About";
-import { StorySection } from "../components/StorySection";
-import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
-import type { Product } from "../types";
 import { INITIAL_PRODUCTS } from "../constants";
+import type { Product } from "../types";
+
+// Lazy load sections below the fold for lighting fast performance
+const BrandStatement = lazy(() => import("../components/BrandStatement").then(m => ({ default: m.BrandStatement })));
+const LogoMarquee = lazy(() => import("../components/LogoMarquee").then(m => ({ default: m.LogoMarquee })));
+const Intro = lazy(() => import("../components/Intro").then(m => ({ default: m.Intro })));
+const MemberPerks = lazy(() => import("../components/MemberPerks"));
+const ProductGrid = lazy(() => import("../components/ProductGrid").then(m => ({ default: m.ProductGrid })));
+const Reviews = lazy(() => import("../components/Reviews").then(m => ({ default: m.Reviews })));
+const BestSellerFeature = lazy(() => import("../components/BestSellerFeature").then(m => ({ default: m.BestSellerFeature })));
+const About = lazy(() => import("../components/About").then(m => ({ default: m.About })));
+const StorySection = lazy(() => import("../components/StorySection").then(m => ({ default: m.StorySection })));
+
+// Premium Skeleton Loader for Sections
+const SectionSkeleton = () => (
+  <div className="w-full h-[60vh] bg-[#060b08] animate-pulse flex items-center justify-center">
+    <div className="w-24 h-[1px] bg-brand-light-green/20" />
+  </div>
+);
 
 export function Home() {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
@@ -28,7 +36,6 @@ export function Home() {
         }
       } catch (err) {
         console.error("API Fetch Error:", err);
-        // Fallback already in state
       } finally {
         setLoading(false);
       }
@@ -38,21 +45,32 @@ export function Home() {
 
   return (
     <div className="flex flex-col bg-[#060b08]">
-      <div className="order-1"><Hero /></div>
-      <div className="order-2"><BrandStatement /></div>
-      <div className="order-3"><LogoMarquee /></div>
+      <Hero />
       
-      {/* Dynamic ordering for Product Menu */}
-      <div className="order-4 lg:order-6">
-        <ProductGrid products={products} loading={loading} />
-      </div>
-
-      <div className="order-5 lg:order-4"><StorySection /></div>
-      <div className="order-6 lg:order-5"><Intro /></div>
-      
-      <div className="order-7"><Reviews /></div>
-      <div className="order-8"><BestSellerFeature /></div>
-      <div className="order-9"><About /></div>
+      <Suspense fallback={<SectionSkeleton />}>
+        <div className="space-y-0">
+          <BrandStatement />
+          <LogoMarquee />
+          <MemberPerks />
+          
+          {/* Dynamic ordering optimization */}
+          <div className="flex flex-col">
+            <div className="order-2 lg:order-1">
+               <StorySection />
+            </div>
+            <div className="order-1 lg:order-2">
+               <ProductGrid products={products} loading={loading} />
+            </div>
+            <div className="order-3">
+               <Intro />
+            </div>
+          </div>
+          
+          <Reviews />
+          <BestSellerFeature />
+          <About />
+        </div>
+      </Suspense>
     </div>
   );
 }

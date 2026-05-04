@@ -1,5 +1,19 @@
-import { db } from "../_lib/supabaseAdmin";
-import { requireAdmin } from "../_lib/adminAuth";
+import { createClient } from "@supabase/supabase-js";
+
+// Supabase Service Role client (API only)
+const db = createClient(
+  process.env.SUPABASE_URL || "https://dummy.supabase.co",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy-key",
+  { auth: { persistSession: false } }
+);
+
+function requireAdmin(req: any, res: any): boolean {
+  const secret = process.env.ADMIN_SECRET ?? "budnbuddies2026";
+  const auth = (req.headers as any).authorization ?? "";
+  if (auth === `Bearer ${secret}`) return true;
+  res.status(401).json({ error: "Unauthorized" });
+  return false;
+}
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Access-Control-Allow-Origin", "*");

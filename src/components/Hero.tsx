@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { ImageTrail } from "@/components/ui/image-trail";
 import { useMouseVector } from "@/components/hooks/use-mouse-vector";
+import { TRANSITIONS } from "@/lib/animations";
 
 export function Hero() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -47,14 +48,14 @@ export function Hero() {
   ];
 
   const wordVars = {
-    hidden: { y: "20%", opacity: 0 },
+    hidden: { y: "60%", opacity: 0 },
     visible: (i: number) => ({
       y: "0%",
       opacity: 1,
       transition: {
-        duration: 0.25,
-        ease: "easeOut",
-        delay: i * 0.04,
+        duration: 0.8,
+        ease: TRANSITIONS.PREMIUM,
+        delay: 0.15 + i * 0.1,
       },
     }),
   };
@@ -78,8 +79,10 @@ export function Hero() {
           muted
           loop
           playsInline
-          className="h-full w-full object-cover"
+          preload="auto"
+          className="h-full w-full object-cover pointer-events-none"
           poster="/images/brand_hero.png"
+          style={{ contentVisibility: 'auto' }}
         >
           <source src="/videos/hero_bg.mp4" type="video/mp4" />
         </video>

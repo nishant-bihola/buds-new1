@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getOrders, insertOrder, upsertCustomer, getPromoByCode, incrementPromoUsage } from "./_lib/supabase";
-import { sendOrderConfirmation, sendAdminAlert, sendWelcome } from "./_lib/email";
-import { requireAdmin, json } from "./_lib/auth";
+import { getOrders, insertOrder, upsertCustomer, getPromoByCode, incrementPromoUsage } from "./_lib/supabase.js";
+import { sendOrderConfirmation, sendAdminAlert, sendWelcome } from "./_lib/email.js";
+import { requireAdmin, json } from "./_lib/auth.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "OPTIONS") return res.status(200).end();

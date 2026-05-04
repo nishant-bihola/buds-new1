@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getOrderById, updateOrder } from "../../_lib/supabase";
-import { sendDispatched, sendDelivered, sendReadyForPickup } from "../../_lib/email";
-import { requireAdmin } from "../../_lib/auth";
+import { getOrderById, updateOrder } from "../../_lib/supabase.js";
+import { sendDispatched, sendDelivered, sendReadyForPickup } from "../../_lib/email.js";
+import { requireAdmin } from "../../_lib/auth.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "PATCH") return res.status(405).end();
