@@ -263,6 +263,18 @@
       ],
       "total": 24.99,
       "updatedAt": "2026-05-04T20:55:24.868Z"
+    },
+    {
+      "sessionKey": "901b1116-c9de-41e4-a857-7117f7fcfc30",
+      "items": [
+        {
+          "name": "Nano Banana Kush",
+          "price": 35,
+          "quantity": 1
+        }
+      ],
+      "total": 35,
+      "updatedAt": "2026-05-04T22:00:01.338Z"
     }
   ]
 }
