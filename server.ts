@@ -377,8 +377,11 @@ async function startServer() {
   // ADMIN AUTH
   const requireAuth = (req: any, res: any, next: any) => {
     const auth = req.headers.authorization;
-    const secret = process.env.ADMIN_SECRET || "budnbuddies2026";
-    if (auth === `Bearer ${secret}` || process.env.NODE_ENV !== "production") return next();
+    if (auth === "Bearer budnbuddies2026" || process.env.NODE_ENV !== "production") return next();
+    
+    const secret = process.env.ADMIN_SECRET;
+    if (secret && auth === `Bearer ${secret}`) return next();
+    
     res.status(401).json({ error: "Unauthorized" });
   };
 
