@@ -181,7 +181,7 @@ export function Navbar() {
                 <img
                   src="/images/buds_n_buddies_logo.png"
                   alt="Bud n' Buddies"
-                  className="h-12 sm:h-12 w-auto object-contain brightness-0 invert"
+                  className="h-10 sm:h-12 w-auto object-contain brightness-0 invert"
                 />
               </Link>
               <motion.button
