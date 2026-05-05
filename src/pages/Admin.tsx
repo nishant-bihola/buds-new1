@@ -244,7 +244,7 @@ function Overview() {
         <div className="lg:col-span-2 bg-white rounded-[48px] p-10 shadow-sm border border-brand-green/5">
           <h3 className="font-black uppercase tracking-[0.3em] text-[10px] text-brand-green/30 mb-8">Recent Revenue</h3>
           <div className="h-64 flex items-end gap-2">
-            {stats.revenueByDay?.slice(-14).map((d: any, i: number) => (
+            {(stats.revenueByDay || []).slice(-14).map((d: any, i: number) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
                 <div className="w-full bg-brand-green/5 rounded-full relative overflow-hidden h-full">
                   <motion.div 
@@ -284,7 +284,7 @@ function Overview() {
       <div className="bg-white rounded-[48px] p-10 shadow-sm border border-brand-green/5">
         <h3 className="font-black uppercase tracking-[0.3em] text-[10px] text-brand-green/30 mb-8">Top Performing Products</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {stats.topProducts?.map((p: any) => (
+          {(stats.topProducts || []).map((p: any) => (
             <div key={p.name} className="flex items-center justify-between p-6 bg-brand-green/5 rounded-3xl group hover:bg-brand-green hover:text-brand-earth transition-all">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white/50 rounded-2xl flex items-center justify-center text-brand-green shadow-sm">
@@ -453,6 +453,7 @@ export function ProductManagement() {
               <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40">Product</th>
               <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40">Category</th>
               <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40">Price</th>
+              <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40">Stock</th>
               <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40">Status</th>
               <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40 text-right">Actions</th>
             </tr>
@@ -473,6 +474,9 @@ export function ProductManagement() {
                 </td>
                 <td className="px-10 py-5 font-medium text-brand-green/60">{p.category}</td>
                 <td className="px-10 py-5 font-black text-brand-green">${p.price?.toFixed(2)}</td>
+                <td className="px-10 py-5 font-black text-brand-green">
+                  {p.quantity || 0} <span className="text-[9px] opacity-40 ml-1">Units</span>
+                </td>
                 <td className="px-10 py-5">
                   <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${p.inStock !== false ? "bg-brand-light-green/10 text-brand-green border-brand-light-green/20" : "bg-red-500/10 text-red-600 border-red-500/20"}`}>
                     {p.inStock !== false ? "Live" : "OOS"}
@@ -516,9 +520,13 @@ function ProductModal({ product, onClose, onSave }: { product?: any; onClose: ()
     image: "", 
     description: "", 
     inStock: true,
+    quantity: 0,
     brand: "",
     thc: "",
-    weight: ""
+    cbd: "",
+    weight: "",
+    strain: "Hybrid",
+    isBestSeller: false
   });
   const [loading, setLoading] = useState(false);
 
@@ -545,11 +553,11 @@ function ProductModal({ product, onClose, onSave }: { product?: any; onClose: ()
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-brand-green/40 backdrop-blur-xl">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-brand-green/60 backdrop-blur-xl">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }} 
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-2xl bg-brand-earth rounded-[32px] sm:rounded-[48px] p-6 sm:p-10 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-2xl bg-brand-earth rounded-[32px] sm:rounded-[48px] p-6 sm:p-10 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
       >
         <div className="flex justify-between items-center mb-8 sm:mb-10">
           <div>
@@ -597,14 +605,53 @@ function ProductModal({ product, onClose, onSave }: { product?: any; onClose: ()
           </div>
 
           <div className="space-y-2">
-            <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 ml-2">Stock Status</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 ml-2">Inventory (Quantity)</p>
+            <input 
+              type="number" className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-5 py-4 outline-none font-bold text-brand-green"
+              value={data.quantity} onChange={e => setData({...data, quantity: parseInt(e.target.value) || 0})}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 ml-2">THC % / mg</p>
+            <input 
+              className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-5 py-4 outline-none font-bold text-brand-green"
+              value={data.thc} onChange={e => setData({...data, thc: e.target.value})}
+              placeholder="e.g. 24%"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 ml-2">Weight / Size</p>
+            <input 
+              className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-5 py-4 outline-none font-bold text-brand-green"
+              value={data.weight} onChange={e => setData({...data, weight: e.target.value})}
+              placeholder="e.g. 3.5g"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 ml-2">Strain Type</p>
             <select 
               className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-5 py-4 outline-none font-bold text-brand-green"
-              value={data.inStock ? "true" : "false"} onChange={e => setData({...data, inStock: e.target.value === "true"})}
+              value={data.strain} onChange={e => setData({...data, strain: e.target.value})}
             >
-              <option value="true">Live / In Stock</option>
-              <option value="false">Out of Stock</option>
+              {["Indica", "Sativa", "Hybrid", "CBD Dominant", "N/A"].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 ml-2">Options</p>
+            <div className="flex gap-4 items-center h-[60px]">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={data.inStock} onChange={e => setData({...data, inStock: e.target.checked})} className="w-5 h-5 rounded border-brand-green/10 text-brand-green focus:ring-brand-green" />
+                <span className="text-[11px] font-bold text-brand-green/60 uppercase">Live</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={data.isBestSeller} onChange={e => setData({...data, isBestSeller: e.target.checked})} className="w-5 h-5 rounded border-brand-green/10 text-brand-green focus:ring-brand-green" />
+                <span className="text-[11px] font-bold text-brand-green/60 uppercase">Bestseller</span>
+              </label>
+            </div>
           </div>
 
           <div className="sm:col-span-2 space-y-2">
@@ -651,6 +698,499 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /* ── Placeholder Tabs ────────────────────────────────────────────────── */
-function Customers() { return <div className="p-12 text-center text-brand-green/40 font-black uppercase tracking-widest">Customer Directory Coming Soon</div>; }
-function PromoCodes() { return <div className="p-12 text-center text-brand-green/40 font-black uppercase tracking-widest">Voucher Management Coming Soon</div>; }
-function Settings() { return <div className="p-12 text-center text-brand-green/40 font-black uppercase tracking-widest">System Settings Coming Soon</div>; }
+function Customers() {
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/customers", { headers: authHeaders() })
+      .then(r => r.json()).then(d => { setCustomers(d.customers || []); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+
+  const filtered = customers.filter(c => 
+    c.name?.toLowerCase().includes(search.toLowerCase()) || 
+    c.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (loading) return <div className="space-y-4 animate-pulse">{Array(5).fill(0).map((_, i) => <div key={i} className="h-20 bg-brand-green/5 rounded-3xl" />)}</div>;
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-white rounded-[40px] p-8 shadow-sm border border-brand-green/5">
+        <div>
+          <h2 className="text-2xl font-black uppercase tracking-tighter text-brand-green mb-1">Customer Directory</h2>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/30">Build lasting relationships</p>
+        </div>
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-brand-green/20" size={18} />
+          <input 
+            className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl pl-12 pr-6 py-4 outline-none font-bold text-brand-green placeholder:text-brand-green/20"
+            placeholder="Search customers..."
+            value={search} onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[48px] overflow-hidden border border-brand-green/5 shadow-sm overflow-x-auto">
+        <table className="w-full text-left min-w-[800px]">
+          <thead className="bg-brand-green/5">
+            <tr>
+              <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40">Customer</th>
+              <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40">Contact Info</th>
+              <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40">Orders</th>
+              <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40">Total Spent</th>
+              <th className="px-10 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/40">Joined</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-brand-green/5">
+            {filtered.map((c) => (
+              <tr key={c.id} className="group hover:bg-brand-green/[0.02] transition-colors">
+                <td className="px-10 py-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-brand-green/5 rounded-full flex items-center justify-center text-brand-green font-black text-lg">
+                      {c.name?.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-brand-green">{c.name}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-brand-green/30">ID: {c.id?.slice(0, 8)}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-10 py-6">
+                  <p className="text-sm font-bold text-brand-green">{c.email}</p>
+                  <p className="text-xs text-brand-green/40">{c.phone}</p>
+                </td>
+                <td className="px-10 py-6">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag size={14} className="text-brand-green/40" />
+                    <span className="font-black text-brand-green">{c.totalOrders || 0}</span>
+                  </div>
+                </td>
+                <td className="px-10 py-6">
+                  <span className="font-black text-brand-green text-lg">${c.totalSpent?.toFixed(2)}</span>
+                </td>
+                <td className="px-10 py-6">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-brand-green/40">{new Date(c.createdAt).toLocaleDateString()}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+function PromoCodes() {
+  const [promos, setPromos] = useState<any[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPromos = async () => {
+    const res = await fetch("/api/admin/promo-codes", { headers: authHeaders() });
+    const data = await res.json();
+    setPromos(data.promoCodes || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchPromos(); }, []);
+
+  const removePromo = async (id: string) => {
+    if (!confirm("Delete this promo code?")) return;
+    await fetch(`/api/admin/promo-codes/${id}`, { method: "DELETE", headers: authHeaders() });
+    fetchPromos();
+  };
+
+  if (loading) return <div className="space-y-4 animate-pulse">{Array(3).fill(0).map((_, i) => <div key={i} className="h-24 bg-brand-green/5 rounded-[32px]" />)}</div>;
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center bg-white rounded-[40px] p-8 shadow-sm border border-brand-green/5">
+        <div>
+          <h2 className="text-2xl font-black uppercase tracking-tighter text-brand-green mb-1">Vouchers</h2>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-green/30">Marketing & Loyalty</p>
+        </div>
+        <button 
+          onClick={() => setIsAdding(true)}
+          className="bg-brand-green text-brand-earth px-8 py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-3"
+        >
+          <Plus size={16} strokeWidth={3} />
+          Create Code
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {promos.map((p) => (
+          <div key={p.id} className="bg-white rounded-[40px] p-8 shadow-sm border border-brand-green/5 group hover:shadow-xl transition-all">
+            <div className="flex justify-between items-start mb-6">
+              <div className="bg-brand-light-green/10 px-4 py-2 rounded-2xl border border-brand-light-green/20">
+                <span className="font-black text-brand-green tracking-widest uppercase text-sm">{p.code}</span>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setEditingPromo(p)} className="p-2 rounded-lg hover:bg-brand-green/5 text-brand-green/20 hover:text-brand-green transition-all"><Pencil size={14} /></button>
+                <button onClick={() => removePromo(p.id)} className="p-2 rounded-lg hover:bg-red-500/5 text-brand-green/20 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/30 mb-1">Discount</p>
+                  <p className="text-2xl font-black text-brand-green">
+                    {p.type === "percent" ? `${p.discount}%` : `$${p.discount}`}
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-30 ml-2">OFF</span>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/30 mb-1">Usage</p>
+                  <p className="font-black text-brand-green">{p.usageCount || 0} / {p.maxUses || "∞"}</p>
+                </div>
+              </div>
+
+              <div className={`w-full h-1.5 bg-brand-green/5 rounded-full overflow-hidden`}>
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(((p.usageCount || 0) / (p.maxUses || 100)) * 100, 100)}%` }}
+                  className="h-full bg-brand-light-green"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {(isAdding || editingPromo) && (
+        <PromoModal 
+          promo={editingPromo} 
+          onClose={() => { setIsAdding(false); setEditingPromo(null); }} 
+          onSave={() => { setIsAdding(false); setEditingPromo(null); fetchPromos(); }} 
+        />
+      )}
+    </div>
+  );
+}
+
+function PromoModal({ promo, onClose, onSave }: { promo?: any; onClose: () => void; onSave: () => void }) {
+  const [data, setData] = useState(promo || { code: "", discount: 10, type: "percent", active: true, maxUses: 100 });
+  const [loading, setLoading] = useState(false);
+
+  const save = async () => {
+    setLoading(true);
+    const url = promo ? `/api/admin/promo-codes/${promo.id}` : "/api/admin/promo-codes";
+    const method = promo ? "PUT" : "POST";
+    await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(data) });
+    setLoading(false);
+    onSave();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-brand-green/40 backdrop-blur-xl">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md bg-brand-earth rounded-[48px] p-10 shadow-2xl">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-black uppercase tracking-tighter text-brand-green">{promo ? "Edit Code" : "New Voucher"}</h2>
+          <button onClick={onClose} className="p-3 bg-brand-green/5 rounded-2xl text-brand-green"><X size={20} /></button>
+        </div>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 ml-2">Promo Code</p>
+            <input className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-6 py-4 outline-none font-black text-brand-green uppercase tracking-widest" value={data.code} onChange={e => setData({...data, code: e.target.value.toUpperCase()})} placeholder="e.g. SUMMER25" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 ml-2">Type</p>
+              <select className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-6 py-4 outline-none font-bold text-brand-green" value={data.type} onChange={e => setData({...data, type: e.target.value})}>
+                <option value="percent">Percentage</option>
+                <option value="fixed">Fixed Amount</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 ml-2">Value</p>
+              <input type="number" className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-6 py-4 outline-none font-black text-brand-green" value={data.discount} onChange={e => setData({...data, discount: parseFloat(e.target.value)})} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 ml-2">Max Uses</p>
+            <input type="number" className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-6 py-4 outline-none font-black text-brand-green" value={data.maxUses} onChange={e => setData({...data, maxUses: parseInt(e.target.value)})} />
+          </div>
+        </div>
+        <button onClick={save} disabled={loading} className="w-full bg-brand-green text-brand-earth py-5 rounded-2xl text-[12px] font-black uppercase tracking-widest mt-10 hover:brightness-110 shadow-xl shadow-brand-green/20">
+          {loading ? "Saving..." : promo ? "Update Voucher" : "Create Voucher"}
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+function Settings() {
+  const [subTab, setSubTab] = useState<"Hours" | "Zones" | "Drivers" | "Automations">("Hours");
+  
+  return (
+    <div className="space-y-8">
+      <div className="flex gap-4 sm:gap-8 border-b border-brand-green/5 overflow-x-auto pb-1 scrollbar-hide">
+        {["Hours", "Zones", "Drivers", "Automations"].map((t: any) => (
+          <button 
+            key={t} 
+            onClick={() => setSubTab(t)}
+            className={`pb-4 px-2 text-[10px] font-black uppercase tracking-[0.3em] transition-all whitespace-nowrap ${subTab === t ? "text-brand-green border-b-2 border-brand-green" : "text-brand-green/30 hover:text-brand-green/60"}`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-8">
+        {subTab === "Hours" && <StoreHoursSettings />}
+        {subTab === "Zones" && <DeliveryZoneSettings />}
+        {subTab === "Drivers" && <DriverSettings />}
+        {subTab === "Automations" && <AutomationSettings />}
+      </div>
+    </div>
+  );
+}
+
+function StoreHoursSettings() {
+  const [hours, setHours] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/admin/store-hours", { headers: authHeaders() })
+      .then(r => r.json()).then(d => { setHours(d.hours || []); setLoading(false); });
+  }, []);
+
+  const save = async () => {
+    await fetch("/api/admin/store-hours", {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ hours })
+    });
+    alert("Hours updated successfully.");
+  };
+
+  if (loading) return <div className="animate-pulse h-64 bg-white rounded-[48px]" />;
+
+  return (
+    <div className="bg-white rounded-[48px] p-8 sm:p-12 shadow-sm border border-brand-green/5 max-w-4xl">
+      <div className="space-y-6 mb-12">
+        {hours.map((h, i) => (
+          <div key={h.day} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-brand-green/5 last:border-0 last:pb-0">
+            <span className="font-black text-brand-green uppercase tracking-tighter text-lg w-32">{h.day}</span>
+            <div className="flex items-center gap-4">
+              <input 
+                type="time" className="bg-brand-green/5 border border-brand-green/10 rounded-xl px-4 py-2 font-bold text-brand-green outline-none"
+                value={h.open} onChange={e => {
+                  const n = [...hours]; n[i].open = e.target.value; setHours(n);
+                }}
+              />
+              <span className="text-brand-green/20 font-black">TO</span>
+              <input 
+                type="time" className="bg-brand-green/5 border border-brand-green/10 rounded-xl px-4 py-2 font-bold text-brand-green outline-none"
+                value={h.close} onChange={e => {
+                  const n = [...hours]; n[i].close = e.target.value; setHours(n);
+                }}
+              />
+              <button 
+                onClick={() => { const n = [...hours]; n[i].closed = !n[i].closed; setHours(n); }}
+                className={`ml-4 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${h.closed ? "bg-red-500 text-white border-red-500" : "border-brand-green/10 text-brand-green/40 hover:border-brand-green/30"}`}
+              >
+                {h.closed ? "Closed" : "Open"}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button onClick={save} className="bg-brand-green text-brand-earth px-12 py-5 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:scale-105 transition-all shadow-xl shadow-brand-green/20">
+        Update Store Hours
+      </button>
+    </div>
+  );
+}
+
+function DeliveryZoneSettings() {
+  const [zones, setZones] = useState<any[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingZone, setEditingZone] = useState<any | null>(null);
+
+  const fetchZones = () => fetch("/api/admin/delivery-zones", { headers: authHeaders() }).then(r => r.json()).then(d => setZones(d.zones || []));
+  useEffect(() => { fetchZones(); }, []);
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {zones.map(z => (
+          <div key={z.id} className="bg-white rounded-[40px] p-8 shadow-sm border border-brand-green/5">
+            <div className="flex justify-between items-start mb-6">
+              <h4 className="font-black text-brand-green uppercase tracking-tighter text-xl leading-none">{z.name}</h4>
+              <div className="flex gap-2">
+                <button onClick={() => setEditingZone(z)} className="p-2 rounded-lg hover:bg-brand-green/5 text-brand-green/20 hover:text-brand-green transition-all"><Pencil size={14} /></button>
+                <button onClick={async () => { if(confirm("Delete zone?")) { await fetch(`/api/admin/delivery-zones/${z.id}`, { method: "DELETE", headers: authHeaders() }); fetchZones(); } }} className="p-2 rounded-lg hover:bg-red-500/5 text-brand-green/20 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/30 mb-1">Postal Prefix</p>
+                <p className="font-black text-brand-green">{z.postalPrefix}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/30 mb-1">Delivery Fee</p>
+                <p className="font-black text-brand-green">{z.fee === 0 ? "FREE" : `$${z.fee}`}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/30 mb-1">Min. Order</p>
+                <p className="font-black text-brand-green">${z.minOrder}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button 
+        onClick={() => setIsAdding(true)}
+        className="bg-brand-green/5 text-brand-green border border-brand-green/10 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-brand-green/10 transition-all flex items-center gap-3"
+      >
+        <Plus size={16} /> Add Delivery Zone
+      </button>
+
+      {(isAdding || editingZone) && (
+        <ZoneModal 
+          zone={editingZone}
+          onClose={() => { setIsAdding(false); setEditingZone(null); }}
+          onSave={() => { setIsAdding(false); setEditingZone(null); fetchZones(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ZoneModal({ zone, onClose, onSave }: { zone?: any; onClose: () => void; onSave: () => void }) {
+  const [data, setData] = useState(zone || { name: "", postalPrefix: "", fee: 0, minOrder: 40, active: true });
+  const [loading, setLoading] = useState(false);
+
+  const save = async () => {
+    setLoading(true);
+    const url = zone ? `/api/admin/delivery-zones/${zone.id}` : "/api/admin/delivery-zones";
+    const method = zone ? "PUT" : "POST";
+    await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(data) });
+    setLoading(false);
+    onSave();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-brand-green/40 backdrop-blur-xl">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md bg-brand-earth rounded-[48px] p-10 shadow-2xl">
+        <h2 className="text-3xl font-black uppercase tracking-tighter text-brand-green mb-8">{zone ? "Edit Zone" : "New Zone"}</h2>
+        <div className="space-y-6">
+          <input className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-6 py-4 font-bold text-brand-green" value={data.name} onChange={e => setData({...data, name: e.target.value})} placeholder="Zone Name" />
+          <input className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-6 py-4 font-bold text-brand-green" value={data.postalPrefix} onChange={e => setData({...data, postalPrefix: e.target.value.toUpperCase()})} placeholder="Postal Prefix (e.g. T8A)" />
+          <div className="grid grid-cols-2 gap-4">
+            <input type="number" className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-6 py-4 font-bold text-brand-green" value={data.fee} onChange={e => setData({...data, fee: parseFloat(e.target.value)})} placeholder="Fee" />
+            <input type="number" className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-6 py-4 font-bold text-brand-green" value={data.minOrder} onChange={e => setData({...data, minOrder: parseFloat(e.target.value)})} placeholder="Min Order" />
+          </div>
+        </div>
+        <button onClick={save} disabled={loading} className="w-full bg-brand-green text-brand-earth py-5 rounded-2xl font-black uppercase tracking-widest text-[12px] mt-10 hover:brightness-110 shadow-xl">
+          {loading ? "Saving..." : "Save Delivery Zone"}
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
+function DriverSettings() {
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const fetchDrivers = () => fetch("/api/admin/drivers", { headers: authHeaders() }).then(r => r.json()).then(d => setDrivers(d.drivers || []));
+  useEffect(() => { fetchDrivers(); }, []);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {drivers.map(d => (
+        <div key={d.id} className="bg-white rounded-[40px] p-8 shadow-sm border border-brand-green/5 flex items-center justify-between">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 bg-brand-green/5 rounded-2xl flex items-center justify-center text-brand-green">
+              <Truck size={24} />
+            </div>
+            <div>
+              <p className="font-black text-brand-green uppercase tracking-tighter text-lg">{d.name}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-brand-green/30">{d.phone}</p>
+            </div>
+          </div>
+          <button onClick={async () => { if(confirm("Delete driver?")) { await fetch(`/api/admin/drivers/${d.id}`, { method: "DELETE", headers: authHeaders() }); fetchDrivers(); } }} className="p-3 hover:bg-red-500/5 text-brand-green/20 hover:text-red-500 transition-all rounded-xl">
+            <Trash2 size={18} />
+          </button>
+        </div>
+      ))}
+      <button 
+        onClick={() => setIsAdding(true)}
+        className="bg-brand-green text-brand-earth px-8 py-6 rounded-[40px] font-black uppercase tracking-widest text-[11px] flex flex-col items-center justify-center gap-3 hover:scale-105 transition-all shadow-xl shadow-brand-green/20"
+      >
+        <Plus size={24} strokeWidth={3} />
+        Add New Driver
+      </button>
+
+      {isAdding && (
+        <DriverModal 
+          onClose={() => setIsAdding(false)}
+          onSave={() => { setIsAdding(false); fetchDrivers(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function DriverModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+  const [data, setData] = useState({ name: "", phone: "" });
+  const [loading, setLoading] = useState(false);
+
+  const save = async () => {
+    setLoading(true);
+    await fetch("/api/admin/drivers", { method: "POST", headers: authHeaders(), body: JSON.stringify(data) });
+    setLoading(false);
+    onSave();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-brand-green/40 backdrop-blur-xl">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md bg-brand-earth rounded-[48px] p-10 shadow-2xl">
+        <h2 className="text-3xl font-black uppercase tracking-tighter text-brand-green mb-8">New Driver</h2>
+        <div className="space-y-6">
+          <input className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-6 py-4 font-bold text-brand-green" value={data.name} onChange={e => setData({...data, name: e.target.value})} placeholder="Driver Name" />
+          <input className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-6 py-4 font-bold text-brand-green" value={data.phone} onChange={e => setData({...data, phone: e.target.value})} placeholder="Phone Number" />
+        </div>
+        <button onClick={save} disabled={loading} className="w-full bg-brand-green text-brand-earth py-5 rounded-2xl font-black uppercase tracking-widest text-[12px] mt-10 hover:brightness-110 shadow-xl">
+          {loading ? "Saving..." : "Add Driver"}
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
+function AutomationSettings() {
+  const [settings, setSettings] = useState<any[]>([]);
+  const fetchSettings = () => fetch("/api/admin/automations", { headers: authHeaders() }).then(r => r.json()).then(d => setSettings(d.settings || []));
+  useEffect(() => { fetchSettings(); }, []);
+
+  const toggle = async (key: string, enabled: boolean) => {
+    await fetch("/api/admin/automations", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ key, enabled })
+    });
+    fetchSettings();
+  };
+
+  return (
+    <div className="bg-white rounded-[48px] p-10 shadow-sm border border-brand-green/5 max-w-4xl">
+      <div className="space-y-2">
+        {settings.map(s => (
+          <div key={s.key} className="flex items-center justify-between py-6 border-b border-brand-green/5 last:border-0">
+            <div>
+              <p className="font-black text-brand-green uppercase tracking-tighter text-lg leading-none mb-1">{s.key.replace(/_/g, " ")}</p>
+              <p className="text-[10px] font-bold text-brand-green/30 uppercase tracking-widest">Automatic Email Trigger</p>
+            </div>
+            <button onClick={() => toggle(s.key, !s.enabled)} className="transition-all">
+              {s.enabled ? <ToggleRight size={44} className="text-brand-light-green" /> : <ToggleLeft size={44} className="text-brand-green/10" />}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
