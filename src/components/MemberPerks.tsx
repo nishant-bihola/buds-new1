@@ -112,10 +112,3 @@ export default function MemberPerks() {
     </section>
   );
 }
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}

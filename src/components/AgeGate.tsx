@@ -80,25 +80,25 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.8, ease: TRANSITIONS.PREMIUM }}
-                    className="mb-10"
+                    className="mb-6 sm:mb-10"
                   >
                     <img
                       src="/images/buds_n_buddies_logo.png"
                       alt="Bud n' Buddies"
-                      className="h-16 sm:h-20 w-auto object-contain brightness-0 invert"
+                      className="h-20 sm:h-24 md:h-28 w-auto object-contain"
                     />
                   </motion.div>
 
-                  <div className="flex items-center gap-3 mb-8 bg-white/5 px-6 py-2 rounded-full border border-white/10 backdrop-blur-md">
+                  <div className="flex items-center gap-3 mb-6 sm:mb-8 bg-white/5 px-6 py-2 rounded-full border border-white/10 backdrop-blur-md">
                     <ShieldCheck size={14} className="text-brand-light-green" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-light-green">Secure Age Verification</span>
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.4em] text-brand-light-green">Secure Age Verification</span>
                   </div>
 
-                  <h1 className="text-5xl sm:text-7xl md:text-8xl font-black uppercase tracking-tighter leading-[0.8] text-white mb-10 text-center">
+                  <h1 className="text-4xl sm:text-7xl md:text-8xl font-black uppercase tracking-tighter leading-[0.8] text-white mb-8 sm:mb-10 text-center">
                     Are you<br /> <span className="text-brand-light-green">18 or older?</span>
                   </h1>
 
-                  <p className="text-lg sm:text-xl text-white/50 font-medium leading-relaxed mb-16 max-w-md mx-auto">
+                  <p className="text-base sm:text-xl text-white/50 font-medium leading-relaxed mb-10 sm:mb-16 max-w-md mx-auto">
                     You must be of legal age with valid government-issued ID to purchase cannabis in your province.
                   </p>
 

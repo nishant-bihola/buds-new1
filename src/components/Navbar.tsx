@@ -77,8 +77,8 @@ export function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-500 px-3 sm:px-4 md:px-8 pt-4 sm:pt-6 pointer-events-none">
       <div
         className={`max-w-7xl mx-auto h-16 sm:h-20 flex items-center px-4 sm:px-6 lg:px-10 rounded-full border transition-all duration-500 pointer-events-auto shadow-2xl relative ${isScrolled
-            ? "bg-brand-earth/95 backdrop-blur-xl border-brand-green/10"
-            : "bg-brand-green/95 backdrop-blur-md border-white/5"
+          ? "bg-brand-earth/95 backdrop-blur-xl border-brand-green/10"
+          : "bg-brand-green/95 backdrop-blur-md border-white/5"
           }`}
       >
         {/* Mobile Navbar */}
@@ -87,8 +87,9 @@ export function Navbar() {
             <img
               src="/images/buds_n_buddies_logo.png"
               alt="Bud n' Buddies"
-              className={`h-11 w-auto object-contain transition-all duration-300 ${!isScrolled ? "brightness-0 invert" : ""
-                }`}
+              className={`h-10 sm:h-11 w-auto object-contain transition-all duration-300 ${
+                !isScrolled && !isMenuOpen ? "brightness-0 invert" : ""
+              }`}
             />
           </Link>
           <div className="flex items-center gap-3">
@@ -101,10 +102,13 @@ export function Navbar() {
               whileTap={{ scale: 0.95 }}
               type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`p-2 rounded-full ${isScrolled ? "bg-brand-green text-brand-earth" : "bg-brand-earth text-brand-green"
-                }`}
+              className={`p-2.5 rounded-full transition-colors ${
+                isScrolled || isMenuOpen 
+                  ? "bg-brand-green text-brand-earth" 
+                  : "bg-white/10 text-white"
+              }`}
             >
-              {isMenuOpen ? <X size={18} strokeWidth={3} /> : <Menu size={18} strokeWidth={3} />}
+              {isMenuOpen ? <X size={20} strokeWidth={3} /> : <Menu size={20} strokeWidth={3} />}
             </motion.button>
           </div>
         </div>
@@ -139,12 +143,12 @@ export function Navbar() {
                 key={link.name}
                 to={link.path}
                 className={`text-[11px] font-black uppercase tracking-[0.2em] transition-all hover:scale-110 whitespace-nowrap ${location.pathname === link.path
-                    ? isScrolled
-                      ? "text-brand-green"
-                      : "text-brand-light-green"
-                    : isScrolled
-                      ? "text-brand-green/70 hover:text-brand-green"
-                      : "text-white/70 hover:text-white"
+                  ? isScrolled
+                    ? "text-brand-green"
+                    : "text-brand-light-green"
+                  : isScrolled
+                    ? "text-brand-green/70 hover:text-brand-green"
+                    : "text-white/70 hover:text-white"
                   }`}
               >
                 {link.name}
@@ -195,23 +199,33 @@ export function Navbar() {
             <div className="flex-1 flex flex-col lg:flex-row items-center lg:items-start justify-start lg:justify-center gap-10 lg:gap-24 px-6 sm:px-12 py-10 sm:py-16 mt-4 sm:mt-8">
               {/* Primary Navigation */}
               <div className="flex flex-col items-center lg:items-start gap-4 sm:gap-6">
-                <span className="text-brand-earth/60 text-[10px] font-black uppercase tracking-[0.3em] mb-1">
+                <motion.span 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-brand-earth/60 text-[10px] font-black uppercase tracking-[0.3em] mb-1"
+                >
                   Navigate
-                </span>
+                </motion.span>
                 {navLinks.map((link, i) => (
                   <motion.div
                     key={link.name}
-                    initial={{ opacity: 0, x: -30 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                    initial={{ opacity: 0, x: -50, filter: "blur(10px)" }}
+                    animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                    transition={{ 
+                      delay: 0.3 + i * 0.1, 
+                      duration: 0.8, 
+                      ease: [0.16, 1, 0.3, 1] 
+                    }}
                   >
                     <Link
                       to={link.path}
                       onClick={() => setIsMenuOpen(false)}
-                      className={`block text-[clamp(2.5rem,8vw,4.5rem)] font-black uppercase tracking-tighter leading-none transition-all hover:translate-x-4 ${location.pathname === link.path
+                      className={`block text-[clamp(2.5rem,10vw,5rem)] font-black uppercase tracking-tighter leading-none transition-all hover:translate-x-4 ${
+                        location.pathname === link.path
                           ? "text-brand-light-green"
                           : "text-brand-earth hover:text-brand-light-green"
-                        }`}
+                      }`}
                     >
                       {link.name}
                     </Link>
@@ -221,15 +235,24 @@ export function Navbar() {
 
               {/* Secondary Navigation (Categories) */}
               <div className="flex flex-col items-center lg:items-start gap-4 sm:gap-5 pt-6 lg:pt-0 lg:border-l lg:border-brand-earth/20 lg:pl-24">
-                <span className="text-brand-earth/60 text-[10px] font-black uppercase tracking-[0.3em] mb-1">
+                <motion.span 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-brand-earth/60 text-[10px] font-black uppercase tracking-[0.3em] mb-1"
+                >
                   Shop by Category
-                </span>
+                </motion.span>
                 {exploreCategories.map((cat, i) => (
                   <motion.div
                     key={cat.name}
-                    initial={{ opacity: 0, x: 30 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + i * 0.04, ease: [0.16, 1, 0.3, 1] }}
+                    initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
+                    animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                    transition={{ 
+                      delay: 0.5 + i * 0.08, 
+                      duration: 0.8, 
+                      ease: [0.16, 1, 0.3, 1] 
+                    }}
                   >
                     <Link
                       to={cat.path}
