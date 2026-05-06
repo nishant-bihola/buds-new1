@@ -131,6 +131,7 @@ function LoginGate({ onLogin }: { onLogin: () => void }) {
       });
       if (res.ok) {
         sessionStorage.setItem("admin_secret", value);
+        localStorage.setItem("admin_secret", value);
         localStorage.setItem("admin_auth", "true");
         onLogin();
       } else {
@@ -768,7 +769,7 @@ function PromosTab() {
                     className="flex-1 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5">
                     <Pencil size={11} /> Edit
                   </button>
-                  <button type="button" onClick={() => deletePromo(p.id)}
+                  <button type="button" title="Delete promo" onClick={() => deletePromo(p.id)}
                     className="px-3 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-xs font-black uppercase tracking-widest transition-colors">
                     <Trash2 size={14} />
                   </button>
@@ -924,6 +925,7 @@ export default function Admin() {
 
   const logout = () => {
     localStorage.removeItem("admin_auth");
+    localStorage.removeItem("admin_secret");
     sessionStorage.removeItem("admin_secret");
     setLoggedIn(false);
     success("Logged out");
@@ -988,7 +990,7 @@ export default function Admin() {
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Mobile top bar */}
         <header className="lg:hidden sticky top-0 z-40 bg-[#111815] border-b border-white/5 px-4 py-3 flex items-center justify-between">
-          <button type="button" onClick={() => setSideOpen(true)} className="p-2 bg-brand-light-green text-[#111815] rounded-lg">
+          <button type="button" title="Open menu" onClick={() => setSideOpen(true)} className="p-2 bg-brand-light-green text-[#111815] rounded-lg">
             <Menu size={16} />
           </button>
           <p className="font-black text-sm uppercase tracking-tight">{tab}</p>
