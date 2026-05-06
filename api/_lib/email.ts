@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { isAutomationEnabled, logEmailEvent } from "./supabase.js";
+import { isAutomationEnabled, logEmailEvent } from "./db_ops.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -8,7 +8,20 @@ const STORE_NAME = "Bud N' Buddies";
 const STORE_PHONE = "(825) 218-8234";
 const STORE_ADDRESS = "130-75 Salisbury Way, Sherwood Park, AB T8B 1K4";
 const STORE_URL = process.env.STORE_URL ?? "https://budnbuddies.vercel.app";
-const FROM = `${STORE_NAME} <onboarding@resend.dev>`;
+const FROM = process.env.RESEND_FROM_EMAIL ?? `${STORE_NAME} <onboarding@resend.dev>`;
+const TEST_EMAIL = process.env.TEST_EMAIL; // if set, all customer emails redirect here
+
+function toAddr(addr: string): string[] {
+  return [TEST_EMAIL || addr];
+}
+
+// Safely resolve customer email from order — works whether order came from DB or raw body
+function customerEmail(order: any): string {
+  return order.customerEmail || (order.customer as any)?.email || "";
+}
+function customerName(order: any): string {
+  return (order.customer as any)?.name || order.customerName || "Customer";
+}
 
 function brandWrap(body: string): string {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -51,14 +64,16 @@ async function fire(key: string, orderId: string | undefined, fn: () => Promise<
 export async function sendOrderConfirmation(order: any) {
   const isDelivery = order.delivery?.method === "delivery";
   const slotLabel: Record<string, string> = { asap: "ASAP (45–75 min)", "2h": "Today in 2 hours", "4h": "Today in 4 hours" };
+  const toEmail = customerEmail(order);
+  if (!toEmail) return;
   await fire("order_confirmation_customer", order.orderId, () =>
     resend.emails.send({
       from: FROM,
-      to: [order.customer.email],
+      to: toAddr(toEmail),
       subject: `Order Confirmed — ${order.orderId} | ${STORE_NAME}`,
       html: brandWrap(`
         <div class="badge">Order Confirmed</div>
-        <h2>Thanks, ${order.customer.name.split(" ")[0]}! 🌿</h2>
+        <h2>Thanks, ${customerName(order).split(" ")[0]}! 🌿</h2>
         <p>Your order <strong>${order.orderId}</strong> is confirmed and we're getting it ready.</p>
         ${itemsRows(order.items)}${totalsRows(order)}
         <div class="order-box">
@@ -99,10 +114,12 @@ export async function sendAdminAlert(order: any) {
 
 // 3 — Order Preparing → customer
 export async function sendPreparing(order: any) {
+  const toEmail = customerEmail(order);
+  if (!toEmail) return;
   await fire("order_preparing_customer", order.orderId, () =>
     resend.emails.send({
       from: FROM,
-      to: [order.customer.email],
+      to: toAddr(toEmail),
       subject: `👨‍🍳 Your order is being prepared — ${order.orderId}`,
       html: brandWrap(`
         <div class="badge">Being Prepared</div>
@@ -117,10 +134,12 @@ export async function sendPreparing(order: any) {
 
 // 3.5 — Dispatched → customer
 export async function sendDispatched(order: any) {
+  const toEmail = customerEmail(order);
+  if (!toEmail) return;
   await fire("order_dispatched_customer", order.orderId, () =>
     resend.emails.send({
       from: FROM,
-      to: [order.customer.email],
+      to: toAddr(toEmail),
       subject: `🚗 Your order is on the way — ${order.orderId}`,
       html: brandWrap(`
         <div class="badge">On The Way</div>
@@ -136,10 +155,12 @@ export async function sendDispatched(order: any) {
 
 // 4 — Delivered → customer
 export async function sendDelivered(order: any) {
+  const toEmail = customerEmail(order);
+  if (!toEmail) return;
   await fire("order_delivered_customer", order.orderId, () =>
     resend.emails.send({
       from: FROM,
-      to: [order.customer.email],
+      to: toAddr(toEmail),
       subject: `✅ Delivered — ${order.orderId} | Leave Us a Review!`,
       html: brandWrap(`
         <div class="badge">Delivered</div>
@@ -159,10 +180,12 @@ export async function sendDelivered(order: any) {
 
 // 5 — Ready for pickup → customer
 export async function sendReadyForPickup(order: any) {
+  const toEmail = customerEmail(order);
+  if (!toEmail) return;
   await fire("ready_for_pickup_customer", order.orderId, () =>
     resend.emails.send({
       from: FROM,
-      to: [order.customer.email],
+      to: toAddr(toEmail),
       subject: `🏪 Ready for Pickup — ${order.orderId}`,
       html: brandWrap(`
         <div class="badge">Ready for Pickup</div>
@@ -180,13 +203,34 @@ export async function sendReadyForPickup(order: any) {
   );
 }
 
-// 6 — Welcome → new customer
-export async function sendWelcome(email: string, name: string, promoCode = "WELCOME10") {
+// 6 — Cancelled → customer
+export async function sendCancelled(order: any) {
+  const toEmail = customerEmail(order);
+  if (!toEmail) return;
+  await fire("order_cancelled_customer", order.orderId, () =>
+    resend.emails.send({
+      from: FROM,
+      to: toAddr(toEmail),
+      subject: `Order Cancelled — ${order.orderId} | ${STORE_NAME}`,
+      html: brandWrap(`
+        <div class="badge" style="background:#c0392b">Order Cancelled</div>
+        <h2>Your order has been cancelled</h2>
+        <p>Unfortunately, order <strong>${order.orderId}</strong> has been cancelled.</p>
+        <p>If you were charged, a full refund will be processed within 3–5 business days. If you have questions, call us at ${STORE_PHONE}.</p>
+        <a class="cta" href="${STORE_URL}/shop">Browse Our Menu →</a>
+        <p style="color:#999;font-size:13px">We're sorry for the inconvenience. We hope to serve you again soon.</p>
+      `),
+    }) as Promise<any>
+  );
+}
+
+// 7 — Welcome → new customer
+export async function sendWelcome(email: string, name: string, promoCode = "WELCOME20") {
   await fire("welcome_email_customer", undefined, () =>
     resend.emails.send({
       from: FROM,
       to: [email],
-      subject: `Welcome to ${STORE_NAME} — Here's 10% Off 🌿`,
+      subject: `Welcome to ${STORE_NAME} — Here's 20% Off 🌿`,
       html: brandWrap(`
         <div class="badge">Welcome to the Family</div>
         <h2>Hey ${name}! Welcome. 🌿</h2>
@@ -194,7 +238,7 @@ export async function sendWelcome(email: string, name: string, promoCode = "WELC
         <div style="background:#1e4d2b;border-radius:16px;padding:32px;text-align:center;margin:24px 0">
           <p style="color:#c5e1a5;font-size:12px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;margin:0 0 8px">Your Welcome Gift</p>
           <div style="background:#c5e1a5;color:#1e4d2b;font-size:28px;font-weight:900;letter-spacing:.1em;padding:16px 32px;border-radius:12px;display:inline-block;margin:8px 0">${promoCode}</div>
-          <p style="color:#c5e1a5;font-size:13px;margin:8px 0 0">10% off your first order — applied at checkout</p>
+          <p style="color:#c5e1a5;font-size:13px;margin:8px 0 0">20% off your first order — applied at checkout</p>
         </div>
         <a class="cta" href="${STORE_URL}/shop">Start Shopping →</a>
         <p style="color:#999;font-size:13px">Rating: 4.9/5 stars · Open every day until 2AM</p>

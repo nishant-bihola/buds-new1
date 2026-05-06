@@ -13,14 +13,13 @@ export const TRANSITIONS = {
 export const VARIANTS = {
   FADE_UP: {
     hidden: { opacity: 0, y: 20 },
-    visible: (custom: number = 0) => ({
+    visible: {
       opacity: 1,
       y: 0,
       transition: {
         duration: 0.6,
-        delay: custom * 0.1,
       },
-    }),
+    },
   } as any,
   SCALE_IN: {
     hidden: { opacity: 0, scale: 0.95 },
@@ -32,11 +31,4 @@ export const VARIANTS = {
       },
     },
   } as any,
-};
-
-export const PERFORMANCE_CONFIG = {
-  useGPU: true,
-  willChange: true,
-  skipAnimationsOnMobile: false,
-  useReducedMotion: true,
 };

@@ -5,7 +5,7 @@ import {
   LayoutDashboard, ShoppingBag, Package, Tag, Settings as Gear,
   LogOut, Menu, X, Search, Plus, Pencil, Trash2, Upload,
   Truck, Store, Copy, Check, Lock, RefreshCw, Home, FileUp,
-  DollarSign, ToggleLeft, ToggleRight,
+  DollarSign, ToggleLeft, ToggleRight, FileText, Users,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
@@ -13,10 +13,11 @@ import { useToast } from "../context/ToastContext";
 /* ─────────────────────────────────────────────────────────────
    Constants
 ───────────────────────────────────────────────────────────── */
-const TABS = ["Dashboard", "Orders", "Inventory", "Promos", "Settings"] as const;
+const TABS = ["Dashboard", "Orders", "Inventory", "Promos", "Drivers", "Content", "Settings"] as const;
 type Tab = typeof TABS[number];
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
+  pending:     { label: "Pending",       cls: "bg-yellow-500/15 text-yellow-300 border-yellow-500/20" },
   confirmed:   { label: "Confirmed",     cls: "bg-blue-500/15 text-blue-300 border-blue-500/20" },
   preparing:   { label: "Preparing",     cls: "bg-amber-500/15 text-amber-300 border-amber-500/20" },
   dispatched:  { label: "Dispatched",    cls: "bg-indigo-500/15 text-indigo-300 border-indigo-500/20" },
@@ -334,20 +335,58 @@ function OrdersTab() {
 function OrderModal({ order, onClose, onUpdateStatus }: any) {
   const isDelivery  = (order.delivery as any)?.method === "delivery";
   const [copied, setCopied] = useState<string | null>(null);
+  const [loading, setLoading] = useState<string | null>(null);
   const copy = (v: string, k: string) => { navigator.clipboard.writeText(v); setCopied(k); setTimeout(() => setCopied(null), 1500); };
 
-  const nextStatuses = isDelivery
-    ? ["preparing", "dispatched", "delivered", "cancelled"]
-    : ["preparing", "ready_pickup", "cancelled"];
+  const FLOW_DELIVERY = ["confirmed", "preparing", "dispatched", "delivered"];
+  const FLOW_PICKUP   = ["confirmed", "preparing", "ready_pickup"];
+  const flow = isDelivery ? FLOW_DELIVERY : FLOW_PICKUP;
+  const currentIdx = flow.indexOf(order.status);
+  const nextStatus = currentIdx >= 0 && currentIdx < flow.length - 1 ? flow[currentIdx + 1] : null;
+  const isFinal = ["delivered", "ready_pickup", "cancelled"].includes(order.status);
+
+  const advance = async (status: string) => {
+    setLoading(status);
+    await onUpdateStatus(order.orderId, status);
+    setLoading(null);
+  };
 
   return (
     <Modal title={order.orderId} onClose={onClose}
-      footer={<>
-        {nextStatuses.map(s => (
-          <Btn key={s} onClick={() => onUpdateStatus(order.orderId, s)}>{s.replace("_", " ")}</Btn>
-        ))}
-      </>}
+      footer={
+        isFinal
+          ? <Btn variant="ghost" onClick={onClose}>Close</Btn>
+          : <>
+              {nextStatus && (
+                <Btn loading={loading === nextStatus} onClick={() => advance(nextStatus)}>
+                  → {nextStatus.replace("_", " ")}
+                </Btn>
+              )}
+              <Btn variant="danger" loading={loading === "cancelled"} onClick={() => advance("cancelled")}>
+                Cancel Order
+              </Btn>
+            </>
+      }
     >
+      {/* Status flow */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {flow.map((s, i) => (
+          <div key={s} className="flex items-center gap-2">
+            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
+              s === order.status
+                ? (STATUS_META[s]?.cls ?? "bg-white/10 text-white border-white/20")
+                : i < currentIdx
+                  ? "bg-white/5 text-white/20 border-white/5 line-through"
+                  : "bg-white/5 text-white/20 border-white/5"
+            }`}>{STATUS_META[s]?.label ?? s}</span>
+            {i < flow.length - 1 && <span className="text-white/20 text-xs">→</span>}
+          </div>
+        ))}
+        {order.status === "cancelled" && (
+          <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-red-500/15 text-red-400 border-red-500/20">Cancelled</span>
+        )}
+      </div>
+
       {/* Customer */}
       <div className="space-y-1.5">
         <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Customer</p>
@@ -836,12 +875,251 @@ function PromoForm({ promo, onClose, onSave }: { promo?: any; onClose: () => voi
   );
 }
 
+function TestEmailBtn() {
+  const [state, setState] = useState<"idle" | "sending" | "ok" | "err">("idle");
+  const send = async () => {
+    setState("sending");
+    try {
+      await api.admin.testEmail();
+      setState("ok");
+      setTimeout(() => setState("idle"), 3000);
+    } catch {
+      setState("err");
+      setTimeout(() => setState("idle"), 3000);
+    }
+  };
+  const label = { idle: "Send Test Email", sending: "Sending…", ok: "Email Sent ✓", err: "Failed ✗" }[state];
+  const cls   = { idle: "bg-white/5 border-white/10 hover:bg-white/10", sending: "bg-white/5 border-white/10 opacity-50", ok: "bg-green-500/10 border-green-500/20 text-green-300", err: "bg-red-500/10 border-red-500/20 text-red-300" }[state];
+  return (
+    <button type="button" onClick={send} disabled={state === "sending"}
+      className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${cls}`}>
+      {label}
+    </button>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Content Tab
+───────────────────────────────────────────────────────────── */
+const SECTION_LABELS: Record<string, string> = {
+  hero: "Hero Section",
+  brand: "Brand Statement",
+  perks: "Member Perks",
+  story: "Story Section",
+  about: "About Page",
+  delivery: "Delivery Zones",
+  reviews: "Reviews",
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  badge: "Badge Text", headline_1: "Headline Word 1", headline_2: "Headline Word 2", headline_3: "Headline Word 3",
+  subtitle: "Subtitle", cta_shop: "Shop Button", cta_about: "About Link",
+  stat_rating: "Stat: Rating", stat_hours: "Stat: Hours", stat_days: "Stat: Days",
+  eyebrow: "Eyebrow Label", headline: "Headline", body: "Body Text",
+  perk1_title: "Perk 1 Title", perk1_desc: "Perk 1 Description",
+  perk2_title: "Perk 2 Title", perk2_desc: "Perk 2 Description",
+  perk3_title: "Perk 3 Title", perk3_desc: "Perk 3 Description",
+  item1_title: "Card 1 Title", item1_desc: "Card 1 Description",
+  item2_title: "Card 2 Title", item2_desc: "Card 2 Description",
+  item3_title: "Card 3 Title", item3_desc: "Card 3 Description",
+  item4_title: "Card 4 Title", item4_desc: "Card 4 Description",
+  stat1_value: "Stat 1 Value", stat1_label: "Stat 1 Label",
+  stat2_value: "Stat 2 Value", stat2_label: "Stat 2 Label",
+  stat3_value: "Stat 3 Value", stat3_label: "Stat 3 Label",
+  story_headline: "Story Headline", story_body1: "Story Paragraph 1",
+  story_body2: "Story Paragraph 2", story_body3: "Story Paragraph 3",
+  heading: "Section Heading", subheading: "Subheading",
+  zone1_name: "Zone 1 Name", zone1_range: "Zone 1 Range", zone1_fee: "Zone 1 Fee", zone1_perk: "Zone 1 Perk",
+  zone2_name: "Zone 2 Name", zone2_range: "Zone 2 Range", zone2_fee: "Zone 2 Fee", zone2_perk: "Zone 2 Perk",
+  zone3_name: "Zone 3 Name", zone3_range: "Zone 3 Range", zone3_fee: "Zone 3 Fee", zone3_perk: "Zone 3 Perk",
+  zone4_name: "Zone 4 Name", zone4_range: "Zone 4 Range", zone4_fee: "Zone 4 Fee", zone4_perk: "Zone 4 Perk",
+  free_threshold: "Free Delivery Threshold", cta: "CTA Button Text",
+};
+
+const LONG_FIELDS = new Set(["subtitle", "body", "item1_desc", "item2_desc", "item3_desc", "item4_desc",
+  "perk1_desc", "perk2_desc", "perk3_desc", "story_body1", "story_body2", "story_body3", "subheading"]);
+
+function ContentTab() {
+  const { data, mutate } = useSWR("admin-content", api.admin.getContent, { revalidateOnFocus: false });
+  const [activeSection, setActiveSection] = useState("hero");
+  const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({});
+  const [saving, setSaving] = useState(false);
+  const { success, error: err } = useToast();
+
+  const sectionData = data?.content?.[activeSection] ?? {};
+  const draft = drafts[activeSection] ?? sectionData;
+
+  const setField = (field: string, value: string) =>
+    setDrafts(prev => ({ ...prev, [activeSection]: { ...(prev[activeSection] ?? sectionData), [field]: value } }));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.admin.updateContent(activeSection, draft);
+      success("Saved — changes are live");
+      mutate();
+      setDrafts(prev => { const next = { ...prev }; delete next[activeSection]; return next; });
+    } catch (e: any) {
+      err(e.message || "Save failed");
+    }
+    setSaving(false);
+  };
+
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(sectionData);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-4xl font-black uppercase tracking-tighter">Content</h1>
+        <a href="/" target="_blank" rel="noopener noreferrer"
+          className="text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors flex items-center gap-1.5">
+          <span>View Site</span>
+        </a>
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        {Object.keys(SECTION_LABELS).map(s => (
+          <button key={s} type="button" onClick={() => setActiveSection(s)}
+            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border
+              ${activeSection === s ? "bg-brand-light-green text-[#111815] border-brand-light-green" : "bg-white/5 border-white/10 text-white/50 hover:text-white"}`}>
+            {SECTION_LABELS[s]}
+          </button>
+        ))}
+      </div>
+
+      {activeSection === "reviews"
+        ? <ReviewsPanel />
+        : (
+          <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-black uppercase tracking-tight">{SECTION_LABELS[activeSection]}</h2>
+              {isDirty && <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 bg-amber-400/10 px-2 py-1 rounded-lg">Unsaved changes</span>}
+            </div>
+
+            {Object.entries(draft).map(([field, value]) => (
+              <Field key={field} label={FIELD_LABELS[field] ?? field}>
+                {LONG_FIELDS.has(field)
+                  ? <Textarea value={String(value)} onChange={e => setField(field, e.target.value)} rows={3} />
+                  : <Input value={String(value)} onChange={e => setField(field, e.target.value)} />
+                }
+              </Field>
+            ))}
+
+            <div className="flex gap-3 pt-2">
+              <Btn loading={saving} onClick={save} disabled={!isDirty}>
+                {saving ? "Saving…" : isDirty ? "Save Changes" : "Up to Date"}
+              </Btn>
+              {isDirty && (
+                <Btn variant="ghost" onClick={() => setDrafts(prev => { const next = { ...prev }; delete next[activeSection]; return next; })}>
+                  Discard
+                </Btn>
+              )}
+            </div>
+          </div>
+        )
+      }
+    </div>
+  );
+}
+
+function ReviewsPanel() {
+  const { data, mutate } = useSWR("admin-reviews", api.admin.getReviews);
+  const reviews: any[] = data?.reviews ?? [];
+  const { success, error: toastErr } = useToast();
+  const [modal, setModal] = useState<"add" | "edit" | null>(null);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState({ name: "", blurb: "", quote: "", active: true });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  function openAdd() { setForm({ name: "", blurb: "", quote: "", active: true }); setEditing(null); setModal("add"); }
+  function openEdit(r: any) { setForm({ name: r.name, blurb: r.blurb, quote: r.quote, active: r.active ?? true }); setEditing(r); setModal("edit"); }
+
+  async function save() {
+    if (!form.name.trim() || !form.quote.trim()) return toastErr("Name and quote are required.");
+    setSaving(true);
+    try {
+      if (modal === "edit" && editing) {
+        await api.admin.updateReview({ id: editing.id, ...form });
+        success("Review updated.");
+      } else {
+        await api.admin.createReview(form);
+        success("Review added.");
+      }
+      await mutate();
+      setModal(null);
+    } catch { toastErr("Failed to save review."); }
+    setSaving(false);
+  }
+
+  async function remove(id: string) {
+    setDeleting(id);
+    try {
+      await api.admin.deleteReview(id);
+      success("Review removed.");
+      await mutate();
+    } catch { toastErr("Failed to delete."); }
+    setDeleting(null);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-white/40 text-xs">Manage customer reviews shown on the homepage.</p>
+        <button type="button" onClick={openAdd}
+          className="flex items-center gap-2 bg-brand-light-green text-[#111815] px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
+          <Plus size={13} /> Add Review
+        </button>
+      </div>
+      <div className="space-y-2">
+        {reviews.map((r: any) => (
+          <div key={r.id} className="flex items-start gap-3 bg-[#1a2219] border border-white/5 rounded-xl p-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="font-black text-sm">{r.name}</p>
+                <span className="text-[9px] font-black uppercase tracking-wider text-white/30 bg-white/5 px-2 py-0.5 rounded">{r.blurb}</span>
+                {!r.active && <span className="text-[9px] font-black uppercase tracking-wider text-red-400/60 bg-red-500/10 px-2 py-0.5 rounded">Hidden</span>}
+              </div>
+              <p className="text-white/40 text-xs italic truncate">"{r.quote}"</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button type="button" aria-label="Edit review" onClick={() => openEdit(r)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"><Pencil size={13} /></button>
+              <button type="button" aria-label="Delete review" onClick={() => remove(r.id)} disabled={deleting === r.id}
+                className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors disabled:opacity-40">
+                {deleting === r.id ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <AnimatePresence>
+        {modal && (
+          <Modal title={modal === "edit" ? "Edit Review" : "Add Review"} onClose={() => setModal(null)}
+            footer={<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn><Btn onClick={save} loading={saving}>Save</Btn></>}>
+            <Field label="Customer Name"><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" /></Field>
+            <Field label="Headline (e.g. EXCELLENT SERVICE)"><Input value={form.blurb} onChange={e => setForm(f => ({ ...f, blurb: e.target.value.toUpperCase() }))} placeholder="SHORT HEADLINE" /></Field>
+            <Field label="Review Text"><Textarea value={form.quote} onChange={e => setForm(f => ({ ...f, quote: e.target.value }))} rows={4} placeholder="Customer's review..." /></Field>
+            <button type="button" onClick={() => setForm(f => ({ ...f, active: !f.active }))}
+              className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-white/60 hover:text-white transition-colors">
+              {form.active ? <ToggleRight size={22} className="text-brand-light-green" /> : <ToggleLeft size={22} className="text-white/20" />}
+              {form.active ? "Visible on site" : "Hidden"}
+            </button>
+          </Modal>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /* ─────────────────────────────────────────────────────────────
    Settings Tab
 ───────────────────────────────────────────────────────────── */
 function SettingsTab() {
   const { data: autoData, mutate: mutateAuto } = useSWR("admin-automations", api.admin.getAutomations, { refreshInterval: 60000 });
-  const automations = autoData ?? [];
+  const { data: storeData, mutate: mutateStore } = useSWR("admin-store-info", api.admin.getStoreInfo);
+  const { data: hoursData, mutate: mutateHours } = useSWR("admin-store-hours", api.admin.getStoreHours);
+  const automations = autoData?.automations ?? [];
   const { success, error: err } = useToast();
 
   const defaultToggles = [
@@ -852,6 +1130,7 @@ function SettingsTab() {
     { key: "order_dispatched_customer",    label: "Dispatched Notification" },
     { key: "order_delivered_customer",     label: "Delivered Notification" },
     { key: "ready_for_pickup_customer",    label: "Ready for Pickup" },
+    { key: "order_cancelled_customer",     label: "Cancellation Notification" },
   ];
 
   const getEnabled = (key: string) => {
@@ -867,10 +1146,125 @@ function SettingsTab() {
     } catch (e: any) { err(e.message || "Failed"); }
   };
 
+  // Store info form
+  const storeDefaults = {
+    name: "Bud N' Buddies", address: "130-75 Salisbury Way, Sherwood Park, AB T8B 1K4",
+    addressShort: "130-75 Salisbury Way, Sherwood Park, AB", phone: "(825) 218-8234",
+    phoneDial: "+18252188234", hours: "Open Every Day · Until 2:00 AM",
+    hoursShort: "Open Until 2AM",
+    googleMapsUrl: "https://maps.google.com/?q=130-75+Salisbury+Way+Sherwood+Park+AB",
+    instagram: "", twitter: "", facebook: "", email: "",
+  };
+  const [storeForm, setStoreForm] = useState<Record<string, string> | null>(null);
+  const [savingStore, setSavingStore] = useState(false);
+  const currentStore = storeData?.store ?? storeDefaults;
+  const storeDraft = storeForm ?? currentStore;
+
+  const saveStore = async () => {
+    setSavingStore(true);
+    try {
+      await api.admin.updateStoreInfo(storeDraft);
+      success("Store info saved.");
+      mutateStore();
+      setStoreForm(null);
+    } catch (e: any) { err(e.message || "Save failed"); }
+    setSavingStore(false);
+  };
+
+  // Store hours form
+  const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const defaultHours = DAY_NAMES.map((day, i) => ({ id: i, day, open: "10:00", close: "02:00", closed: false }));
+  const [hoursForm, setHoursForm] = useState<any[] | null>(null);
+  const [savingHours, setSavingHours] = useState(false);
+  const currentHours: any[] = hoursData?.hours?.length ? hoursData.hours : defaultHours;
+  const hoursDraft = hoursForm ?? currentHours;
+
+  const saveHours = async () => {
+    setSavingHours(true);
+    try {
+      await api.admin.updateStoreHours(hoursDraft);
+      success("Store hours saved.");
+      mutateHours();
+      setHoursForm(null);
+    } catch (e: any) { err(e.message || "Save failed"); }
+    setSavingHours(false);
+  };
+
+  const setHourField = (id: number, field: string, value: any) =>
+    setHoursForm(prev => (prev ?? currentHours).map(h => h.id === id ? { ...h, [field]: value } : h));
+
   return (
-    <div className="space-y-8 max-w-xl">
+    <div className="space-y-8 max-w-2xl">
       <h1 className="text-4xl font-black uppercase tracking-tighter">Settings</h1>
 
+      {/* Store Info */}
+      <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-4">
+        <h2 className="font-black uppercase tracking-tight mb-1">Store Information</h2>
+        <p className="text-white/30 text-xs mb-4">This info appears in emails, the navbar, footer, and order tracking.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            { key: "name", label: "Store Name" },
+            { key: "phone", label: "Phone (display)" },
+            { key: "phoneDial", label: "Phone (dial, e.g. +18001234567)" },
+            { key: "email", label: "Support Email" },
+            { key: "address", label: "Full Address" },
+            { key: "addressShort", label: "Short Address" },
+            { key: "hours", label: "Hours (full)" },
+            { key: "hoursShort", label: "Hours (short)" },
+            { key: "googleMapsUrl", label: "Google Maps URL" },
+            { key: "instagram", label: "Instagram URL" },
+            { key: "twitter", label: "Twitter/X URL" },
+            { key: "facebook", label: "Facebook URL" },
+          ].map(({ key, label }) => (
+            <Field key={key} label={label}>
+              <Input
+                value={(storeDraft as any)[key] ?? ""}
+                onChange={e => setStoreForm(f => ({ ...(f ?? currentStore), [key]: e.target.value }))}
+              />
+            </Field>
+          ))}
+        </div>
+        <div className="flex gap-3 pt-2">
+          <Btn loading={savingStore} onClick={saveStore}>Save Store Info</Btn>
+          {storeForm && <Btn variant="ghost" onClick={() => setStoreForm(null)}>Discard</Btn>}
+        </div>
+      </div>
+
+      {/* Store Hours */}
+      <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-3">
+        <h2 className="font-black uppercase tracking-tight mb-1">Store Hours</h2>
+        <p className="text-white/30 text-xs mb-4">Set open/close times for each day. Toggle "Closed" to mark a day as closed.</p>
+        {hoursDraft.map((h: any) => (
+          <div key={h.id} className="flex items-center gap-3 flex-wrap">
+            <span className="text-xs font-black uppercase tracking-widest text-white/40 w-24 shrink-0">{h.day}</span>
+            <Input
+              type="time" value={h.open ?? "10:00"}
+              onChange={e => setHourField(h.id, "open", e.target.value)}
+              className="w-32"
+              disabled={h.closed}
+            />
+            <span className="text-white/20 text-xs">to</span>
+            <Input
+              type="time" value={h.close ?? "02:00"}
+              onChange={e => setHourField(h.id, "close", e.target.value)}
+              className="w-32"
+              disabled={h.closed}
+            />
+            <button type="button"
+              onClick={() => setHourField(h.id, "closed", !h.closed)}
+              className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors">
+              {h.closed ? <ToggleLeft size={18} className="text-white/20" /> : <ToggleRight size={18} className="text-brand-light-green" />}
+              {h.closed ? "Closed" : "Open"}
+            </button>
+          </div>
+        ))}
+        <div className="flex gap-3 pt-2">
+          <Btn loading={savingHours} onClick={saveHours}>Save Hours</Btn>
+          {hoursForm && <Btn variant="ghost" onClick={() => setHoursForm(null)}>Discard</Btn>}
+        </div>
+      </div>
+
+      {/* Email Automations */}
       <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
         <h2 className="font-black uppercase tracking-tight mb-5">Email Automations</h2>
         <div className="space-y-3">
@@ -891,13 +1285,142 @@ function SettingsTab() {
       </div>
 
       <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
-        <h2 className="font-black uppercase tracking-tight mb-1">Store</h2>
-        <p className="text-white/30 text-xs mb-4">Bud N' Buddies · Sherwood Park, AB</p>
-        <a href="/" target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
-          <Home size={13} /> View Live Site
-        </a>
+        <h2 className="font-black uppercase tracking-tight mb-1">Tools</h2>
+        <div className="flex gap-2 flex-wrap mt-4">
+          <a href="/" target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
+            <Home size={13} /> View Live Site
+          </a>
+          <TestEmailBtn />
+        </div>
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Drivers Tab
+───────────────────────────────────────────────────────────── */
+function DriversTab() {
+  const { data, mutate } = useSWR("admin-drivers", api.admin.getDrivers, { refreshInterval: 30000 });
+  const drivers: any[] = data?.drivers ?? [];
+  const { success, error: toastErr } = useToast();
+
+  const [modal, setModal] = useState<null | "add" | "edit">(null);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState({ name: "", phone: "", active: true });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  function openAdd() {
+    setForm({ name: "", phone: "", active: true });
+    setEditing(null);
+    setModal("add");
+  }
+
+  function openEdit(d: any) {
+    setForm({ name: d.name, phone: d.phone ?? "", active: d.active ?? true });
+    setEditing(d);
+    setModal("edit");
+  }
+
+  async function save() {
+    if (!form.name.trim()) return toastErr("Driver name is required.");
+    setSaving(true);
+    try {
+      if (modal === "edit" && editing) {
+        await api.admin.updateDriver({ id: editing.id, ...form });
+        success("Driver updated.");
+      } else {
+        await api.admin.createDriver(form);
+        success("Driver added.");
+      }
+      await mutate();
+      setModal(null);
+    } catch { toastErr("Failed to save driver."); }
+    setSaving(false);
+  }
+
+  async function remove(id: string) {
+    setDeleting(id);
+    try {
+      await api.admin.deleteDriver(id);
+      success("Driver removed.");
+      await mutate();
+    } catch { toastErr("Failed to delete driver."); }
+    setDeleting(null);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-black uppercase tracking-tighter">Drivers</h1>
+          <p className="text-white/30 text-sm mt-1">Manage delivery drivers</p>
+        </div>
+        <button type="button" onClick={openAdd}
+          className="flex items-center gap-2 bg-brand-light-green text-[#111815] px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
+          <Plus size={14} /> Add Driver
+        </button>
+      </div>
+
+      {drivers.length === 0
+        ? <div className="text-white/20 text-sm text-center py-16">No drivers yet. Add one above.</div>
+        : <div className="space-y-2">
+            {drivers.map((d: any) => (
+              <div key={d.id} className="flex items-center justify-between bg-[#1a2219] border border-white/5 rounded-xl px-5 py-4">
+                <div className="flex items-center gap-4">
+                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${d.active ? "bg-green-400" : "bg-white/20"}`} />
+                  <div>
+                    <p className="font-bold text-sm">{d.name}</p>
+                    <p className="text-white/40 text-xs">{d.phone || "No phone"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
+                    d.active ? "bg-green-500/15 text-green-300 border-green-500/20" : "bg-white/5 text-white/30 border-white/10"
+                  }`}>{d.active ? "Active" : "Inactive"}</span>
+                  <button type="button" aria-label="Edit driver" onClick={() => openEdit(d)}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                    <Pencil size={14} />
+                  </button>
+                  <button type="button" aria-label="Delete driver" onClick={() => remove(d.id)} disabled={deleting === d.id}
+                    className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors disabled:opacity-40">
+                    {deleting === d.id ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+      }
+
+      <AnimatePresence>
+        {modal && (
+          <Modal
+            title={modal === "edit" ? "Edit Driver" : "Add Driver"}
+            onClose={() => setModal(null)}
+            footer={
+              <>
+                <Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>
+                <Btn onClick={save} loading={saving}>Save</Btn>
+              </>
+            }
+          >
+            <Field label="Name">
+              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Driver name" />
+            </Field>
+            <Field label="Phone (optional)">
+              <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (780) 000-0000" />
+            </Field>
+            <Field label="Status">
+              <Select value={form.active ? "active" : "inactive"} onChange={e => setForm(f => ({ ...f, active: e.target.value === "active" }))}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </Select>
+            </Field>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -910,6 +1433,8 @@ const NAV = [
   { id: "Orders",    icon: ShoppingBag },
   { id: "Inventory", icon: Package },
   { id: "Promos",    icon: Tag },
+  { id: "Drivers",   icon: Users },
+  { id: "Content",   icon: FileText },
   { id: "Settings",  icon: Gear },
 ] as const;
 
@@ -1010,6 +1535,8 @@ export default function Admin() {
                 {tab === "Orders"    && <OrdersTab />}
                 {tab === "Inventory" && <InventoryTab />}
                 {tab === "Promos"    && <PromosTab />}
+                {tab === "Drivers"   && <DriversTab />}
+                {tab === "Content"   && <ContentTab />}
                 {tab === "Settings"  && <SettingsTab />}
               </motion.div>
             </AnimatePresence>

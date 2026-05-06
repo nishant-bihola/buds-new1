@@ -40,20 +40,20 @@ export function Intro() {
           </motion.div>
           <motion.h2
             variants={VARIANTS.FADE_UP}
-            custom={1}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
             className="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tighter leading-[0.9] mb-8 text-brand-green"
           >
             Elite Standards.<br />Unrivaled Consistency.
           </motion.h2>
           <motion.div
             variants={VARIANTS.FADE_UP}
-            custom={2}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
           >
             <p className="text-lg sm:text-xl text-brand-earth leading-relaxed mb-10 font-medium tracking-tight max-w-xl">
               We bridge the gap between premium excellence and accessible value. Sherwood Park's premier destination, operating with precision and passion every single day. We don't just keep the lights on; we set the standard until 2 AM.

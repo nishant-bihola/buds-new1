@@ -1,7 +1,9 @@
 import { Instagram, Twitter, Facebook, Leaf } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useStore } from "../context/StoreContext";
 
 export function Footer() {
+  const store = useStore();
   const links = [
     {
       title: "Navigation",
@@ -43,16 +45,22 @@ export function Footer() {
               />
             </div>
             <p className="text-brand-earth/40 text-sm mb-6 max-w-xs">
-              Sherwood Park's favourite dispensary. Open every day until 2 AM.
+              Sherwood Park's favourite dispensary. {store.hoursShort}.
             </p>
             <div className="flex gap-3">
-              {[Instagram, Twitter, Facebook].map((Icon, i) => (
-                <div
-                  key={i}
-                  className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-white/10 rounded-full hover:bg-white hover:text-brand-green transition-colors cursor-pointer"
-                >
-                  <Icon size={17} />
-                </div>
+              {[
+                { Icon: Instagram, href: store.instagram, label: "Instagram" },
+                { Icon: Twitter, href: store.twitter, label: "Twitter / X" },
+                { Icon: Facebook, href: store.facebook, label: "Facebook" },
+              ].map(({ Icon, href, label }, i) => (
+                href
+                  ? <a key={i} href={href} target="_blank" rel="noopener noreferrer" aria-label={label}
+                      className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-white/10 rounded-full hover:bg-white hover:text-brand-green transition-colors">
+                      <Icon size={17} />
+                    </a>
+                  : <div key={i} aria-label={label} className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-white/10 rounded-full opacity-40">
+                      <Icon size={17} />
+                    </div>
               ))}
             </div>
           </div>

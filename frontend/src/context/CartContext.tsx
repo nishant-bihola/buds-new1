@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { Product } from "../types";
 
 export interface CartItem extends Product {
@@ -23,6 +23,8 @@ interface CartContextType {
   cartCount: number;
   subtotal: number;
   deliveryFee: number;
+  deliveryFeeOverride: number | null;
+  setDeliveryFeeOverride: (fee: number | null) => void;
   discount: number;
   totalPrice: number;
 
@@ -44,24 +46,12 @@ interface CartContextType {
   openCart: () => void;
   closeCart: () => void;
 
-  // legacy (compat)
-  notification: string | null;
-  sessionKey: string;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const DELIVERY_FEE = 5.99;
-const FREE_DELIVERY_THRESHOLD = 75;
+const DELIVERY_FEE_FALLBACK = 5.49;
 
-function getSessionKey(): string {
-  let key = sessionStorage.getItem("cart_session_key");
-  if (!key) {
-    key = crypto.randomUUID();
-    sessionStorage.setItem("cart_session_key", key);
-  }
-  return key;
-}
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -71,9 +61,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [deliverySlot, setDeliverySlot] = useState<DeliverySlot>("asap");
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
-  const sessionKey = useRef(getSessionKey()).current;
-  const trackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  const [deliveryFeeOverride, setDeliveryFeeOverride] = useState<number | null>(null);
   useEffect(() => {
     const saved = localStorage.getItem("buds-cart");
     if (saved) setCart(JSON.parse(saved));
@@ -83,21 +71,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     localStorage.setItem("buds-cart", JSON.stringify(cart));
-    if (!cart.length) return;
-    if (trackTimeout.current) clearTimeout(trackTimeout.current);
-    trackTimeout.current = setTimeout(() => {
-      const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-      fetch("/api/cart/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionKey,
-          items: cart.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
-          total,
-        }),
-      }).catch(() => {});
-    }, 2000);
-  }, [cart, sessionKey]);
+  }, [cart]);
 
   // lock scroll when cart is open
   useEffect(() => {
@@ -111,9 +85,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deliveryFee =
     deliveryMethod === "pickup"
       ? 0
-      : subtotal >= FREE_DELIVERY_THRESHOLD
-      ? 0
-      : DELIVERY_FEE;
+      : deliveryFeeOverride !== null
+      ? deliveryFeeOverride
+      : DELIVERY_FEE_FALLBACK;
 
   const discount = appliedPromo
     ? appliedPromo.type === "percent"
@@ -181,12 +155,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <CartContext.Provider value={{
       cart, addToCart, removeFromCart, updateQuantity, clearCart,
-      cartCount, subtotal, deliveryFee, discount, totalPrice,
+      cartCount, subtotal, deliveryFee, deliveryFeeOverride, setDeliveryFeeOverride, discount, totalPrice,
       deliveryMethod, setDeliveryMethod,
       deliverySlot, setDeliverySlot,
       promoCode, setPromoCode, appliedPromo, applyPromo, removePromo,
       isCartOpen, openCart: () => setIsCartOpen(true), closeCart: () => setIsCartOpen(false),
-      notification, sessionKey,
     }}>
       {children}
     </CartContext.Provider>

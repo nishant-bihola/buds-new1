@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
 import { useNavigate } from "react-router-dom";
 import {
-  Trash2, Plus, Minus, Truck, ShieldCheck,
-  ArrowRight, Loader2, Package, Store, MapPin, Phone, Tag, X, Check, AlertTriangle,
+  Truck, ArrowRight, Loader2, Store, Check, MapPin,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -27,15 +26,20 @@ function generateOrderId(): string {
 }
 
 export function Checkout() {
-  const { cart, removeFromCart, updateQuantity, subtotal, deliveryFee, discount, totalPrice,
-    appliedPromo, removePromo, promoCode, setPromoCode, applyPromo, clearCart,
-    deliveryMethod, setDeliveryMethod, deliverySlot, setDeliverySlot } = useCart();
+  const { cart, subtotal, deliveryFee, deliveryFeeOverride, setDeliveryFeeOverride,
+    discount, totalPrice, appliedPromo, removePromo, promoCode, setPromoCode,
+    applyPromo, clearCart, deliveryMethod, setDeliveryMethod, deliverySlot, setDeliverySlot } = useCart();
   const { success, error: toastError } = useToast();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<CheckoutStep>("details");
   const [loading, setLoading] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
+  const [feeQuote, setFeeQuote] = useState<{ km: number | null; label: string; zone: string } | null>(null);
+  const [feeLoading, setFeeLoading] = useState(false);
+  const [outsideZone, setOutsideZone] = useState(false);
+  const [addrNotFound, setAddrNotFound] = useState(false);
+  const quoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "",
@@ -45,6 +49,51 @@ export function Checkout() {
 
   const set = (key: keyof typeof form, val: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: val }));
+
+  // Quote delivery fee whenever street or postal changes (debounced 800ms)
+  useEffect(() => {
+    if (deliveryMethod !== "delivery") {
+      setDeliveryFeeOverride(null); setFeeQuote(null); setOutsideZone(false); setAddrNotFound(false); return;
+    }
+    if (!form.street.trim() || !form.postal.trim()) {
+      setDeliveryFeeOverride(null); setFeeQuote(null); setAddrNotFound(false); return;
+    }
+
+    if (quoteTimer.current) clearTimeout(quoteTimer.current);
+    quoteTimer.current = setTimeout(async () => {
+      setFeeLoading(true);
+      setAddrNotFound(false);
+      try {
+        const res = await fetch("/api/delivery/quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ street: form.street, city: form.city, postal: form.postal, orderTotal: subtotal }),
+        });
+        const data = await res.json();
+        if (data.zone === "unavailable") {
+          setOutsideZone(true);
+          setAddrNotFound(false);
+          setDeliveryFeeOverride(null);
+          setFeeQuote(null);
+        } else if (data.fee === null || data.zone === "unknown") {
+          // Geocoding failed — can't calculate, don't silently apply wrong rate
+          setAddrNotFound(true);
+          setOutsideZone(false);
+          setDeliveryFeeOverride(null);
+          setFeeQuote(null);
+        } else {
+          setOutsideZone(false);
+          setAddrNotFound(false);
+          setDeliveryFeeOverride(data.fee);
+          setFeeQuote({ km: data.km, label: data.label, zone: data.zone });
+        }
+      } catch {
+        setDeliveryFeeOverride(null);
+      }
+      setFeeLoading(false);
+    }, 800);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.street, form.postal, form.city, deliveryMethod, subtotal]);
 
   const handleApplyPromo = async () => {
     setPromoLoading(true);
@@ -210,6 +259,41 @@ export function Checkout() {
                             <input type="text" placeholder="Postal Code" value={form.postal} onChange={e => set("postal", e.target.value)} className="w-full bg-brand-earth/60 rounded-2xl px-5 py-3.5 focus:ring-2 focus:ring-brand-green outline-none font-medium text-sm border border-brand-green/10 focus:border-brand-green transition-colors" />
                           </div>
 
+                          {/* Live delivery fee indicator */}
+                          {feeLoading && (
+                            <div className="flex items-center gap-2 text-xs text-brand-dark/50 bg-brand-green/5 border border-brand-green/10 rounded-xl px-4 py-3">
+                              <Loader2 size={12} className="animate-spin text-brand-green" />
+                              <span>Calculating delivery fee for your address…</span>
+                            </div>
+                          )}
+                          {!feeLoading && outsideZone && (
+                            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 font-medium flex items-start gap-2">
+                              <span className="shrink-0 mt-0.5">⚠️</span>
+                              <span>This address is outside our 25 km delivery zone. Please choose <strong>In-Store Pickup</strong> or call us at (825) 218-8234 to arrange.</span>
+                            </div>
+                          )}
+                          {!feeLoading && addrNotFound && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 font-medium flex items-start gap-2">
+                              <span className="shrink-0 mt-0.5">📍</span>
+                              <span>We couldn't verify your address. Double-check your street and postal code, then it will recalculate automatically.</span>
+                            </div>
+                          )}
+                          {!feeLoading && feeQuote && !outsideZone && !addrNotFound && (
+                            <div className="bg-brand-green/5 border border-brand-green/20 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 text-sm text-brand-dark/70 min-w-0">
+                                <MapPin size={14} className="text-brand-green shrink-0" />
+                                <div className="min-w-0">
+                                  <span className="font-semibold">{feeQuote.km !== null ? `${feeQuote.km} km from store` : "Address located"}</span>
+                                  <span className="text-brand-dark/40 mx-1.5">·</span>
+                                  <span className="text-xs text-brand-dark/50">{feeQuote.label}</span>
+                                </div>
+                              </div>
+                              <span className="font-black text-brand-green text-base shrink-0">
+                                {deliveryFee === 0 ? "FREE" : `$${deliveryFee.toFixed(2)}`}
+                              </span>
+                            </div>
+                          )}
+
                           {/* Delivery Slot */}
                           <div>
                             <label className="text-[9px] font-black uppercase tracking-widest text-brand-dark/70 ml-1 block mb-2">Delivery Window</label>
@@ -238,10 +322,11 @@ export function Checkout() {
                     {/* Action */}
                     <button
                       type="button"
+                      disabled={outsideZone || addrNotFound || feeLoading}
                       onClick={() => validateDetails() && setStep("confirm")}
-                      className="w-full bg-brand-green text-brand-earth py-5 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 hover:brightness-110 active:scale-[0.98] transition-all shadow-xl"
+                      className="w-full bg-brand-green text-brand-earth py-5 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl"
                     >
-                      Continue <ArrowRight size={18} />
+                      {feeLoading ? <><Loader2 size={18} className="animate-spin" /> Calculating fee…</> : <>Continue <ArrowRight size={18} /></>}
                     </button>
                   </div>
                 </motion.div>
@@ -369,9 +454,14 @@ export function Checkout() {
                   <span className="font-bold text-brand-dark">${subtotal.toFixed(2)}</span>
                 </div>
                 {deliveryMethod === "delivery" && (
-                  <div className="flex justify-between">
-                    <span className="text-brand-dark/60">Delivery {subtotal >= 75 ? "(FREE)" : ""}</span>
-                    <span className="font-bold text-brand-dark">${deliveryFee.toFixed(2)}</span>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-brand-dark/60">Delivery</span>
+                      {feeQuote && <p className="text-[10px] text-brand-dark/40">{feeQuote.label}</p>}
+                    </div>
+                    <span className="font-bold text-brand-dark">
+                      {feeLoading ? "…" : deliveryFee === 0 ? "FREE" : `$${deliveryFee.toFixed(2)}`}
+                    </span>
                   </div>
                 )}
                 {discount > 0 && (

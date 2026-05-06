@@ -25,6 +25,9 @@ export const orders = pgTable("orders", {
   total: doublePrecision("total").notNull(),
   status: text("status").default("pending"), // "confirmed", "dispatched", "delivered", "ready_pickup"
   customer: jsonb("customer").notNull(), // { name, email, phone }
+  customerName: text("customer_name"), // denormalized for easier querying
+  customerEmail: text("customer_email"), // denormalized for easier querying
+  customerPhone: text("customer_phone"), // denormalized for easier querying
   delivery: jsonb("delivery"), // { method, street, city, postal, slot }
   items: jsonb("items").notNull(), // Array of products
   subtotal: doublePrecision("subtotal"),

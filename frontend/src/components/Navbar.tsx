@@ -3,9 +3,11 @@ import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react"; // Change to "framer-motion" if you get import errors on older versions
 import { ShoppingCart, Menu, X, ArrowRight } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { useStore } from "../context/StoreContext";
 
 export function Navbar() {
   const { cartCount, openCart } = useCart();
+  const store = useStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
@@ -284,22 +286,22 @@ export function Navbar() {
               <div className="text-center sm:text-left flex flex-col gap-1">
                 <p className="font-black uppercase tracking-[0.2em] text-[10px] mb-1">Our Location</p>
                 <p className="font-bold uppercase tracking-widest text-[11px] text-brand-earth">
-                  130-75 Salisbury Way, Sherwood Park, AB
+                  {store.addressShort}
                 </p>
               </div>
               <div className="flex gap-8 text-[10px] font-black uppercase tracking-[0.2em]">
                 <div className="text-center sm:text-right">
                   <p className="mb-1">Call Us</p>
                   <a
-                    href="tel:+18252188234"
+                    href={`tel:${store.phoneDial}`}
                     className="text-[11px] text-brand-earth hover:text-brand-light-green transition-colors"
                   >
-                    (825) 218-8234
+                    {store.phone}
                   </a>
                 </div>
                 <div className="text-center sm:text-right">
                   <p className="mb-1 text-brand-earth/60">Hours</p>
-                  <p className="text-[11px] text-brand-earth">Open Until 2AM</p>
+                  <p className="text-[11px] text-brand-earth">{store.hoursShort}</p>
                 </div>
               </div>
             </motion.div>

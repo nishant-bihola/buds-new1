@@ -1,16 +1,22 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import useSWR from "swr";
 import { TRANSITIONS, VARIANTS } from "@/lib/animations";
 
+const REVIEWS_FALLBACK = [
+  { id: "r1", name: "Nishant Bihola", blurb: "EXCELLENT SERVICE", quote: "Love the service wait till the new reworked website!" },
+  { id: "r2", name: "Joban Dhami", blurb: "CUTTING EDGE", quote: "If you're looking for the cutting edge of customer service, quality product, and accessibility, Bud and buddies is your one stop shop." },
+  { id: "r3", name: "Kevin", blurb: "EXCELLENT STORE", quote: "Excellent store with great prices! Go see Gagan, who I call the Guru of Ganga, for can't miss recommendations." },
+  { id: "r4", name: "SP", blurb: "BEST DISPENSARY", quote: "I have been going to weed dispensaries since legalization first happened, and I can honestly say that this has been the best one!" },
+  { id: "r5", name: "Victoria Ouellette", blurb: "HIGHLY RECOMMEND", quote: "The staff are genuinely some of the kindest people i've met, they are always trying to find the perfect match." },
+  { id: "r6", name: "Gaganjot Singh", blurb: "GREATEST VIBES", quote: "Best prices in Sherwood park area and very helpful and knowledgeable staff always ready to help." },
+];
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
 export function Reviews() {
-  const allReviews = [
-    { name: "Nishant Bihola", blurb: "EXCELLENT SERVICE", quote: "Love the service wait till the new reworked website!" },
-    { name: "Joban Dhami", blurb: "CUTTING EDGE", quote: "If you're looking for the cutting edge of customer service, quality product, and accessibility, Bud and buddies is your one stop shop." },
-    { name: "Kevin", blurb: "EXCELLENT STORE", quote: "Excellent store with great prices! Go see Gagan, who I call the Guru of Ganga, for can't miss recommendations." },
-    { name: "SP", blurb: "BEST DISPENSARY", quote: "I have been going to weed dispensaries since legalization first happened, and I can honestly say that this has been the best one!" },
-    { name: "Victoria Ouellette", blurb: "HIGHLY RECOMMEND", quote: "The staff are genuinely some of the kindest people i've met, they are always trying to find the perfect match." },
-    { name: "Gaganjot Singh", blurb: "GREATEST VIBES", quote: "Best prices in Sherwood park area and very helpful and knowledgeable staff always ready to help." },
-  ];
+  const { data } = useSWR("/api/reviews", fetcher, { revalidateOnFocus: false, dedupingInterval: 300000 });
+  const allReviews = data?.reviews?.length ? data.reviews : REVIEWS_FALLBACK;
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [itemsToShow, setItemsToShow] = useState(3);
@@ -65,12 +71,12 @@ export function Reviews() {
             >
               What Our Buddies Say
             </motion.h2>
-            <motion.div 
+            <motion.div
               variants={VARIANTS.FADE_UP}
-              custom={1}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
               className="flex items-center gap-3 mt-6"
             >
               <div className="flex gap-1">
@@ -102,9 +108,9 @@ export function Reviews() {
               <motion.div
                 key={`${review.name}-${i}`}
                 variants={VARIANTS.FADE_UP}
-                custom={i}
                 initial="hidden"
                 animate="visible"
+                transition={{ delay: i * 0.1 }}
                 exit={{ opacity: 0, scale: 0.9, y: -20, transition: { duration: 0.3 } }}
                 className="bg-brand-earth p-8 sm:p-10 rounded-[48px] flex flex-col shadow-2xl border border-white/5 group motion-gpu"
               >

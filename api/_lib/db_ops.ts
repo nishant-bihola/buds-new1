@@ -156,12 +156,13 @@ export async function upsertCustomer(email: string, patch: any) {
 
 export async function rebuildCustomersFromOrders() {
   const allOrders = await db.select().from(orders);
-  
+
   // Reset stats mapping
   const stats: Record<string, any> = {};
-  
+
   for (const order of allOrders) {
-    const email = order.customerEmail.toLowerCase();
+    const email = (order.customerEmail || (order.customer as any)?.email)?.toLowerCase();
+    if (!email) continue; // skip if no email found
     const delivery = (order.customer as any)?.delivery || (order as any).delivery;
     
     if (!stats[email]) {
@@ -215,16 +216,18 @@ export async function getPromoByCode(code: string) {
     .from(promoCodes)
     .where(and(eq(promoCodes.code, upperCode), eq(promoCodes.active, true)));
   
-  if (result[0]) return result[0];
+  return result[0] ?? null;
+}
 
-  // Hardcoded Fallbacks for testing/demo
-  const fallbacks: Record<string, any> = {
-    "BUDS10": { code: "BUDS10", discount: 10, type: "percent", active: true, usageCount: 0, maxUses: null },
-    "WELCOME20": { code: "WELCOME20", discount: 20, type: "percent", active: true, usageCount: 0, maxUses: null },
-    "FREESHIP": { code: "FREESHIP", discount: 5.99, type: "fixed", active: true, usageCount: 0, maxUses: null },
-  };
-
-  return fallbacks[upperCode] || null;
+export async function incrementPromoUsage(promoId: string) {
+  if (!promoId) return;
+  try {
+    await db.execute(
+      sql`UPDATE ${promoCodes} SET usage_count = usage_count + 1 WHERE id = ${promoId}`
+    );
+  } catch (err) {
+    console.error(`[incrementPromoUsage] Failed to increment promo ${promoId}:`, err);
+  }
 }
 
 export async function upsertPromoCode(data: any) {
@@ -363,19 +366,26 @@ export async function getAutomations() {
 
 export async function isAutomationEnabled(key: string): Promise<boolean> {
   const result = await db.select().from(automations).where(eq(automations.key, key));
-  return result[0]?.enabled ?? false;
+  return result[0]?.enabled ?? true; // default ON — send emails unless explicitly disabled
 }
 
 export async function getDeliveryZones() {
   return await db.select().from(deliveryZones).orderBy(asc(deliveryZones.createdAt));
 }
 
-export async function getDrivers() {
-  return await db.select().from(drivers).orderBy(asc(drivers.createdAt));
-}
-
 export async function getStoreHours() {
   return await db.select().from(storeHours).orderBy(asc(storeHours.id));
+}
+
+export async function upsertStoreHours(hours: { id: number; day: string; open?: string; close?: string; closed?: boolean }[]) {
+  for (const h of hours) {
+    await db.insert(storeHours)
+      .values({ id: h.id, day: h.day, open: h.open ?? null, close: h.close ?? null, closed: h.closed ?? false })
+      .onConflictDoUpdate({
+        target: storeHours.id,
+        set: { open: h.open ?? null, close: h.close ?? null, closed: h.closed ?? false },
+      });
+  }
 }
 
 // ── CONFIG & SETTINGS ───────────────────────────────────────────────────
@@ -403,4 +413,43 @@ export async function updateAutomation(key: string, enabled: boolean) {
       set: { enabled }
     })
     .returning();
+}
+
+// ── DRIVERS ──────────────────────────────────────────────────────────────
+
+export async function getDrivers() {
+  return await db.select().from(drivers).orderBy(asc(drivers.name));
+}
+
+export async function upsertDriver(data: { id?: string; name: string; phone?: string; active?: boolean }) {
+  const id = data.id || crypto.randomUUID();
+  return await db.insert(drivers)
+    .values({ id, name: data.name, phone: data.phone ?? null, active: data.active ?? true })
+    .onConflictDoUpdate({
+      target: drivers.id,
+      set: { name: data.name, phone: data.phone ?? null, active: data.active ?? true },
+    })
+    .returning();
+}
+
+export async function deleteDriver(id: string) {
+  return await db.delete(drivers).where(eq(drivers.id, id)).returning();
+}
+
+// ── EMAIL LOG ─────────────────────────────────────────────────────────────
+
+export async function logEmailEvent(orderId: string, event: string): Promise<void> {
+  try {
+    const result = await db.select().from(orders).where(eq(orders.orderId, orderId));
+    if (!result[0]) return;
+
+    const existing = (result[0].emailLog as { event: string; sentAt: string }[]) ?? [];
+    const updated = [...existing, { event, sentAt: new Date().toISOString() }];
+
+    await db.update(orders)
+      .set({ emailLog: updated })
+      .where(eq(orders.orderId, orderId));
+  } catch (err) {
+    console.error("[logEmailEvent] Failed:", err);
+  }
 }

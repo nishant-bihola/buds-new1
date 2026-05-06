@@ -3,12 +3,14 @@ import { motion } from "motion/react";
 import { ArrowUpRight, Users, Star, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TRANSITIONS, VARIANTS } from "@/lib/animations";
+import { useSection } from "../context/ContentContext";
 
 export function AboutPage() {
+  const c = useSection("about");
   const stats = [
-    { label: "Happy Customers", value: "5,000+", icon: Users },
-    { label: "Google Rating", value: "4.9★", icon: Star },
-    { label: "Open Until", value: "2 AM", icon: Clock },
+    { label: c.stat1_label, value: c.stat1_value, icon: Users },
+    { label: c.stat2_label, value: c.stat2_value, icon: Star },
+    { label: c.stat3_label, value: c.stat3_value, icon: Clock },
   ];
 
   return (
@@ -22,7 +24,7 @@ export function AboutPage() {
             animate="visible"
             className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black uppercase tracking-tighter text-brand-green leading-[0.8] mb-10"
           >
-            Prestigious<br />Roots
+            {c.headline.split(" ")[0]}<br />{c.headline.split(" ").slice(1).join(" ")}
           </motion.h1>
           <motion.p
             variants={VARIANTS.FADE_UP}
@@ -31,7 +33,7 @@ export function AboutPage() {
             animate="visible"
             className="text-lg sm:text-2xl text-brand-dark/55 max-w-2xl mx-auto font-medium leading-relaxed tracking-tight"
           >
-            Founded on the principles of absolute quality and community leadership. Sherwood Park's premier destination for boutique cannabis—mastering the standard, daily until 2 AM.
+            {c.subtitle}
           </motion.p>
         </div>
       </section>
@@ -91,7 +93,7 @@ export function AboutPage() {
               viewport={{ once: true }}
               className="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tighter text-brand-green leading-[0.85] mb-10"
             >
-              Elite Selection.<br />Artisanal Curation.
+              {c.story_headline.split(". ")[0]}.<br />{c.story_headline.split(". ").slice(1).join(". ")}
             </motion.h2>
             <motion.div 
               variants={VARIANTS.FADE_UP}
@@ -101,15 +103,9 @@ export function AboutPage() {
               viewport={{ once: true }}
               className="space-y-6 text-lg sm:text-xl text-brand-dark/60 leading-relaxed font-medium tracking-tight"
             >
-              <p>
-                Bud n' Buddies was established in Sherwood Park with a singular vision: to redefine the cannabis experience. We bridge the gap between boutique excellence and community accessibility.
-              </p>
-              <p>
-                Every offering in our collection is hand-vetted for its unique character, aroma, and effect. We reject the generic, focusing exclusively on artisanal batches and elite genetics.
-              </p>
-              <p>
-                Operating 365 days a year until 2 AM is our commitment to unrivaled service, ensuring our community has access to the standard they deserve, on their schedule.
-              </p>
+              <p>{c.story_body1}</p>
+              <p>{c.story_body2}</p>
+              <p>{c.story_body3}</p>
             </motion.div>
           </div>
         </div>

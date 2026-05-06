@@ -2,31 +2,16 @@ import React from "react";
 import { motion } from "motion/react";
 import { ShieldCheck, PackageSearch, UserPlus, MapPin } from "lucide-react";
 import { TRANSITIONS, VARIANTS } from "@/lib/animations";
-
-const PERKS = [
-  {
-    title: "Price Protection",
-    description: "Found a more competitive rate within 25km? Our members enjoy an immediate match, ensuring unrivaled value without compromise.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Bespoke Curation",
-    description: "Seeking a rare strain or specific profile? We provide private sourcing services for our most discerning members.",
-    icon: PackageSearch,
-  },
-  {
-    title: "Elite Status",
-    description: "Join our inner circle for complimentary access to private drops, member-only events, and optimized pricing.",
-    icon: UserPlus,
-  },
-  {
-    title: "Cultural Leader",
-    description: "More than a dispensary—we are a cornerstone of the Sherwood Park community, dedicated to elevating the local standard.",
-    icon: MapPin,
-  }
-];
+import { useSection } from "../context/ContentContext";
 
 export default function MemberPerks() {
+  const c = useSection("perks");
+  const PERKS = [
+    { title: c.item1_title, description: c.item1_desc, icon: ShieldCheck },
+    { title: c.item2_title, description: c.item2_desc, icon: PackageSearch },
+    { title: c.item3_title, description: c.item3_desc, icon: UserPlus },
+    { title: c.item4_title, description: c.item4_desc, icon: MapPin },
+  ];
   return (
     <section className="py-16 md:py-32 bg-brand-green relative overflow-hidden isolate">
       {/* ── Background Decoration ─────────────────────────────────────────── */}
@@ -45,18 +30,18 @@ export default function MemberPerks() {
               viewport={{ once: true, margin: "-100px" }}
               className="text-brand-light-green font-black uppercase tracking-[0.4em] text-[clamp(9px,1.5vw,11px)] mb-5"
             >
-              Exclusive Benefits
+              {c.eyebrow}
             </motion.p>
-            <motion.h2 
+            <motion.h2
               variants={VARIANTS.FADE_UP}
-              custom={1}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-100px" }}
+              transition={{ delay: 0.1 }}
               className="text-[clamp(2.5rem,10vw,5.5rem)] font-black uppercase tracking-tighter text-white leading-[0.85] md:leading-[0.8]"
             >
-              The Buds <br />
-              <span className="text-brand-light-green italic">Advantage.</span>
+              {c.headline.split(" ").slice(0, -1).join(" ")} <br />
+              <span className="text-brand-light-green italic">{c.headline.split(" ").slice(-1)[0]}</span>
             </motion.h2>
           </div>
           
@@ -83,10 +68,10 @@ export default function MemberPerks() {
             <motion.div
               key={perk.title}
               variants={VARIANTS.FADE_UP}
-              custom={i + 2}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-50px" }}
+              transition={{ delay: (i + 2) * 0.1 }}
               whileHover={{ y: -12, transition: { duration: 0.4, ease: TRANSITIONS.PREMIUM } }}
               className="group bg-white/[0.03] backdrop-blur-2xl border border-white/5 p-8 sm:p-10 rounded-[48px] hover:bg-white/[0.07] hover:border-white/10 transition-all duration-500"
             >

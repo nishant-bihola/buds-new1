@@ -6,6 +6,7 @@ import {
   Phone, ArrowLeft, RefreshCw, Mail, User,
 } from "lucide-react";
 import type { Order, OrderStatus } from "../types";
+import { useStore } from "../context/StoreContext";
 
 const STATUS_STEPS: { key: OrderStatus; label: string; sub: string }[] = [
   { key: "confirmed", label: "Confirmed", sub: "Order received & verified" },
@@ -100,6 +101,7 @@ function StatusTimeline({ order }: { order: Order }) {
 
 export function OrderTracking() {
   const { orderId } = useParams<{ orderId: string }>();
+  const store = useStore();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -232,7 +234,7 @@ export function OrderTracking() {
               className="bg-red-50 border border-red-100 rounded-[24px] p-6 mb-6 text-red-600"
             >
               <p className="font-black uppercase tracking-tight">Order Cancelled</p>
-              <p className="text-sm font-medium text-red-400 mt-1">Contact us at {" "}<a href={`tel:+18252188234`} className="underline">(825) 218-8234</a> for assistance.</p>
+              <p className="text-sm font-medium text-red-400 mt-1">Contact us at {" "}<a href={`tel:${store.phoneDial}`} className="underline">{store.phone}</a> for assistance.</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -293,10 +295,10 @@ export function OrderTracking() {
             <div className="space-y-3 text-sm">
               {isPickup ? (
                 <>
-                  <p className="text-brand-dark/60 font-medium">130-75 Salisbury Way, Sherwood Park, AB T8B 1K4</p>
-                  <p className="text-brand-dark/40 text-xs font-bold uppercase tracking-widest">Open Every Day · Until 2:00 AM</p>
+                  <p className="text-brand-dark/60 font-medium">{store.address}</p>
+                  <p className="text-brand-dark/40 text-xs font-bold uppercase tracking-widest">{store.hours}</p>
                   <a
-                    href="https://maps.google.com/?q=130-75+Salisbury+Way+Sherwood+Park+AB"
+                    href={store.googleMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-brand-green font-bold text-xs uppercase tracking-widest hover:underline"
@@ -387,7 +389,7 @@ export function OrderTracking() {
               <p className="text-brand-dark/50 text-xs font-medium">Call us — open every day until 2AM</p>
             </div>
             <a
-              href="tel:+18252188234"
+              href={`tel:${store.phoneDial}`}
               className="flex items-center gap-2 bg-brand-green text-brand-earth px-5 py-2.5 rounded-full font-black uppercase tracking-widest text-[10px] hover:opacity-90 transition-opacity"
             >
               <Phone size={12} /> Call Us

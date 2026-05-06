@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getOrders, insertOrder, upsertCustomer, getCustomerByEmail, getPromoByCode } from "./_lib/db_ops.js";
+import { getOrders, insertOrder, upsertCustomer, getCustomerByEmail, getPromoByCode, incrementPromoUsage } from "./_lib/db_ops.js";
 import { sendOrderConfirmation, sendAdminAlert, sendWelcome } from "./_lib/email.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -54,6 +54,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const insertedOrder = await insertOrder(orderData);
       console.log("[ORDER SUCCESS]", orderId);
+
+      // Increment promo usage if a code was applied
+      if (promoCode) {
+        const promo = await getPromoByCode(promoCode);
+        if (promo?.id) {
+          await incrementPromoUsage(promo.id).catch(e => console.error("Promo usage increment failed:", e));
+        }
+      }
 
       // Check if customer is new (with fallback)
       let isNewCustomer = true;

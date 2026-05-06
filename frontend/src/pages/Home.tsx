@@ -10,6 +10,7 @@ const ProductGrid = lazy(() => import("../components/ProductGrid").then(m => ({ 
 const Reviews = lazy(() => import("../components/Reviews").then(m => ({ default: m.Reviews })));
 const About = lazy(() => import("../components/About").then(m => ({ default: m.About })));
 const StorySection = lazy(() => import("../components/StorySection").then(m => ({ default: m.StorySection })));
+const DeliveryZones = lazy(() => import("../components/DeliveryZones").then(m => ({ default: m.DeliveryZones })));
 
 // Premium Skeleton Loader for Sections
 const SectionSkeleton = () => (
@@ -52,6 +53,10 @@ export function Home() {
 
         <Suspense fallback={<SectionSkeleton />}>
           <BrandStatement />
+        </Suspense>
+
+        <Suspense fallback={<SectionSkeleton />}>
+          <DeliveryZones />
         </Suspense>
 
         <Suspense fallback={<SectionSkeleton />}>

@@ -10,13 +10,14 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { CartProvider } from "./context/CartContext";
 import { ToastProvider } from "./context/ToastContext";
+import { ContentProvider } from "./context/ContentContext";
+import { StoreProvider } from "./context/StoreContext";
 
 const Home = React.lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
 const AboutPage = React.lazy(() => import("./pages/About").then(m => ({ default: m.AboutPage })));
 const ShopPage = React.lazy(() => import("./pages/Shop").then(m => ({ default: m.ShopPage })));
 const ProductDetails = React.lazy(() => import("./pages/ProductDetails").then(m => ({ default: m.ProductDetails })));
 const Checkout = React.lazy(() => import("./pages/Checkout").then(m => ({ default: m.Checkout })));
-const OrderSuccess = React.lazy(() => import("./pages/OrderSuccess").then(m => ({ default: m.OrderSuccess })));
 const Admin = React.lazy(() => import("./pages/Admin"));
 const OrderTracking = React.lazy(() => import("./pages/OrderTracking").then(m => ({ default: m.OrderTracking })));
 const SherwoodPark = React.lazy(() => import("./pages/seo/SherwoodPark").then(m => ({ default: m.SherwoodPark })));
@@ -62,7 +63,6 @@ function AppInner() {
                   <Route path="/shop" element={<ShopPage />} />
                   <Route path="/product/:id" element={<ProductDetails />} />
                   <Route path="/checkout" element={<Checkout />} />
-                  <Route path="/order/success" element={<OrderSuccess />} />
                   <Route path="/order/:orderId" element={<OrderTracking />} />
                   <Route path="/admin" element={<Admin />} />
                   <Route path="/sherwood-park-cannabis" element={<SherwoodPark />} />
@@ -82,9 +82,13 @@ function AppInner() {
 export default function App() {
   return (
     <ToastProvider>
-      <CartProvider>
-        <AppInner />
-      </CartProvider>
+      <StoreProvider>
+        <ContentProvider>
+          <CartProvider>
+            <AppInner />
+          </CartProvider>
+        </ContentProvider>
+      </StoreProvider>
     </ToastProvider>
   );
 }

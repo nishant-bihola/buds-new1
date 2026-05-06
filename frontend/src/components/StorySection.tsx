@@ -1,8 +1,10 @@
 import React, { useRef } from "react";
 import { motion, useScroll, useTransform, useSpring } from "motion/react";
 import { TRANSITIONS } from "@/lib/animations";
+import { useSection } from "../context/ContentContext";
 
 export function StorySection() {
+  const c = useSection("story");
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -47,7 +49,7 @@ export function StorySection() {
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 md:w-48 md:h-48 bg-brand-light-green rounded-full flex items-center justify-center z-30 shadow-2xl border-4 md:border-8 border-[#060b08] cursor-pointer"
           >
             <span className="text-brand-green font-black uppercase text-sm md:text-xl tracking-tighter text-center leading-[0.8]">
-              PURE<br/>CRAFT
+              {c.badge.split(" ")[0]}<br/>{c.badge.split(" ").slice(1).join(" ")}
             </span>
           </div>
         </div>
@@ -56,26 +58,26 @@ export function StorySection() {
         <motion.div style={{ opacity }} className="flex flex-col gap-10 md:gap-12 order-1 lg:order-2">
           <div className="flex items-center gap-4">
              <div className="h-[2px] w-12 md:w-16 bg-brand-light-green/40" />
-             <span className="text-brand-light-green font-black uppercase tracking-[0.4em] text-[10px] md:text-xs">Our Roots</span>
+             <span className="text-brand-light-green font-black uppercase tracking-[0.4em] text-[10px] md:text-xs">{c.eyebrow}</span>
           </div>
           
           <h2 className="text-5xl sm:text-7xl lg:text-8xl font-black uppercase tracking-tighter text-[#f4f1ea] leading-[0.8] mb-2">
-            Rooted in<br />
-            <span className="text-brand-green italic font-display normal-case tracking-normal">Sherwood Park.</span>
+            {c.headline_1}<br />
+            <span className="text-brand-green italic font-display normal-case tracking-normal">{c.headline_2}</span>
           </h2>
 
           <p className="text-[#f4f1ea]/80 text-lg sm:text-xl font-medium leading-relaxed max-w-xl tracking-tight">
-            We don't just sell cannabis. We curate the best selection in town because we care about what our buddies are smoking. Every product tells a story of quality and transparency.
+            {c.body}
           </p>
 
           <div className="grid grid-cols-2 gap-10 md:gap-16 pt-8 border-t border-white/5">
              <div>
-                <h4 className="text-brand-light-green font-black text-3xl md:text-5xl mb-2 tracking-tighter">100%</h4>
-                <p className="text-[#f4f1ea]/40 text-[10px] md:text-xs font-black uppercase tracking-widest leading-none">Hand-Selected</p>
+                <h4 className="text-brand-light-green font-black text-3xl md:text-5xl mb-2 tracking-tighter">{c.stat1_value}</h4>
+                <p className="text-[#f4f1ea]/40 text-[10px] md:text-xs font-black uppercase tracking-widest leading-none">{c.stat1_label}</p>
              </div>
              <div>
-                <h4 className="text-brand-light-green font-black text-3xl md:text-5xl mb-2 tracking-tighter">365</h4>
-                <p className="text-[#f4f1ea]/40 text-[10px] md:text-xs font-black uppercase tracking-widest leading-none">Days Open</p>
+                <h4 className="text-brand-light-green font-black text-3xl md:text-5xl mb-2 tracking-tighter">{c.stat2_value}</h4>
+                <p className="text-[#f4f1ea]/40 text-[10px] md:text-xs font-black uppercase tracking-widest leading-none">{c.stat2_label}</p>
              </div>
           </div>
         </motion.div>

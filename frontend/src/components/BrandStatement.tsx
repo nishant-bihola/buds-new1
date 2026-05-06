@@ -3,8 +3,10 @@ import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { LogoMarquee } from "./LogoMarquee";
+import { useSection } from "../context/ContentContext";
 
 export function BrandStatement() {
+  const c = useSection("brand");
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
 
@@ -26,7 +28,7 @@ export function BrandStatement() {
               transition={{ duration: 0.3 }}
               className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.4em] text-brand-light-green/60"
             >
-              Alberta's Finest Cannabis Collective
+              {c.eyebrow}
             </motion.p>
 
             <motion.h2
@@ -57,15 +59,15 @@ export function BrandStatement() {
             className="lg:pt-4"
           >
             <p className="text-white/90 text-base sm:text-lg leading-relaxed font-medium mb-10 max-w-lg tracking-tight">
-              Built around service, value, and flexibility. We price match within 25km, take special product requests, and can bring in items outside our regular inventory for members who want more than what’s on the shelf.
+              {c.body}
             </p>
 
             {/* Proof points */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6 mb-12">
               {[
-                ["Local Value", "Price matching within 25km"],
-                ["Special Orders", "Can bring in items outside our regular inventory"],
-                ["Community Focused", "We listen and adapt to what you actually want"],
+                [c.perk1_title, c.perk1_desc],
+                [c.perk2_title, c.perk2_desc],
+                [c.perk3_title, c.perk3_desc],
               ].map(([title, desc]) => (
                 <div key={title} className="flex gap-4 items-start">
                   <div className="w-1 h-1 rounded-full bg-brand-light-green mt-2 shrink-0 shadow-[0_0_8px_rgba(197,225,165,0.5)]" />

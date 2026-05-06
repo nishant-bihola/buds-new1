@@ -92,6 +92,7 @@ export function SlidingCart() {
               <button
                 type="button"
                 onClick={closeCart}
+                aria-label="Close cart"
                 className="w-10 h-10 rounded-xl bg-brand-green/5 flex items-center justify-center text-brand-green hover:bg-brand-green hover:text-brand-earth active:scale-90 transition-all duration-300"
               >
                 <X size={20} strokeWidth={3} />
@@ -239,12 +240,12 @@ export function SlidingCart() {
                       
                       <div className="flex items-center justify-between pt-3 border-t border-brand-green/[0.03]">
                         <div className="flex items-center bg-brand-earth rounded-xl p-1 border border-brand-green/5">
-                          <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)} aria-label="Decrease quantity"
                             className="w-7 h-7 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-lg transition-all duration-300 text-brand-green">
                             <Minus size={12} strokeWidth={3} />
                           </button>
                           <span className="w-8 text-center text-xs font-black text-brand-green">{item.quantity}</span>
-                          <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)} aria-label="Increase quantity"
                             className="w-7 h-7 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-lg transition-all duration-300 text-brand-green">
                             <Plus size={12} strokeWidth={3} />
                           </button>
@@ -278,7 +279,7 @@ export function SlidingCart() {
                           </p>
                         </div>
                       </div>
-                      <button type="button" onClick={removePromo} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-brand-green/10 text-brand-green transition-all">
+                      <button type="button" onClick={removePromo} aria-label="Remove promo code" className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-brand-green/10 text-brand-green transition-all">
                         <X size={14} />
                       </button>
                     </motion.div>

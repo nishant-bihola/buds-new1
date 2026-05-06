@@ -44,10 +44,10 @@ export function BestSellerFeature() {
 
           <motion.div
             variants={VARIANTS.FADE_UP}
-            custom={1}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
           >
             <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter mb-4 text-brand-dark">
               The right way to grow.

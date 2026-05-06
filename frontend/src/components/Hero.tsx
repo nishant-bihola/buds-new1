@@ -8,8 +8,10 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Star, Clock, Calendar } from "lucide-react";
 import { ImageTrail } from "@/components/ui/image-trail";
 import { useMouseVector } from "@/components/hooks/use-mouse-vector";
+import { useSection } from "../context/ContentContext";
 
 export function Hero() {
+  const c = useSection("hero");
   const sectionRef = useRef<HTMLDivElement>(null);
 
   const { vector: mouseVector } = useMouseVector(sectionRef);
@@ -40,21 +42,13 @@ export function Hero() {
 
   const wordVars = {
     hidden: { y: "110%", opacity: 0, rotateX: 25 },
-    visible: (i: number) => ({
-      y: "0%",
-      opacity: 1,
-      rotateX: 0,
-      transition: {
-        duration: 0.85,
-        delay: 0.15 + i * 0.08,
-      },
-    }),
+    visible: { y: "0%", opacity: 1, rotateX: 0, transition: { duration: 0.85 } },
   } as any;
 
   const brandStats = [
-    { value: "4.9★", label: "Google Rating", icon: Star, color: "text-amber-400" },
-    { value: "2 AM", label: "Open Every Day", icon: Clock, color: "text-brand-light-green" },
-    { value: "365", label: "Days / Year", icon: Calendar, color: "text-white" },
+    { value: c.stat_rating, label: "Google Rating", icon: Star, color: "text-amber-400" },
+    { value: c.stat_hours, label: "Open Every Day", icon: Clock, color: "text-brand-light-green" },
+    { value: c.stat_days, label: "Days / Year", icon: Calendar, color: "text-white" },
   ];
 
   return (
@@ -118,7 +112,7 @@ export function Hero() {
                 <span className="relative rounded-full h-2 w-2 bg-brand-light-green" />
               </span>
               <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] text-white">
-                Sherwood Park · Canada
+                {c.badge}
               </span>
             </motion.div>
 
@@ -126,13 +120,13 @@ export function Hero() {
               className="font-black uppercase tracking-tighter leading-[0.75] sm:leading-[0.8] text-white perspective-1000 mb-5 sm:mb-10"
               style={{ fontSize: "clamp(2.6rem, 11vw, 11rem)" }}
             >
-              {(["Elevate", "Your", "Buds"] as const).map((word, i) => (
+              {([c.headline_1, c.headline_2, c.headline_3] as const).map((word, i) => (
                 <div key={word} className="overflow-hidden py-0.5">
                   <motion.span
-                    custom={i}
                     initial="hidden"
                     animate="visible"
                     variants={wordVars}
+                    transition={{ delay: 0.15 + i * 0.08 }}
                     className="block"
                     style={
                       i === 1
@@ -157,7 +151,7 @@ export function Hero() {
               className="flex flex-col gap-6 sm:gap-12"
             >
               <p className="text-white/90 text-[13px] sm:text-2xl leading-[1.3] font-medium max-w-xl text-pretty drop-shadow-2xl">
-                cannabis shop focused on convenience and value. We price match within 25km and offer custom product requests, bringing in items beyond standard inventory for our members.
+                {c.subtitle}
               </p>
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-8">
@@ -167,7 +161,7 @@ export function Hero() {
                     whileTap={{ scale: 0.98 }}
                     className="w-full sm:w-auto bg-brand-light-green text-brand-green px-12 py-4 sm:py-5 rounded-full text-[11px] sm:text-[12px] font-black uppercase tracking-[0.25em] shadow-2xl shadow-brand-light-green/20"
                   >
-                    Shop Now
+                    {c.cta_shop}
                   </motion.button>
                 </Link>
 
@@ -175,7 +169,7 @@ export function Hero() {
                   to="/about"
                   className="group flex items-center justify-center sm:justify-start gap-3 text-white/60 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.4em] hover:text-white transition-all duration-300"
                 >
-                  Our Legacy
+                  {c.cta_about}
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform duration-300 text-brand-light-green" />
                 </Link>
               </div>

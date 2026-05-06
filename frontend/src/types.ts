@@ -95,22 +95,6 @@ export interface PromoCode {
   maxUses?: number;
 }
 
-export interface DeliveryZone {
-  id: string;
-  name: string;
-  postalPrefix: string;
-  fee: number;
-  minOrder: number;
-  active: boolean;
-}
-
-export interface StoreHours {
-  day: string;
-  open: string;
-  close: string;
-  closed: boolean;
-}
-
 export interface Driver {
   id: string;
   name: string;

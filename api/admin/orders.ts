@@ -6,6 +6,7 @@ import {
   sendDispatched,
   sendDelivered,
   sendReadyForPickup,
+  sendCancelled,
 } from "../_lib/email.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -25,6 +26,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const body = req.body ?? {};
       const { status, driverName, driverPhone, ...rest } = body;
+
+      const VALID_STATUSES = ["pending", "confirmed", "preparing", "dispatched", "delivered", "ready_pickup", "cancelled"];
+      if (status && !VALID_STATUSES.includes(status)) {
+        return json(res as any, { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` }, 400);
+      }
 
       const patch: Record<string, any> = { ...rest };
       if (status) patch.status = status;
@@ -47,6 +53,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             sendDelivered(fullOrder).catch(console.error);
           } else if (status === "ready_pickup" && isPickup) {
             sendReadyForPickup(fullOrder).catch(console.error);
+          } else if (status === "cancelled") {
+            sendCancelled(fullOrder).catch(console.error);
           }
         }
       }
