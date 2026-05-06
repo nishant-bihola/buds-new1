@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getOrders, updateOrder, getOrderById } from "../_lib/db_ops.js";
 import { requireAdmin, json, cors } from "../_lib/auth.js";
 import {
+  sendPreparing,
   sendDispatched,
   sendDelivered,
   sendReadyForPickup,
@@ -38,7 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const fullOrder = await getOrderById(id as string);
         if (fullOrder) {
           const isPickup = (fullOrder.delivery as any)?.method === "pickup";
-          if (status === "dispatched" && !isPickup) {
+          if (status === "preparing") {
+            sendPreparing(fullOrder).catch(console.error);
+          } else if (status === "dispatched" && !isPickup) {
             sendDispatched({ ...fullOrder, driverName, driverPhone }).catch(console.error);
           } else if (status === "delivered") {
             sendDelivered(fullOrder).catch(console.error);
