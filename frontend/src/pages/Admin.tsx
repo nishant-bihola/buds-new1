@@ -1227,13 +1227,18 @@ function PromoModal({ promo, onClose, onSave }: any) {
       return;
     }
     setLoading(true);
-    // Ensure ID exists for new promos
-    const dataToSave = {
-      ...formData,
-      id: formData.id || `promo_${Date.now()}`,
-    };
-    await onSave(dataToSave);
-    setLoading(false);
+    try {
+      // Ensure ID exists for new promos
+      const dataToSave = {
+        ...formData,
+        id: formData.id || `promo_${Date.now()}`,
+      };
+      await onSave(dataToSave);
+    } catch (err) {
+      console.error("PromoModal onSave error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
