@@ -1,7 +1,8 @@
 // Unified auth + response helpers that work with VercelRequest/VercelResponse
 
 export function isAdmin(req: any): boolean {
-  const secret = process.env.ADMIN_SECRET ?? "budnbuddies2026";
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret) throw new Error("ADMIN_SECRET not configured");
   const auth = (req.headers?.authorization ?? req.headers?.Authorization ?? "") as string;
   return auth === `Bearer ${secret}`;
 }

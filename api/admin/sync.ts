@@ -7,10 +7,17 @@ import { sql } from "drizzle-orm";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (!requireAdmin(req as any, res as any)) return;
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const authHeader = req.headers.authorization || "";
+  const isCronSecret = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  const isAdminAuth = requireAdmin(req as any, res as any);
+
+  if (!isCronSecret && !isAdminAuth) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   try {
@@ -42,6 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           brand: mapped.brand,
           thc: mapped.thc != null ? String(mapped.thc) : null,
           cbd: mapped.cbd != null ? String(mapped.cbd) : null,
+          quantity: mapped.quantity,
           inStock: mapped.in_stock,
           source: "barnet",
           updatedAt: new Date(),
@@ -62,6 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           brand: sql`EXCLUDED.brand`,
           thc: sql`EXCLUDED.thc`,
           cbd: sql`EXCLUDED.cbd`,
+          quantity: sql`EXCLUDED.quantity`,
           inStock: sql`EXCLUDED.in_stock`,
           updatedAt: sql`EXCLUDED.updated_at`,
         },
@@ -75,6 +84,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (err: any) {
     console.error("[Sync Error]:", err);
-    return res.status(500).json({ success: false, error: err.message });
+    return json(res as any, { success: false, error: "Sync failed. Check server logs." }, 500);
   }
 }

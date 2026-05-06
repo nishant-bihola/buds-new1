@@ -64,8 +64,11 @@ export function mapBarnetProductToBuds(p: any) {
     price = parseFloat(v.price || v.Price || v.retail_price || 0);
   }
 
-  // Stock: onsale=1 or check variations
-  const inStock = p.onsale === 1 || p.onsale === true || (Array.isArray(p.variations) && p.variations.some((v: any) => (v.on_hand || v.onHand || 0) > 0));
+  // Stock: extract quantity from first variation
+  const quantity = Array.isArray(p.variations) && p.variations.length > 0
+    ? parseInt(p.variations[0].on_hand || p.variations[0].onHand || 0, 10)
+    : 0;
+  const inStock = quantity > 0 || p.onsale === 1;
 
   return {
     id,
@@ -78,6 +81,7 @@ export function mapBarnetProductToBuds(p: any) {
     thc: p.thc_percent || p.thcPercent || null,
     cbd: p.cbd_percent || p.cbdPercent || null,
     species: p.species || '',
+    quantity,
     in_stock: inStock,
     barnet_id: id,
     updated_at: new Date().toISOString(),

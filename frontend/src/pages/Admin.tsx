@@ -57,13 +57,24 @@ function LoginGate({ onLogin }: { onLogin: () => void }) {
 
   const handleLogin = async () => {
     setLoading(true);
-    if (value === "budnbuddies2026") {
-      localStorage.setItem("admin_auth", "true");
-      success("Access Granted. Welcome.");
-      onLogin();
-    } else {
+    try {
+      const response = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: value }),
+      });
+      if (response.ok) {
+        localStorage.setItem("admin_auth", "true");
+        success("Access Granted. Welcome.");
+        onLogin();
+      } else {
+        setError(true);
+        toastError("Invalid Access Key.");
+        setTimeout(() => setError(false), 2000);
+      }
+    } catch (err) {
       setError(true);
-      toastError("Invalid Access Key.");
+      toastError("Authentication failed.");
       setTimeout(() => setError(false), 2000);
     }
     setLoading(false);
@@ -566,7 +577,7 @@ function OrderModal({ order, onClose, onUpdateStatus }: { order: any; onClose: (
 /* ── Inventory Tab ────────────────────────────────────────────────────── */
 
 function InventoryTab() {
-  const { data: productsData, error, mutate: revalidateProducts } = useSWR("admin-inventory", () => api.admin.getProducts());
+  const { data: productsData, error, mutate: revalidateProducts } = useSWR("admin-inventory", () => api.admin.getProducts(), { refreshInterval: 15000 });
   const products = productsData?.products ?? [];
   const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState("");
@@ -789,8 +800,8 @@ function InventoryTab() {
                   {p.inStock ? "In Stock" : "Out of Stock"}
                 </button>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => { setEditing(p); setShowModal(true); }} className="p-2.5 sm:p-3 bg-brand-green/5 rounded-2xl text-brand-green hover:bg-brand-green hover:text-white transition-all"><Pencil size={14} /></button>
-                  <button type="button" onClick={() => handleDelete(p.id)} className="p-2.5 sm:p-3 bg-red-500/5 rounded-2xl text-red-500 hover:bg-red-500 hover:text-white transition-all"><Trash2 size={14} /></button>
+                  <button type="button" onClick={() => { setEditing(p); setShowModal(true); }} aria-label={`Edit ${p.name}`} className="p-2.5 sm:p-3 bg-brand-green/5 rounded-2xl text-brand-green hover:bg-brand-green hover:text-white transition-all cursor-pointer"><Pencil size={14} /></button>
+                  <button type="button" onClick={() => handleDelete(p.id)} aria-label={`Delete ${p.name}`} className="p-2.5 sm:p-3 bg-red-500/5 rounded-2xl text-red-500 hover:bg-red-500 hover:text-white transition-all cursor-pointer"><Trash2 size={14} /></button>
                 </div>
               </div>
             </div>
@@ -1087,7 +1098,7 @@ function PromosTab() {
 
             <div className="flex gap-3 mt-auto">
               <button type="button" onClick={() => { setEditing(p); setShowModal(true); }} className="flex-1 py-4 sm:py-5 bg-brand-green/5 rounded-[16px] sm:rounded-[20px] text-[9px] sm:text-[10px] font-black uppercase tracking-widest hover:bg-brand-green hover:text-brand-earth transition-all">Edit</button>
-              <button type="button" onClick={() => handleDelete(p.id)} className="p-4 sm:p-5 bg-red-500/5 text-red-500 rounded-[16px] sm:rounded-[20px] hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18} /></button>
+              <button type="button" onClick={() => handleDelete(p.id)} aria-label={`Delete ${p.name}`} className="p-4 sm:p-5 bg-red-500/5 text-red-500 rounded-[16px] sm:rounded-[20px] hover:bg-red-500 hover:text-white transition-all cursor-pointer"><Trash2 size={18} /></button>
             </div>
           </motion.div>
         ))}
