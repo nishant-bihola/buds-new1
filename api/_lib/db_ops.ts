@@ -1,5 +1,9 @@
 import { db } from "./db.js";
-import { products, orders, customers, promoCodes, automations, deliveryZones, drivers, storeHours } from "./schema.js";
+import { 
+  products, orders, customers, promoCodes, automations, 
+  deliveryZones, drivers, storeHours, config, 
+  specialOrders, stockLogs, auditLogs, staff 
+} from "./schema.js";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -12,18 +16,78 @@ export async function getProducts(adminAll = false) {
   return await db.select().from(products).orderBy(asc(products.sortOrder));
 }
 
-export async function upsertProduct(product: any) {
-  return await db.insert(products)
+export async function upsertProduct(product: any, staffId?: string) {
+  const result = await db.insert(products)
     .values(product)
     .onConflictDoUpdate({
       target: products.id,
       set: { ...product, updatedAt: new Date() }
     })
     .returning();
+
+  if (staffId && result[0]) {
+    await logAudit(staffId, "update", "product", result[0].id, null, result[0]);
+  }
+  
+  return result;
 }
 
-export async function deleteProduct(id: string) {
+export async function deleteProduct(id: string, staffId?: string) {
   await db.delete(products).where(eq(products.id, id));
+  if (staffId) {
+    await logAudit(staffId, "delete", "product", id);
+  }
+}
+
+// ── STOCK LOGS ───────────────────────────────────────────────────────────
+
+export async function logStockChange(data: { productId: string; type: string; quantity: number; reason?: string; staffId?: string }) {
+  const id = crypto.randomUUID();
+  return await db.insert(stockLogs).values({ id, ...data }).returning();
+}
+
+export async function getStockLogs(productId?: string) {
+  let query = db.select().from(stockLogs).orderBy(desc(stockLogs.createdAt));
+  if (productId) {
+    return await query.where(eq(stockLogs.productId, productId));
+  }
+  return await query;
+}
+
+// ── SPECIAL ORDERS ───────────────────────────────────────────────────────
+
+export async function getSpecialOrders() {
+  return await db.select().from(specialOrders).orderBy(desc(specialOrders.createdAt));
+}
+
+export async function upsertSpecialOrder(data: any) {
+  const id = data.id || crypto.randomUUID();
+  return await db.insert(specialOrders)
+    .values({ id, ...data, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: specialOrders.id,
+      set: { ...data, updatedAt: new Date() }
+    })
+    .returning();
+}
+
+// ── AUDIT LOGS ───────────────────────────────────────────────────────────
+
+export async function logAudit(staffId: string, action: string, targetType: string, targetId?: string, oldData?: any, newData?: any) {
+  const id = crypto.randomUUID();
+  return await db.insert(auditLogs).values({
+    id,
+    staffId,
+    action,
+    targetType,
+    targetId,
+    oldData,
+    newData
+  }).returning();
+}
+
+export async function getAuditLogs() {
+  return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(500);
 }
 
 // ── ORDERS ───────────────────────────────────────────────────────────────
@@ -65,6 +129,9 @@ export async function upsertCustomer(email: string, patch: any) {
         totalSpent: (existing[0].totalSpent || 0) + (Number(patch.totalSpent) || 0),
         phone: patch.phone || existing[0].phone,
         name: patch.name || existing[0].name,
+        lastOrderAt: new Date(),
+        lastAddress: patch.address || existing[0].lastAddress,
+        preferredMethod: patch.preferredMethod || existing[0].preferredMethod,
       })
       .where(eq(customers.email, email.toLowerCase()));
   } else {
@@ -75,6 +142,9 @@ export async function upsertCustomer(email: string, patch: any) {
       phone: patch.phone,
       totalOrders: 1,
       totalSpent: Number(patch.totalSpent) || 0,
+      lastOrderAt: new Date(),
+      lastAddress: patch.address,
+      preferredMethod: patch.preferredMethod,
     });
   }
 }
@@ -86,10 +156,23 @@ export async function getPromoCodes() {
 }
 
 export async function getPromoByCode(code: string) {
+  const upperCode = code.toUpperCase();
+  
+  // Real DB check
   const result = await db.select()
     .from(promoCodes)
-    .where(and(eq(promoCodes.code, code.toUpperCase()), eq(promoCodes.active, true)));
-  return result[0] || null;
+    .where(and(eq(promoCodes.code, upperCode), eq(promoCodes.active, true)));
+  
+  if (result[0]) return result[0];
+
+  // Hardcoded Fallbacks for testing/demo
+  const fallbacks: Record<string, any> = {
+    "BUDS10": { code: "BUDS10", discount: 10, type: "percent", active: true, usageCount: 0, maxUses: null },
+    "WELCOME20": { code: "WELCOME20", discount: 20, type: "percent", active: true, usageCount: 0, maxUses: null },
+    "FREESHIP": { code: "FREESHIP", discount: 5.99, type: "fixed", active: true, usageCount: 0, maxUses: null },
+  };
+
+  return fallbacks[upperCode] || null;
 }
 
 export async function upsertPromoCode(data: any) {
@@ -143,7 +226,37 @@ export async function getStats() {
     .from(orders)
     .where(sql`${orders.createdAt} >= ${weekAgo}`);
 
-  // For the revenue chart, we still need some day-by-day data, but let's aggregate it in SQL
+  // Monthly Revenue (Last 6 months)
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const monthlyRevenue = await db
+    .select({
+      month: sql<string>`TO_CHAR(${orders.createdAt}, 'Mon YYYY')`,
+      revenue: sql<number>`SUM(CAST(${orders.total} AS NUMERIC))`,
+    })
+    .from(orders)
+    .where(sql`${orders.createdAt} >= ${sixMonthsAgo}`)
+    .groupBy(sql`TO_CHAR(${orders.createdAt}, 'Mon YYYY'), DATE_TRUNC('month', ${orders.createdAt})`)
+    .orderBy(sql`DATE_TRUNC('month', ${orders.createdAt})`);
+
+  // Category Breakdown
+  const categoryStats = await db
+    .select({
+      category: products.category,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(products)
+    .groupBy(products.category);
+
+  // Special Order Conversion
+  const [specialOrderStats] = await db
+    .select({
+      total: sql<number>`COUNT(*)`,
+      completed: sql<number>`COUNT(*) FILTER (WHERE ${specialOrders.status} = 'completed')`,
+    })
+    .from(specialOrders);
+
+  // For the revenue chart, we still need some day-by-day data
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
   const revenueChartData = await db
     .select({
@@ -155,9 +268,7 @@ export async function getStats() {
     .groupBy(sql`DATE(${orders.createdAt})`)
     .orderBy(asc(sql`DATE(${orders.createdAt})`));
 
-  // Top products - this is tricky with jsonb items, but we can try a simple version or just fetch recent orders
-  // For now, let's keep the product logic but maybe limit it or optimize if possible.
-  // Actually, let's just fetch the last 100 orders to calculate top products for now to keep it fast.
+  // Top products
   const recentOrders = await db.select({ items: orders.items }).from(orders).orderBy(desc(orders.createdAt)).limit(200);
   
   const productTotals: Record<string, { name: string; units: number; revenue: number }> = {};
@@ -181,6 +292,13 @@ export async function getStats() {
     avgOrderValue: Number(basicStats.avgOrderValue),
     ordersThisWeek: Number(weeklyOrders.count),
     revenueByDay: revenueChartData.map(d => ({ date: d.date, revenue: Number(d.revenue) })),
+    monthlyRevenue: monthlyRevenue.map(m => ({ month: m.month, revenue: Number(m.revenue) })),
+    categoryStats: categoryStats.map(c => ({ category: c.category || "Unknown", count: Number(c.count) })),
+    specialOrderConversion: {
+      total: Number(specialOrderStats.total),
+      completed: Number(specialOrderStats.completed),
+      rate: specialOrderStats.total > 0 ? (specialOrderStats.completed / specialOrderStats.total) * 100 : 0
+    },
     topProducts,
   };
 }

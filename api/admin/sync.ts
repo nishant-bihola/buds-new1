@@ -24,21 +24,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return json(res as any, { success: false, message: "No products found in Barnet response" });
     }
 
-    // 2. Normalize data
-    const normalized = barnetProducts.map((p: any) => {
+    // 2. Normalize data and Deduplicate
+    const seenIds = new Set();
+    const normalized = [];
+    
+    for (const p of barnetProducts) {
       const mapped = mapBarnetProductToBuds(p);
-      return {
-        id: mapped.id,
-        name: mapped.name,
-        price: mapped.price,
-        image: mapped.image,
-        category: mapped.category,
-        description: mapped.description,
-        inStock: mapped.in_stock,
-        source: "barnet",
-        updatedAt: new Date(),
-      };
-    });
+      // Ensure we have a valid ID and haven't seen it yet in this batch
+      if (mapped.id && !seenIds.has(mapped.id)) {
+        seenIds.add(mapped.id);
+        normalized.push({
+          id: mapped.id,
+          name: mapped.name,
+          price: mapped.price,
+          image: mapped.image,
+          category: mapped.category,
+          description: mapped.description,
+          inStock: mapped.in_stock,
+          source: "barnet",
+          updatedAt: new Date(),
+        });
+      }
+    }
 
     // 3. Upsert into Neon (Postgres)
     // We use a transaction for safety

@@ -8,7 +8,6 @@ const Intro = lazy(() => import("../components/Intro").then(m => ({ default: m.I
 const MemberPerks = lazy(() => import("../components/MemberPerks"));
 const ProductGrid = lazy(() => import("../components/ProductGrid").then(m => ({ default: m.ProductGrid })));
 const Reviews = lazy(() => import("../components/Reviews").then(m => ({ default: m.Reviews })));
-const BestSellerFeature = lazy(() => import("../components/BestSellerFeature").then(m => ({ default: m.BestSellerFeature })));
 const About = lazy(() => import("../components/About").then(m => ({ default: m.About })));
 const StorySection = lazy(() => import("../components/StorySection").then(m => ({ default: m.StorySection })));
 
@@ -47,16 +46,15 @@ export function Home() {
       
       <Suspense fallback={<SectionSkeleton />}>
         <div className="space-y-0">
+          {/* Fresh Menu (Product Grid) right under Hero */}
+          <ProductGrid products={products} loading={loading} />
+          
           <BrandStatement />
           <MemberPerks />
           
-          {/* Dynamic ordering optimization */}
           <div className="flex flex-col">
             <div className="order-2 lg:order-1">
                <StorySection />
-            </div>
-            <div className="order-1 lg:order-2">
-               <ProductGrid products={products} loading={loading} />
             </div>
             <div className="order-3">
                <Intro />
@@ -64,7 +62,6 @@ export function Home() {
           </div>
           
           <Reviews />
-          <BestSellerFeature />
           <About />
         </div>
       </Suspense>

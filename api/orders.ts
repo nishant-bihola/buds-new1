@@ -56,7 +56,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // async background tasks
       upsertCustomer(customer.email.toLowerCase(), {
-        name: customer.name, phone: customer.phone, totalSpent: Number(total),
+        name: customer.name, 
+        phone: customer.phone, 
+        totalSpent: Number(total),
+        address: delivery?.method === "delivery" ? `${delivery.street}, ${delivery.city} ${delivery.postal}` : null,
+        preferredMethod: delivery?.method ?? "pickup",
       }).catch(e => console.error("Customer upsert failed:", e));
 
       // fire emails

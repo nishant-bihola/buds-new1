@@ -37,12 +37,17 @@ export async function fetchBarnetProducts() {
 export function mapBarnetProductToBuds(barnetProduct: any) {
   // Map Barnet fields to Buds fields
   // Using fallbacks for common Barnet field naming variations
-  const id = barnetProduct.Sku || barnetProduct.SKU || barnetProduct.ID || barnetProduct.Id || String(Math.random());
+  const id = String(barnetProduct.Sku || barnetProduct.SKU || barnetProduct.ID || barnetProduct.Id || Math.random().toString(36).substring(7));
   
+  // Clean up description (remove HTML if present)
+  const description = (barnetProduct.Description || barnetProduct.LongDescription || '')
+    .replace(/<[^>]*>?/gm, '') // Simple HTML strip
+    .trim();
+
   return {
-    id: String(id),
-    name: barnetProduct.Title || barnetProduct.Name || barnetProduct.ProductName || 'Unnamed Product',
-    description: barnetProduct.Description || barnetProduct.LongDescription || '',
+    id,
+    name: (barnetProduct.Title || barnetProduct.Name || barnetProduct.ProductName || 'Unnamed Product').trim(),
+    description,
     price: parseFloat(barnetProduct.Price || barnetProduct.RetailPrice || barnetProduct.MSRP || 0),
     category: barnetProduct.Category || barnetProduct.Department || 'Uncategorized',
     image: barnetProduct.ImageUrl || barnetProduct.ImageURL || barnetProduct.PrimaryImage || '/images/placeholder.png',

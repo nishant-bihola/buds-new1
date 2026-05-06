@@ -109,6 +109,7 @@ export function Checkout() {
           discount,
           total: totalPrice,
           promoCode: appliedPromo?.code ?? null,
+          paymentMethod: deliveryMethod === "delivery" ? "pay_at_door" : "credit_card",
         }),
       });
 
@@ -285,16 +286,21 @@ export function Checkout() {
                   </div>
 
                   <button type="button"
-                    onClick={() => { if (validateDetails()) setStep("payment"); }}
+                    onClick={() => { 
+                      if (validateDetails()) {
+                        if (deliveryMethod === "delivery") setStep("confirm");
+                        else setStep("payment");
+                      } 
+                    }}
                     className="w-full bg-brand-green text-brand-earth py-4 rounded-full font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
                   >
-                    Continue to Payment <ArrowRight size={16} />
+                    {deliveryMethod === "delivery" ? "Review Order" : "Continue to Payment"} <ArrowRight size={16} />
                   </button>
                 </motion.div>
               )}
 
-              {/* STEP 2: Payment */}
-              {step === "payment" && (
+              {/* STEP 2: Payment (Only for Pickup or if requested) */}
+              {step === "payment" && deliveryMethod !== "delivery" && (
                 <motion.div
                   key="payment"
                   initial={{ opacity: 0, x: 16 }}
@@ -360,7 +366,14 @@ export function Checkout() {
                 >
                   {/* Summary recap */}
                   <div className="bg-white rounded-[28px] sm:rounded-[36px] p-6 sm:p-10 border border-brand-green/5 shadow-xl space-y-4">
-                    <h2 className="font-black uppercase tracking-tight text-xl text-brand-green">Review Your Order</h2>
+                    <div className="flex items-center justify-between">
+                       <h2 className="font-black uppercase tracking-tight text-xl text-brand-green">Review Your Order</h2>
+                       {deliveryMethod === "delivery" && (
+                         <div className="bg-brand-green/10 text-brand-green px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+                           Pay at Delivery
+                         </div>
+                       )}
+                    </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className={lbl + " mb-1"}>Name</p>
@@ -406,7 +419,7 @@ export function Checkout() {
                   </div>
 
                   <div className="flex gap-3">
-                    <button type="button" onClick={() => setStep("payment")}
+                    <button type="button" onClick={() => setStep(deliveryMethod === "delivery" ? "details" : "payment")}
                       className="px-6 py-4 rounded-full border-2 border-brand-green/15 font-black uppercase tracking-widest text-sm text-brand-dark/50 hover:border-brand-green/30 transition-colors">
                       Back
                     </button>

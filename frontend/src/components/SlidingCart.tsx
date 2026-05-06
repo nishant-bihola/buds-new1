@@ -66,25 +66,25 @@ export function SlidingCart() {
             className="fixed top-0 right-0 h-[100dvh] w-full sm:max-w-md bg-brand-earth z-[160] flex flex-col shadow-2xl overflow-hidden isolate"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-6 border-b border-brand-green/10 shrink-0 bg-brand-earth/80 backdrop-blur-xl sticky top-0 z-20">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-brand-green/10 shrink-0 bg-brand-earth/80 backdrop-blur-xl sticky top-0 z-20">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <ShoppingBag size={22} className="text-brand-green" />
+                  <ShoppingBag size={20} className="text-brand-green" />
                   <AnimatePresence>
                     {cartCount > 0 && (
                       <motion.span
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-brand-light-green rounded-full border-2 border-brand-earth"
+                        className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-brand-light-green rounded-full border-2 border-brand-earth"
                       />
                     )}
                   </AnimatePresence>
                 </div>
                 <div>
-                  <h2 className="font-black uppercase tracking-tighter text-brand-green text-2xl leading-none">
+                  <h2 className="font-black uppercase tracking-tighter text-brand-green text-xl leading-none">
                     Your Menu
                   </h2>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-green/40 mt-1">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/40 mt-0.5">
                     {cartCount} {cartCount === 1 ? "Item" : "Items"} Selection
                   </p>
                 </div>
@@ -92,33 +92,33 @@ export function SlidingCart() {
               <button
                 type="button"
                 onClick={closeCart}
-                className="w-12 h-12 rounded-2xl bg-brand-green/5 flex items-center justify-center text-brand-green hover:bg-brand-green hover:text-brand-earth active:scale-90 transition-all duration-300"
+                className="w-10 h-10 rounded-xl bg-brand-green/5 flex items-center justify-center text-brand-green hover:bg-brand-green hover:text-brand-earth active:scale-90 transition-all duration-300"
               >
-                <X size={24} strokeWidth={3} />
+                <X size={20} strokeWidth={3} />
               </button>
             </div>
 
             {/* Delivery / Pickup Toggle */}
-            <div className="px-6 pt-8 pb-4 shrink-0 bg-brand-earth">
-              <div className="grid grid-cols-2 gap-2 p-1.5 bg-brand-green/5 rounded-[24px] border border-brand-green/10">
+            <div className="px-6 pt-4 pb-2 shrink-0 bg-brand-earth">
+              <div className="grid grid-cols-2 gap-2 p-1 bg-brand-green/5 rounded-[20px] border border-brand-green/10">
                 {(["delivery", "pickup"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
                     onClick={() => setDeliveryMethod(m)}
-                    className={`flex items-center justify-center gap-2 py-4 rounded-[18px] text-[11px] font-black uppercase tracking-widest transition-all ${
+                    className={`flex items-center justify-center gap-2 py-3 rounded-[16px] text-[10px] font-black uppercase tracking-widest transition-all ${
                       deliveryMethod === m
-                        ? "bg-brand-green text-brand-earth shadow-xl shadow-brand-green/20 scale-[1.02]"
-                        : "text-brand-green/40 hover:text-brand-green hover:bg-brand-green/5"
+                        ? "bg-brand-green text-brand-earth shadow-lg shadow-brand-green/20"
+                        : "text-brand-green/40 hover:text-brand-green"
                     }`}
                   >
-                    {m === "delivery" ? <Truck size={16} /> : <Store size={16} />}
+                    {m === "delivery" ? <Truck size={14} /> : <Store size={14} />}
                     {m === "delivery" ? "Delivery" : "Pickup"}
                   </button>
                 ))}
               </div>
 
-              <div className="min-h-[70px] mt-6">
+              <div className="min-h-[60px] mt-4">
                 <AnimatePresence mode="wait">
                   {deliveryMethod === "delivery" ? (
                     <motion.div
@@ -126,20 +126,20 @@ export function SlidingCart() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="flex gap-3"
+                      className="flex gap-2"
                     >
                       {(["asap", "2h", "4h"] as const).map((s) => (
                         <button
                           key={s}
                           type="button"
                           onClick={() => setDeliverySlot(s)}
-                          className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-wider border-2 transition-all flex flex-col items-center gap-2 ${
+                          className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all flex flex-col items-center gap-1.5 ${
                             deliverySlot === s
                               ? "border-brand-green bg-brand-green/5 text-brand-green"
                               : "border-brand-green/10 text-brand-dark/30 hover:border-brand-green/30"
                           }`}
                         >
-                          <Clock size={14} className={deliverySlot === s ? "text-brand-green" : "text-brand-green/30"} />
+                          <Clock size={12} className={deliverySlot === s ? "text-brand-green" : "text-brand-green/30"} />
                           {s === "asap" ? "ASAP" : s}
                         </button>
                       ))}
@@ -150,14 +150,14 @@ export function SlidingCart() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="bg-white/60 backdrop-blur-md rounded-2xl p-5 flex items-center gap-5 border border-brand-green/10 shadow-sm"
+                      className="bg-white/60 backdrop-blur-md rounded-xl p-4 flex items-center gap-4 border border-brand-green/10 shadow-sm"
                     >
-                      <div className="w-12 h-12 rounded-2xl bg-brand-green/10 flex items-center justify-center text-brand-green shadow-inner">
-                        <Store size={22} />
+                      <div className="w-10 h-10 rounded-xl bg-brand-green/10 flex items-center justify-center text-brand-green shadow-inner">
+                        <Store size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/50 mb-1">Pickup Location</p>
-                        <p className="text-sm font-black text-brand-dark truncate">130-75 Salisbury Way, Sherwood Park</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-brand-green/50">Pickup Location</p>
+                        <p className="text-xs font-black text-brand-dark truncate">Salisbury Way, Sherwood Park</p>
                       </div>
                     </motion.div>
                   )}
@@ -166,14 +166,14 @@ export function SlidingCart() {
 
               {/* Free delivery progress */}
               {deliveryMethod === "delivery" && (
-                <div className="mt-6 p-5 rounded-[32px] bg-brand-green/5 border border-brand-green/10">
-                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest mb-3">
+                <div className="mt-4 p-4 rounded-[24px] bg-brand-green/5 border border-brand-green/10">
+                  <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest mb-2">
                     <span className={subtotal >= FREE_THRESHOLD ? "text-brand-green" : "text-brand-dark/40"}>
                       {subtotal >= FREE_THRESHOLD ? "Free delivery unlocked!" : `Add $${toFreeDelivery.toFixed(2)} for free delivery`}
                     </span>
                     <span className="text-brand-green">{Math.min(100, Math.round((subtotal / FREE_THRESHOLD) * 100))}%</span>
                   </div>
-                  <div className="h-2 bg-brand-green/10 rounded-full overflow-hidden shadow-inner">
+                  <div className="h-1.5 bg-brand-green/10 rounded-full overflow-hidden">
                     <motion.div
                       className="h-full bg-brand-green"
                       initial={{ width: 0 }}
@@ -186,26 +186,26 @@ export function SlidingCart() {
             </div>
 
             {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 custom-scrollbar isolate">
+            <div className="flex-1 overflow-y-auto px-6 pt-2 pb-24 space-y-4 custom-scrollbar isolate">
               <AnimatePresence mode="popLayout">
                 {cart.length === 0 ? (
                   <motion.div
                     key="empty-cart"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="flex flex-col items-center justify-center py-20 text-center"
+                    className="flex flex-col items-center justify-center py-16 text-center"
                   >
-                    <div className="w-28 h-28 rounded-[40px] bg-brand-green/5 flex items-center justify-center mb-8 border border-brand-green/10">
-                      <ShoppingBag size={48} className="text-brand-green/20" />
+                    <div className="w-24 h-24 rounded-[32px] bg-brand-green/5 flex items-center justify-center mb-6 border border-brand-green/10">
+                      <ShoppingBag size={40} className="text-brand-green/20" />
                     </div>
-                    <h3 className="font-black uppercase tracking-tight text-brand-green text-2xl mb-3">Cart is empty</h3>
-                    <p className="text-base text-brand-dark/40 max-w-[240px] mb-10 leading-relaxed font-medium">Add some premium craft products to your menu.</p>
+                    <h3 className="font-black uppercase tracking-tight text-brand-green text-xl mb-2">Cart is empty</h3>
+                    <p className="text-sm text-brand-dark/40 max-w-[200px] mb-8 leading-relaxed font-medium">Add some premium craft products to your menu.</p>
                     <button
                       type="button"
                       onClick={closeCart}
-                      className="group flex items-center gap-4 bg-brand-green text-brand-earth px-10 py-5 rounded-[24px] text-[12px] font-black uppercase tracking-widest hover:bg-brand-light-green hover:text-brand-green transition-all shadow-2xl shadow-brand-green/20"
+                      className="group flex items-center gap-3 bg-brand-green text-brand-earth px-8 py-4 rounded-[20px] text-[11px] font-black uppercase tracking-widest hover:bg-brand-light-green hover:text-brand-green transition-all"
                     >
-                      Browse Menu <ChevronRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
+                      Browse Menu <ChevronRight size={14} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
                     </button>
                   </motion.div>
                 ) : (
@@ -216,35 +216,44 @@ export function SlidingCart() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                      className="group bg-white rounded-[24px] sm:rounded-[32px] p-3 sm:p-4 flex gap-3 sm:gap-5 items-center border border-brand-green/5 shadow-sm hover:shadow-xl hover:border-brand-green/15 transition-all duration-500"
+                      className="group bg-white rounded-[28px] p-4 flex flex-col gap-4 border border-brand-green/5 shadow-sm hover:shadow-xl transition-all duration-500"
                     >
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl bg-brand-earth/50 shrink-0 overflow-hidden p-1.5 sm:p-2 border border-brand-green/5 group-hover:scale-105 transition-transform duration-500">
-                        <img src={item.image} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" loading="lazy" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start mb-0.5 sm:mb-1 gap-2">
-                          <h4 className="font-black text-brand-green text-sm sm:text-base uppercase tracking-tight truncate flex-1">{item.name}</h4>
-                          <span className="font-black text-brand-green text-sm sm:text-base whitespace-nowrap">${(item.price * item.quantity).toFixed(2)}</span>
+                      <div className="flex gap-4 items-center">
+                        <div className="w-16 h-16 rounded-2xl bg-brand-earth/50 shrink-0 overflow-hidden p-2 border border-brand-green/5">
+                          <img 
+                            src={item.image} 
+                            alt={item.name} 
+                            className="w-full h-full object-contain" 
+                            onError={(e) => (e.currentTarget.src = "/images/placeholder.png")}
+                            loading="lazy" 
+                          />
                         </div>
-                        <p className="text-[9px] sm:text-[10px] text-brand-dark/30 font-black uppercase tracking-[0.2em] mb-3 sm:mb-4">{item.category}</p>
-                        
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center bg-brand-earth rounded-xl sm:rounded-2xl p-1 sm:p-1.5 border border-brand-green/5 shadow-inner">
-                            <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-lg sm:rounded-xl transition-all duration-300 text-brand-green">
-                              <Minus size={12} sm:size={14} strokeWidth={3} />
-                            </button>
-                            <span className="w-8 sm:w-10 text-center text-xs sm:text-sm font-black text-brand-green">{item.quantity}</span>
-                            <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-lg sm:rounded-xl transition-all duration-300 text-brand-green">
-                              <Plus size={12} sm:size={14} strokeWidth={3} />
-                            </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start gap-2">
+                            <h4 className="font-black text-brand-green text-[13px] uppercase tracking-tight truncate flex-1">{item.name}</h4>
+                            <span className="font-black text-brand-green text-[13px] whitespace-nowrap">${(item.price * item.quantity).toFixed(2)}</span>
                           </div>
-                          <button type="button" onClick={() => removeFromCart(item.id)}
-                            className="text-brand-dark/10 hover:text-red-500 transition-colors p-2 sm:p-3 hover:bg-red-50 rounded-xl sm:rounded-2xl shrink-0">
-                            <Trash2 size={14} sm:size={16} />
+                          <p className="text-[8px] text-brand-dark/30 font-black uppercase tracking-[0.2em] mt-1">{item.category}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between pt-3 border-t border-brand-green/[0.03]">
+                        <div className="flex items-center bg-brand-earth rounded-xl p-1 border border-brand-green/5">
+                          <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            className="w-7 h-7 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-lg transition-all duration-300 text-brand-green">
+                            <Minus size={12} strokeWidth={3} />
+                          </button>
+                          <span className="w-8 text-center text-xs font-black text-brand-green">{item.quantity}</span>
+                          <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            className="w-7 h-7 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-lg transition-all duration-300 text-brand-green">
+                            <Plus size={12} strokeWidth={3} />
                           </button>
                         </div>
+                        <button type="button" onClick={() => removeFromCart(item.id)}
+                          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-brand-dark/20 hover:text-red-500 transition-colors">
+                          <Trash2 size={12} />
+                          <span>Remove</span>
+                        </button>
                       </div>
                     </motion.div>
                   ))
@@ -254,29 +263,29 @@ export function SlidingCart() {
 
             {/* Footer */}
             {cart.length > 0 && (
-              <div className="px-6 pb-10 pt-6 border-t border-brand-green/10 bg-brand-earth/95 backdrop-blur-xl shrink-0 space-y-5">
+              <div className="px-6 pb-4 pt-2 border-t border-brand-green/10 bg-brand-earth/95 backdrop-blur-xl shrink-0 space-y-2.5">
                 {/* Promo code */}
                 <div className="relative">
                   {appliedPromo ? (
                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                      className="flex items-center justify-between bg-brand-green/10 rounded-[24px] px-6 py-4 border border-brand-green/20">
-                      <div className="flex items-center gap-4">
-                        <Tag size={18} className="text-brand-green" />
+                      className="flex items-center justify-between bg-brand-green/10 rounded-[16px] px-4 py-2.5 border border-brand-green/20">
+                      <div className="flex items-center gap-2">
+                        <Tag size={14} className="text-brand-green" />
                         <div>
-                          <p className="text-[11px] font-black text-brand-green uppercase tracking-[0.2em]">{appliedPromo.code}</p>
-                          <p className="text-[10px] text-brand-green/60 font-bold uppercase tracking-wider">
-                            Applied · {appliedPromo.type === "percent" ? `${appliedPromo.discount}%` : `$${appliedPromo.discount}`} Off
+                          <p className="text-[9px] font-black text-brand-green uppercase tracking-[0.2em]">{appliedPromo.code}</p>
+                          <p className="text-[8px] text-brand-green/60 font-bold uppercase tracking-wider">
+                            {appliedPromo.type === "percent" ? `${appliedPromo.discount}%` : `$${appliedPromo.discount}`} Off
                           </p>
                         </div>
                       </div>
-                      <button type="button" onClick={removePromo} className="w-10 h-10 flex items-center justify-center rounded-2xl hover:bg-brand-green/10 text-brand-green transition-all">
-                        <X size={18} />
+                      <button type="button" onClick={removePromo} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-brand-green/10 text-brand-green transition-all">
+                        <X size={14} />
                       </button>
                     </motion.div>
                   ) : (
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                       <div className="flex-1 relative group">
-                        <Tag size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-brand-green/30 group-focus-within:text-brand-green transition-colors" />
+                        <Tag size={12} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-green/30 group-focus-within:text-brand-green transition-colors" />
                         <input
                           ref={promoRef}
                           type="text"
@@ -284,28 +293,28 @@ export function SlidingCart() {
                           value={promoCode}
                           onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                           onKeyDown={(e) => e.key === "Enter" && handleApplyPromo()}
-                          className="w-full bg-white border border-brand-green/10 rounded-[24px] pl-12 pr-5 py-4.5 text-xs font-black uppercase tracking-[0.2em] outline-none focus:border-brand-green/30 focus:ring-8 focus:ring-brand-green/5 transition-all placeholder:text-brand-dark/20 placeholder:normal-case placeholder:font-medium placeholder:tracking-normal"
+                          className="w-full bg-white border border-brand-green/10 rounded-[16px] pl-9 pr-3 py-3 text-[9px] font-black uppercase tracking-[0.2em] outline-none focus:border-brand-green/30 focus:ring-4 focus:ring-brand-green/5 transition-all placeholder:text-brand-dark/20"
                         />
                       </div>
                       <button
                         type="button"
                         onClick={handleApplyPromo}
                         disabled={!promoCode || promoLoading}
-                        className="bg-brand-green text-brand-earth px-8 rounded-[24px] text-[11px] font-black uppercase tracking-widest hover:bg-brand-light-green hover:text-brand-green active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none shadow-xl shadow-brand-green/10"
+                        className="bg-brand-green text-brand-earth px-5 rounded-[16px] text-[9px] font-black uppercase tracking-widest hover:bg-brand-light-green hover:text-brand-green transition-all disabled:opacity-30 shadow-lg shadow-brand-green/10"
                       >
-                        {promoLoading ? <Loader2 size={18} className="animate-spin" /> : "Apply"}
+                        {promoLoading ? <Loader2 size={14} className="animate-spin" /> : "Apply"}
                       </button>
                     </div>
                   )}
                 </div>
 
                 {/* Totals */}
-                <div className="bg-white/40 rounded-[32px] p-6 space-y-3.5 border border-brand-green/5 shadow-inner">
-                  <div className="flex justify-between text-xs font-black text-brand-dark/40 uppercase tracking-[0.2em]">
+                <div className="bg-white/40 rounded-[20px] p-3 space-y-1.5 border border-brand-green/5">
+                  <div className="flex justify-between text-[9px] font-black text-brand-dark/40 uppercase tracking-[0.2em]">
                     <span>Subtotal</span>
                     <span className="text-brand-dark font-black">${subtotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-xs font-black text-brand-dark/40 uppercase tracking-[0.2em]">
+                  <div className="flex justify-between text-[9px] font-black text-brand-dark/40 uppercase tracking-[0.2em]">
                     <span>{deliveryMethod === "delivery" ? "Delivery Fee" : "Pickup"}</span>
                     <span className={deliveryFee === 0 ? "text-brand-green font-black" : "text-brand-dark font-black"}>
                       {deliveryFee === 0 ? "FREE" : `$${deliveryFee.toFixed(2)}`}
@@ -313,32 +322,25 @@ export function SlidingCart() {
                   </div>
                   {discount > 0 && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
-                      className="flex justify-between text-xs font-black text-brand-green uppercase tracking-[0.2em]">
+                      className="flex justify-between text-[9px] font-black text-brand-green uppercase tracking-[0.2em]">
                       <span>Discount</span>
                       <span>−${discount.toFixed(2)}</span>
                     </motion.div>
                   )}
-                  <div className="flex justify-between items-center pt-4 border-t border-brand-green/10 mt-2">
-                    <span className="font-black text-brand-green uppercase tracking-[0.3em] text-[10px]">Total Amount</span>
-                    <span className="text-3xl font-black text-brand-green tracking-tighter leading-none">${totalPrice.toFixed(2)}</span>
+                  <div className="flex justify-between items-center pt-2 border-t border-brand-green/10 mt-0.5">
+                    <span className="font-black text-brand-green uppercase tracking-[0.3em] text-[8px]">Total</span>
+                    <span className="text-xl font-black text-brand-green tracking-tighter leading-none">${totalPrice.toFixed(2)}</span>
                   </div>
                 </div>
 
                 <Link
                   to="/checkout"
                   onClick={closeCart}
-                  className="group relative w-full bg-brand-green text-brand-earth py-6 rounded-[32px] font-black uppercase tracking-[0.3em] text-[13px] flex items-center justify-center gap-4 hover:bg-brand-light-green hover:text-brand-green transition-all shadow-[0_15px_35px_rgba(30,77,43,0.3)] overflow-hidden"
+                  className="group relative w-full bg-brand-green text-brand-earth py-4 rounded-[20px] font-black uppercase tracking-[0.3em] text-[11px] flex items-center justify-center gap-3 hover:bg-brand-light-green hover:text-brand-green transition-all shadow-lg shadow-brand-green/20"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                  <span>Secure Checkout</span> 
-                  <ChevronRight size={20} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
+                  <span>Checkout</span> 
+                  <ChevronRight size={16} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
                 </Link>
-
-                <div className="flex items-center justify-center gap-6 opacity-20">
-                   <div className="h-[1px] flex-1 bg-brand-dark" />
-                   <p className="text-[9px] font-black uppercase tracking-[0.5em] whitespace-nowrap">Bud n' Buddies AB</p>
-                   <div className="h-[1px] flex-1 bg-brand-dark" />
-                </div>
               </div>
             )}
           </motion.div>
