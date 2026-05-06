@@ -4,18 +4,24 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     "Content-Type": "application/json",
   };
   const secret = sessionStorage.getItem("admin_secret") ?? localStorage.getItem("admin_secret");
-  if (secret) headers["Authorization"] = `Bearer ${secret}`;
+  if (secret) {
+    headers["Authorization"] = `Bearer ${secret}`;
+  } else {
+    console.warn("[API] No admin secret found in storage");
+  }
 
   try {
     const response = await fetch(url, { ...options, headers });
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}`);
+      const errorMsg = data.error || `HTTP ${response.status}`;
+      console.error(`[API Error] ${url}:`, errorMsg, data);
+      throw new Error(errorMsg);
     }
     return data;
   } catch (err: any) {
-    console.error(`[API Error] ${url}:`, err.message);
+    console.error(`[API Error] ${url}:`, err.message, err);
     throw err;
   }
 }

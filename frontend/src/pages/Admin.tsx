@@ -1127,12 +1127,13 @@ function PromosTab() {
         await api.admin.createPromo(promo);
         success("Promo created!");
       }
-      revalidatePromos();
+      await revalidatePromos();
       setShowModal(false);
       setSelectedPromo(null);
     } catch (err: any) {
-      console.error("Save failed:", err);
-      toastError("Save failed");
+      const errorMsg = err?.message || String(err) || "Unknown error";
+      console.error("Promo save failed:", errorMsg, err);
+      toastError(`Save failed: ${errorMsg.substring(0, 50)}`);
     }
   };
 
