@@ -20,7 +20,7 @@
       ]
     },
     {
-      "source": "/:path((?!api/).*\\.(js|css|woff2)$)",
+      "source": "/assets/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
