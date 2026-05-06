@@ -4,12 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "cd frontend && vite --port 5173",
-    "dev:local": "vercel dev",
-    "frontend": "cd frontend && vite",
+    "dev": "cd frontend && vite",
     "build": "cd frontend && vite build",
     "preview": "cd frontend && vite preview",
-    "clean": "rm -rf frontend/dist",
     "lint": "cd frontend && tsc --noEmit",
     "db:push": "drizzle-kit push --config drizzle.config.ts"
   },
