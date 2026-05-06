@@ -1226,7 +1226,12 @@ function PromoModal({ promo, onClose, onSave }: any) {
       return;
     }
     setLoading(true);
-    await onSave(formData);
+    // Ensure ID exists for new promos
+    const dataToSave = {
+      ...formData,
+      id: formData.id || `promo_${Date.now()}`,
+    };
+    await onSave(dataToSave);
     setLoading(false);
   };
 

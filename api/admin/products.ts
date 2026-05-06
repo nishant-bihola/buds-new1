@@ -14,7 +14,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === "POST" || req.method === "PUT") {
-      const product = await upsertProduct(req.body);
+      const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+      const product = await upsertProduct(body);
       return json(res as any, { product });
     }
 
