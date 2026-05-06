@@ -9,16 +9,14 @@ export function StorySection() {
     offset: ["start end", "end start"],
   });
 
-  const smoothProgress = useSpring(scrollYProgress, { 
-    stiffness: 100, 
-    damping: 30, 
-    restDelta: 0.001 
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
   });
 
   const y1 = useTransform(smoothProgress, [0, 1], ["0%", "-40%"]);
   const y2 = useTransform(smoothProgress, [0, 1], ["0%", "40%"]);
-  const rotate = useTransform(smoothProgress, [0, 1], [0, 15]);
-  const scale = useTransform(smoothProgress, [0, 0.5, 1], [0.85, 1.05, 0.95]);
   const opacity = useTransform(smoothProgress, [0, 0.15, 0.85, 1], [0, 1, 1, 0]);
 
   return (
@@ -40,19 +38,18 @@ export function StorySection() {
             <img src="/images/premium_bud_brand.png" alt="Our story" loading="lazy" decoding="async" className="w-full h-full object-cover scale-110" />
           </motion.div>
           
-          <motion.div style={{ y: y2, rotate: -8 }} className="absolute bottom-0 right-0 w-[70%] aspect-square rounded-[48px] md:rounded-[64px] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-white/10 z-20 bg-[#060b08]">
+          <motion.div style={{ y: y2 }} className="absolute bottom-0 right-0 w-[70%] aspect-square rounded-[48px] md:rounded-[64px] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-white/10 z-20 bg-[#060b08]">
              <div className="absolute inset-0 bg-brand-green/20 mix-blend-overlay" />
              <img src="/images/nano_banana_kush.png" alt="Premium product" loading="lazy" decoding="async" className="w-full h-full object-contain p-10 md:p-14" />
           </motion.div>
 
-          <motion.div 
-            style={{ rotate, scale }}
+          <div
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 md:w-48 md:h-48 bg-brand-light-green rounded-full flex items-center justify-center z-30 shadow-2xl border-4 md:border-8 border-[#060b08] cursor-pointer"
           >
             <span className="text-brand-green font-black uppercase text-sm md:text-xl tracking-tighter text-center leading-[0.8]">
               PURE<br/>CRAFT
             </span>
-          </motion.div>
+          </div>
         </div>
 
         {/* Text Composition */}

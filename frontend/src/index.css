@@ -39,8 +39,6 @@
     font-size: clamp(14px, 1vw + 10px, 18px);
     /* Prevent elastic overscroll on iOS from hijacking page bounce */
     overscroll-behavior-y: none;
-    /* Speed up rendering of off-screen components */
-    content-visibility: auto;
   }
 
   body {

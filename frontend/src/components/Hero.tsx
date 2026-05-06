@@ -74,7 +74,6 @@ export function Hero() {
           playsInline
           preload="metadata"
           className="h-full w-full object-cover pointer-events-none brightness-[0.35] contrast-[1.1] saturate-[0.8]"
-          poster="/images/premium_bud_brand.png"
         >
           <source src="/videos/hero_bg.mp4" type="video/mp4" />
         </video>

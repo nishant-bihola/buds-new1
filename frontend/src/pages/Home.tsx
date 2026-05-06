@@ -43,28 +43,42 @@ export function Home() {
   return (
     <div className="flex flex-col bg-[#060b08]">
       <Hero />
-      
-      <Suspense fallback={<SectionSkeleton />}>
-        <div className="space-y-0">
-          {/* Fresh Menu (Product Grid) right under Hero */}
+
+      <div className="space-y-0">
+        {/* Fresh Menu (Product Grid) right under Hero */}
+        <Suspense fallback={<SectionSkeleton />}>
           <ProductGrid products={products} loading={loading} />
-          
+        </Suspense>
+
+        <Suspense fallback={<SectionSkeleton />}>
           <BrandStatement />
+        </Suspense>
+
+        <Suspense fallback={<SectionSkeleton />}>
           <MemberPerks />
-          
-          <div className="flex flex-col">
-            <div className="order-2 lg:order-1">
-               <StorySection />
-            </div>
-            <div className="order-3">
-               <Intro />
-            </div>
+        </Suspense>
+
+        <div className="flex flex-col">
+          <div className="order-2 lg:order-1">
+            <Suspense fallback={<SectionSkeleton />}>
+              <StorySection />
+            </Suspense>
           </div>
-          
-          <Reviews />
-          <About />
+          <div className="order-3">
+            <Suspense fallback={<SectionSkeleton />}>
+              <Intro />
+            </Suspense>
+          </div>
         </div>
-      </Suspense>
+
+        <Suspense fallback={<SectionSkeleton />}>
+          <Reviews />
+        </Suspense>
+
+        <Suspense fallback={<SectionSkeleton />}>
+          <About />
+        </Suspense>
+      </div>
     </div>
   );
 }

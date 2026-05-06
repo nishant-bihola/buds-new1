@@ -6,7 +6,7 @@ import {
   Transition,
   useAnimate,
   useAnimationFrame,
-} from "framer-motion"
+} from "motion/react"
 import { v4 as uuidv4 } from "uuid"
 
 import { useMouseVector } from "@/components/hooks/use-mouse-vector"
@@ -97,7 +97,6 @@ const ImageTrail = ({
     ) {
       return
     }
-    lastMousePosRef.current = mousePosition
 
     const currentTime = time
 
@@ -105,8 +104,16 @@ const ImageTrail = ({
       return
     }
 
-    lastAddedTimeRef.current = currentTime
+    const dx = mousePosition.x - lastMousePosRef.current.x
+    const dy = mousePosition.y - lastMousePosRef.current.y
+    const distance = Math.sqrt(dx * dx + dy * dy)
 
+    if (distance < 10) {
+      return
+    }
+
+    lastMousePosRef.current = mousePosition
+    lastAddedTimeRef.current = currentTime
     addToTrail(mousePosition)
   })
 
