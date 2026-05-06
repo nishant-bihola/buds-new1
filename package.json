@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "dev": "cd frontend && vite --port 5173",
     "dev:local": "vercel dev",
     "frontend": "cd frontend && vite",
     "build": "cd frontend && vite build",
