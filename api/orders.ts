@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getOrders, insertOrder, upsertCustomer, getPromoByCode } from "./_lib/db_ops.js";
+import { getOrders, insertOrder, upsertCustomer, getCustomerByEmail, getPromoByCode } from "./_lib/db_ops.js";
 import { sendOrderConfirmation, sendAdminAlert, sendWelcome } from "./_lib/email.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -54,10 +54,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       await insertOrder(orderData);
 
+      // Check if customer is new
+      const existingCustomer = await getCustomerByEmail(customer.email.toLowerCase());
+      const isNewCustomer = !existingCustomer;
+
       // async background tasks
       upsertCustomer(customer.email.toLowerCase(), {
-        name: customer.name, 
-        phone: customer.phone, 
+        name: customer.name,
+        phone: customer.phone,
         totalSpent: Number(total),
         address: delivery?.method === "delivery" ? `${delivery.street}, ${delivery.city} ${delivery.postal}` : null,
         preferredMethod: delivery?.method ?? "pickup",
@@ -66,7 +70,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // fire emails
       sendOrderConfirmation(body).catch(e => console.error("Email failed:", e));
       sendAdminAlert(body).catch(e => console.error("Admin alert failed:", e));
-      sendWelcome(customer.email, customer.name.split(" ")[0]).catch(e => console.error("Welcome email failed:", e));
+
+      // Only send welcome email to new customers
+      if (isNewCustomer) {
+        sendWelcome(customer.email, customer.name.split(" ")[0]).catch(e => console.error("Welcome email failed:", e));
+      }
 
       return res.status(201).json({ success: true, orderId });
     } catch (err: any) {

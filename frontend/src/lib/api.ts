@@ -29,6 +29,10 @@ export const api = {
         body: JSON.stringify({ status, ...extra }),
       }),
     getProducts: () => fetchWithAuth("/api/admin/products"),
+    createProduct: (product: any) =>
+      fetchWithAuth("/api/admin/products", { method: "POST", body: JSON.stringify(product) }),
+    updateProduct: (product: any) =>
+      fetchWithAuth("/api/admin/products", { method: "PUT", body: JSON.stringify(product) }),
     upsertProduct: (product: any) =>
       fetchWithAuth("/api/admin/products", { method: "POST", body: JSON.stringify(product) }),
     deleteProduct: (id: string) =>
@@ -36,6 +40,10 @@ export const api = {
     getCustomers: () => fetchWithAuth("/api/admin/customers"),
     syncPOS: () => fetchWithAuth("/api/admin/sync", { method: "POST" }),
     getPromos: () => fetchWithAuth("/api/admin/promos"),
+    createPromo: (promo: any) =>
+      fetchWithAuth("/api/admin/promos", { method: "POST", body: JSON.stringify(promo) }),
+    updatePromo: (promo: any) =>
+      fetchWithAuth("/api/admin/promos", { method: "PUT", body: JSON.stringify(promo) }),
     upsertPromo: (promo: any) =>
       fetchWithAuth("/api/admin/promos", { method: "POST", body: JSON.stringify(promo) }),
     deletePromo: (id: string) =>

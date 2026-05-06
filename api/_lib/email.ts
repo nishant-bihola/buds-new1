@@ -97,7 +97,25 @@ export async function sendAdminAlert(order: any) {
   );
 }
 
-// 3 — Dispatched → customer
+// 3 — Order Preparing → customer
+export async function sendPreparing(order: any) {
+  await fire("order_preparing_customer", order.orderId, () =>
+    resend.emails.send({
+      from: FROM,
+      to: [order.customer.email],
+      subject: `👨‍🍳 Your order is being prepared — ${order.orderId}`,
+      html: brandWrap(`
+        <div class="badge">Being Prepared</div>
+        <h2>We're preparing your order 👨‍🍳</h2>
+        <p>Order <strong>${order.orderId}</strong> is now being carefully prepared. You'll get another update soon!</p>
+        <a class="cta" href="${STORE_URL}/order/${order.orderId}">Track Your Order →</a>
+        <p style="color:#999;font-size:13px">Thank you for your patience. Questions? Call us at ${STORE_PHONE}.</p>
+      `),
+    }) as Promise<any>
+  );
+}
+
+// 3.5 — Dispatched → customer
 export async function sendDispatched(order: any) {
   await fire("order_dispatched_customer", order.orderId, () =>
     resend.emails.send({

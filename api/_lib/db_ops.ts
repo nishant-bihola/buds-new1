@@ -120,6 +120,11 @@ export async function getCustomers() {
   return await db.select().from(customers).orderBy(desc(customers.createdAt));
 }
 
+export async function getCustomerByEmail(email: string) {
+  const result = await db.select().from(customers).where(eq(customers.email, email.toLowerCase()));
+  return result[0] || null;
+}
+
 export async function upsertCustomer(email: string, patch: any) {
   const existing = await db.select().from(customers).where(eq(customers.email, email.toLowerCase()));
   if (existing.length > 0) {
