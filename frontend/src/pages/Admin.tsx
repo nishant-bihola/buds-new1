@@ -590,10 +590,11 @@ function InventoryTab() {
   const handleSave = async (product: any) => {
     try {
       if (selectedProduct?.id) {
-        await api.admin.updateProduct(product);
+        await api.admin.updateProduct({ ...product, id: selectedProduct.id });
         success("Product updated!");
       } else {
-        await api.admin.createProduct(product);
+        const id = `product_${crypto.randomUUID()}`;
+        await api.admin.createProduct({ ...product, id });
         success("Product created!");
       }
       revalidateProducts();

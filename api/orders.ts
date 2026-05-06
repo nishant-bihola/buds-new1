@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // POST /api/orders — create order (public)
   if (req.method === "POST") {
     const body = req.body;
-    const { orderId, customer, delivery, items, subtotal, deliveryFee, discount, total, promoCode } = body;
+    const { orderId, customer, delivery, items, subtotal, deliveryFee, discount, total, promoCode, paymentMethod } = body;
 
     if (!orderId || !customer?.email || !items?.length) {
       return res.status(400).json({ error: "Missing required fields." });
@@ -40,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         customerName: customer.name,
         customerEmail: customer.email.toLowerCase(),
         customerPhone: customer.phone,
-        customer,
+        customer: { ...customer, paymentMethod: paymentMethod ?? "pay_at_store" },
         delivery,
         items,
         subtotal: Number(subtotal) || Number(total),
@@ -52,11 +52,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         createdAt: new Date(),
       };
 
-      await insertOrder(orderData);
+      const insertedOrder = await insertOrder(orderData);
+      console.log("[ORDER SUCCESS]", orderId);
 
-      // Check if customer is new
-      const existingCustomer = await getCustomerByEmail(customer.email.toLowerCase());
-      const isNewCustomer = !existingCustomer;
+      // Check if customer is new (with fallback)
+      let isNewCustomer = true;
+      try {
+        const existingCustomer = await getCustomerByEmail(customer.email.toLowerCase());
+        isNewCustomer = !existingCustomer;
+      } catch (e) {
+        console.error("Customer lookup failed:", e);
+        // Assume new customer if lookup fails
+      }
 
       // async background tasks
       upsertCustomer(customer.email.toLowerCase(), {
@@ -68,18 +75,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }).catch(e => console.error("Customer upsert failed:", e));
 
       // fire emails
-      sendOrderConfirmation(body).catch(e => console.error("Email failed:", e));
-      sendAdminAlert(body).catch(e => console.error("Admin alert failed:", e));
+      sendOrderConfirmation({ ...body, paymentMethod: paymentMethod ?? "pay_at_store" }).catch(e => console.error("Email failed:", e));
+      sendAdminAlert({ ...body, paymentMethod: paymentMethod ?? "pay_at_store" }).catch(e => console.error("Admin alert failed:", e));
 
       // Only send welcome email to new customers
       if (isNewCustomer) {
         sendWelcome(customer.email, customer.name.split(" ")[0]).catch(e => console.error("Welcome email failed:", e));
       }
 
-      return res.status(201).json({ success: true, orderId });
+      return res.status(201).json({ success: true, orderId, order: insertedOrder });
     } catch (err: any) {
-      console.error("[ORDER ERROR]", err);
-      return res.status(500).json({ error: "Failed to create order." });
+      console.error("[ORDER ERROR]", err.message || JSON.stringify(err));
+      return res.status(500).json({ error: err.message || "Failed to create order." });
     }
   }
 
