@@ -10,6 +10,7 @@ import {
   Truck, Store, Calculator,
   ExternalLink, History, FileUp, FileDown,
   ToggleLeft, ToggleRight, Save, Image as ImageIcon,
+  MapPin,
 } from "lucide-react";
 
 import { api } from "../lib/api";
@@ -25,7 +26,6 @@ const fetcher = (fn: () => Promise<any>) => fn();
 const TABS = [
   { id: "Orders", icon: ShoppingBag },
   { id: "Inventory", icon: Package },
-  { id: "Customers", icon: Users },
   { id: "Promos", icon: Tag },
   { id: "Pricing", icon: Calculator },
   { id: "AuditLogs", icon: History },
@@ -254,7 +254,6 @@ export default function Admin() {
               >
                 {activeTab === "Orders" && <OrdersTab />}
                 {activeTab === "Inventory" && <InventoryTab />}
-                {activeTab === "Customers" && <CustomersTab />}
                 {activeTab === "Promos" && <PromosTab />}
                 {activeTab === "Pricing" && <PricingTool />}
                 {activeTab === "AuditLogs" && <AuditLogs />}
@@ -340,51 +339,59 @@ function OrdersTab() {
         {filtered.length > 0 ? filtered.map((order, i) => (
           <motion.div
             key={order.orderId}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.04 }}
-            className="bg-white rounded-[28px] sm:rounded-[32px] p-6 sm:p-8 border border-brand-green/5 shadow-sm hover:shadow-xl transition-all flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 sm:gap-8 group"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.03 }}
+            className="bg-white rounded-[32px] sm:rounded-[48px] p-6 sm:p-10 border border-brand-green/5 shadow-sm hover:shadow-[0_40px_100px_rgba(10,15,12,0.08)] transition-all group relative overflow-hidden flex flex-col lg:grid lg:grid-cols-[1.2fr_0.8fr_auto] items-stretch lg:items-center gap-6 lg:gap-10"
           >
-            {/* Left: Identity */}
-            <div className="flex items-center gap-6 flex-1 min-w-0">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-brand-green/5 rounded-2xl flex items-center justify-center text-brand-green shrink-0 shadow-inner">
-                {(order.delivery as any)?.method === "delivery" ? <Truck size={24} /> : <Store size={24} />}
+            {/* Status Visual Guard */}
+            <div className={`absolute left-0 top-0 bottom-0 w-2 ${order.status === 'confirmed' ? 'bg-blue-500' : order.status === 'delivered' ? 'bg-brand-green' : 'bg-brand-green/10'}`} />
+
+            {/* Column 1: Order & Identity */}
+            <div className="flex items-start gap-5 sm:gap-7 min-w-0">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-brand-green/[0.03] rounded-[24px] sm:rounded-[32px] flex items-center justify-center text-brand-green shrink-0 shadow-inner group-hover:bg-brand-green group-hover:text-brand-earth transition-all duration-500">
+                {(order.delivery as any)?.method === "delivery" ? <Truck size={28} /> : <Store size={28} />}
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-3 mb-1 flex-wrap">
-                  <h4 className="text-xl font-black tracking-tighter uppercase leading-none">#{order.orderId?.slice(0, 8)}</h4>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
+                  <h4 className="text-xl sm:text-2xl font-black tracking-tighter uppercase leading-none text-brand-green">#{order.orderId?.slice(0, 8)}</h4>
                   <span className={`px-2.5 py-1 rounded-full text-[7px] sm:text-[8px] font-black uppercase tracking-[0.2em] border ${statusColor(order.status)}`}>
                     {order.status?.replace("_", " ")}
                   </span>
                 </div>
-                <p className="text-[10px] sm:text-[11px] font-bold opacity-40 uppercase tracking-widest truncate">
-                  {(order.customer as any)?.name ?? "Guest"}
-                </p>
-                <p className="text-[9px] font-bold opacity-20 uppercase tracking-widest mt-0.5">
-                  {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
+                <div className="space-y-1.5">
+                  <p className="text-[13px] sm:text-[15px] font-black uppercase tracking-widest text-brand-green/90 leading-none">
+                    {(order.customer as any)?.name ?? "Guest Customer"}
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] font-bold opacity-40 uppercase tracking-widest leading-normal max-w-[200px] lg:max-w-none">
+                    {(order.delivery as any)?.street ? (
+                      <span className="flex items-start gap-1.5">
+                        <MapPin size={10} className="mt-0.5 shrink-0" /> 
+                        <span>{(order.delivery as any).street}, {(order.delivery as any).city}</span>
+                      </span>
+                    ) : "Store Pickup"}
+                  </p>
+                  <p className="text-[8px] sm:text-[9px] font-bold opacity-20 uppercase tracking-[0.2em]">
+                    {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {(order.delivery as any)?.method ?? "pickup"}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Middle: Metrics */}
-            <div className="flex items-center gap-8 sm:gap-12 lg:px-8 border-l border-r border-transparent lg:border-brand-green/5">
-              <div className="text-center">
-                <p className="text-[8px] font-black uppercase opacity-20 tracking-widest mb-1">Total</p>
-                <p className="text-lg font-black tracking-tighter">${Number(order.total ?? 0).toFixed(2)}</p>
+            {/* Column 2: Metrics */}
+            <div className="flex items-center justify-between lg:justify-center gap-8 sm:gap-14 py-6 lg:py-0 border-y lg:border-y-0 lg:border-x border-brand-green/5 lg:px-10">
+              <div className="text-left lg:text-center">
+                <p className="text-[9px] font-black uppercase opacity-20 tracking-widest mb-1.5">Total Value</p>
+                <p className="text-2xl sm:text-3xl font-black tracking-tighter text-brand-green leading-none">${Number(order.total ?? 0).toFixed(2)}</p>
               </div>
-              <div className="text-center">
-                <p className="text-[8px] font-black uppercase opacity-20 tracking-widest mb-1">Items</p>
-                <p className="text-lg font-black tracking-tighter">{(order.items as any[])?.length ?? 0}</p>
-              </div>
-              <div className="text-center hidden sm:block">
-                <p className="text-[8px] font-black uppercase opacity-20 tracking-widest mb-1">Method</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-brand-green">{(order.delivery as any)?.method ?? "pickup"}</p>
+              <div className="text-right lg:text-center">
+                <p className="text-[9px] font-black uppercase opacity-20 tracking-widest mb-1.5">Items</p>
+                <p className="text-2xl sm:text-3xl font-black tracking-tighter text-brand-green leading-none">{(order.items as any[])?.length ?? 0}</p>
               </div>
             </div>
 
-            {/* Right: Actions */}
-            <div className="flex items-center gap-3 w-full lg:w-auto shrink-0">
-              {/* Quick Actions */}
+            {/* Column 3: Actions */}
+            <div className="flex items-center gap-3 shrink-0 pt-2 lg:pt-0">
               {(() => {
                 let nextStatus = "";
                 let label = "";
@@ -393,39 +400,42 @@ function OrdersTab() {
                 if (order.status === "confirmed" || order.status === "pending") {
                   nextStatus = "preparing"; label = "Start Preparing";
                 } else if (order.status === "preparing") {
-                  if (isDelivery) { nextStatus = "dispatched"; label = "Dispatch Order"; }
-                  else { nextStatus = "ready_pickup"; label = "Ready for Pickup"; }
+                  if (isDelivery) { nextStatus = "dispatched"; label = "Dispatch"; }
+                  else { nextStatus = "ready_pickup"; label = "Ready"; }
                 } else if (order.status === "dispatched") {
-                  nextStatus = "delivered"; label = "Mark Delivered";
+                  nextStatus = "delivered"; label = "Deliver";
                 }
 
-                if (!nextStatus) return null;
-
                 return (
-                  <button
-                    type="button"
-                    onClick={() => updateStatus(order.orderId, nextStatus)}
-                    className="flex-1 lg:flex-none px-6 py-4 bg-brand-green text-brand-earth rounded-[18px] text-[10px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-brand-green/10 flex items-center justify-center gap-2"
-                  >
-                    <RefreshCw size={12} className="animate-pulse" /> {label}
-                  </button>
+                  <div className="flex items-center gap-3 w-full">
+                    {nextStatus && (
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(order.orderId, nextStatus)}
+                        className="flex-1 lg:flex-none px-6 sm:px-8 py-4 sm:py-5 bg-brand-green text-brand-earth rounded-[20px] sm:rounded-[24px] text-[10px] sm:text-[11px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-brand-green/20 flex items-center justify-center gap-3 whitespace-nowrap"
+                      >
+                        <RefreshCw size={14} className="animate-spin-slow" /> {label}
+                      </button>
+                    )}
+                    
+                    <button
+                      type="button"
+                      onClick={() => setSelectedOrder(order)}
+                      className="flex-1 lg:flex-none px-6 sm:px-8 py-4 sm:py-5 bg-brand-green/5 text-brand-green border border-brand-green/10 rounded-[20px] sm:rounded-[24px] text-[10px] sm:text-[11px] font-black uppercase tracking-widest hover:bg-brand-green/10 transition-all flex items-center justify-center gap-2"
+                    >
+                      Manage
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => window.open(`/order/${order.orderId}`, "_blank")}
+                      className="p-5 sm:p-6 bg-brand-green/5 text-brand-green rounded-[24px] sm:rounded-[32px] border border-brand-green/10 hover:bg-brand-green/10 transition-colors"
+                    >
+                      <ExternalLink size={20} />
+                    </button>
+                  </div>
                 );
               })()}
-
-              <button
-                type="button"
-                onClick={() => setSelectedOrder(order)}
-                className="flex-1 lg:flex-none px-6 py-4 bg-brand-green/5 text-brand-green border border-brand-green/10 rounded-[18px] text-[10px] font-black uppercase tracking-widest hover:bg-brand-green/10 transition-all flex items-center justify-center gap-2"
-              >
-                Manage
-              </button>
-              <button
-                type="button"
-                onClick={() => window.open(`/order/${order.orderId}`, "_blank")}
-                className="p-4 bg-brand-green/5 rounded-[18px] border border-brand-green/10 hover:bg-brand-green/10 transition-colors"
-              >
-                <ExternalLink size={16} />
-              </button>
             </div>
           </motion.div>
         )) : (
@@ -664,52 +674,73 @@ function InventoryTab() {
 
   return (
     <div className="space-y-8 sm:space-y-12 pb-20">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:flex xl:items-center bg-white rounded-[32px] sm:rounded-[48px] p-6 sm:p-10 border border-brand-green/5 shadow-sm gap-6 sm:gap-8">
-        {/* Search - Full width on mobile, 1/2 on tablet, flexible on desktop */}
-        <div className="relative group md:col-span-2 xl:flex-1">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" size={20} />
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 sm:gap-6 bg-white rounded-[32px] sm:rounded-[48px] p-6 sm:p-8 border border-brand-green/5 shadow-sm mb-10">
+        {/* Search - Primary Focus */}
+        <div className="relative group flex-1">
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20 group-focus-within:opacity-40 transition-opacity" size={20} />
           <input
             type="text"
-            placeholder="Search inventory..."
+            placeholder="Search catalog..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-brand-green/5 border border-brand-green/10 rounded-[20px] sm:rounded-[28px] px-16 py-4 sm:py-5 text-sm font-medium outline-none focus:ring-8 focus:ring-brand-green/5 transition-all"
+            className="w-full bg-brand-green/5 border border-brand-green/10 rounded-[22px] sm:rounded-[28px] px-16 py-4 sm:py-5 text-sm font-medium outline-none focus:ring-8 focus:ring-brand-green/5 transition-all"
           />
         </div>
 
-        {/* Actions - Grouped */}
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4 md:col-span-2 xl:col-auto">
-          <div className="flex items-center gap-3">
+        {/* Action Array */}
+        <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 sm:gap-4">
+          {/* Utility Box */}
+          <div className="flex items-center gap-2 bg-brand-green/5 p-1.5 rounded-[24px] sm:rounded-[32px] border border-brand-green/5">
             <button
               type="button"
               onClick={handleExport}
-              className="h-[52px] sm:h-[64px] min-w-[60px] px-6 bg-white border border-brand-green/10 rounded-[20px] sm:rounded-[24px] text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-brand-green/5 transition-all"
+              title="Export Inventory"
+              className="w-12 sm:w-14 h-12 sm:h-14 bg-white rounded-[18px] sm:rounded-[24px] text-brand-green flex items-center justify-center hover:bg-brand-green hover:text-brand-earth transition-all shadow-sm"
             >
-              <FileDown size={16} /> <span className="hidden md:inline">Export</span>
+              <FileDown size={18} />
             </button>
-            
-            <label className="cursor-pointer h-[52px] sm:h-[64px] min-w-[60px] px-6 bg-white border border-brand-green/10 rounded-[20px] sm:rounded-[24px] text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-brand-green/5 transition-all">
-              <FileUp size={16} /> <span className="hidden md:inline">Import</span>
+            <label className="cursor-pointer w-12 sm:w-14 h-12 sm:h-14 bg-white rounded-[18px] sm:rounded-[24px] text-brand-green flex items-center justify-center hover:bg-brand-green hover:text-brand-earth transition-all shadow-sm">
+              <FileUp size={18} />
               <input type="file" accept=".csv" onChange={handleImport} className="hidden" />
             </label>
-          </div>
-
-          <div className="flex-1 xl:flex-none">
             <button
               type="button"
-              onClick={handleSync}
+              onClick={async () => {
+                setSyncing(true);
+                info("Running Master Catalog migration...");
+                try {
+                  const res = await api.admin.bulkImport();
+                  success(res.message);
+                  revalidateProducts();
+                } catch (err: any) {
+                  toastError(err.message || "Import failed.");
+                } finally {
+                  setSyncing(false);
+                }
+              }}
               disabled={syncing}
-              className="w-full h-[52px] sm:h-[64px] px-6 sm:px-10 bg-white rounded-[20px] sm:rounded-[24px] text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 sm:gap-4 border border-brand-green/10 hover:bg-brand-green/5 transition-all shadow-sm group whitespace-nowrap"
+              title="Bulk Populate"
+              className="w-12 sm:w-14 h-12 sm:h-14 bg-white rounded-[18px] sm:rounded-[24px] text-brand-green flex items-center justify-center hover:bg-brand-green hover:text-brand-earth transition-all shadow-sm disabled:opacity-50"
             >
-              <RefreshCw size={16} className={syncing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"} /> 
-              <span>{syncing ? "Syncing..." : "Sync Barnet POS"}</span>
+              <Package size={18} />
             </button>
           </div>
+
+          {/* Core Actions */}
+          <button
+            type="button"
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex-1 lg:flex-none h-[52px] sm:h-[64px] px-6 sm:px-10 bg-white border-2 border-brand-green/10 rounded-[22px] sm:rounded-[32px] text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-brand-green flex items-center justify-center gap-3 hover:bg-brand-green hover:text-brand-earth hover:border-brand-green transition-all shadow-sm disabled:opacity-50 group whitespace-nowrap"
+          >
+            <RefreshCw size={16} className={syncing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"} /> 
+            <span>{syncing ? "Syncing..." : "Sync Barnet POS"}</span>
+          </button>
 
           <button
             type="button"
             onClick={() => { setEditing(null); setShowModal(true); }}
-            className="w-14 sm:w-16 h-14 sm:h-16 bg-brand-green text-brand-earth rounded-[20px] sm:rounded-[24px] flex items-center justify-center shadow-xl shadow-brand-green/20 hover:brightness-110 active:scale-95 transition-all shrink-0"
+            className="w-14 sm:w-16 h-[52px] sm:h-[64px] bg-brand-green text-brand-earth rounded-[22px] sm:rounded-[32px] flex items-center justify-center shadow-xl shadow-brand-green/20 hover:brightness-110 active:scale-95 transition-all shrink-0"
           >
             <Plus size={24} />
           </button>
@@ -802,6 +833,25 @@ function ProductModal({ product, onClose, onSaved }: { product: any; onClose: ()
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Optional: Add size limit check (e.g., 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toastError("Image too large. Max 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      set("image", base64);
+      success("Image prepared for upload.");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.price) { toastError("Name and price are required."); return; }
@@ -836,6 +886,33 @@ function ProductModal({ product, onClose, onSaved }: { product: any; onClose: ()
         </div>
         <form onSubmit={handleSave} className="space-y-4 sm:space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Image Upload Section */}
+            <div className="sm:col-span-2">
+              <label className={lbl}>Product Image</label>
+              <div className="flex flex-col sm:flex-row gap-6 p-6 bg-brand-green/5 rounded-[28px] border-2 border-dashed border-brand-green/10">
+                <div className="w-32 h-32 bg-white rounded-2xl overflow-hidden flex items-center justify-center border border-brand-green/5 shrink-0 shadow-sm">
+                  {form.image ? (
+                    <img src={form.image} alt="Preview" className="w-full h-full object-contain" />
+                  ) : (
+                    <ImageIcon size={32} className="opacity-10" />
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col justify-center gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    <label className="cursor-pointer bg-brand-green text-brand-earth px-5 py-3 rounded-xl font-black uppercase tracking-widest text-[9px] hover:brightness-110 transition-all flex items-center gap-2">
+                      <FileUp size={14} /> Upload from Computer
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </label>
+                    {form.image && (
+                      <button type="button" onClick={() => set("image", "")} className="bg-red-500/10 text-red-500 px-5 py-3 rounded-xl font-black uppercase tracking-widest text-[9px] hover:bg-red-500 hover:text-white transition-all">Clear</button>
+                    )}
+                  </div>
+                  <p className="text-[8px] font-black uppercase tracking-widest opacity-30">Or provide a direct URL below</p>
+                  <input value={form.image} onChange={e => set("image", e.target.value)} className="w-full bg-white border border-brand-green/10 rounded-xl px-4 py-2 text-[10px] font-medium outline-none" placeholder="https://external-image.com/..." />
+                </div>
+              </div>
+            </div>
+
             <div className="sm:col-span-2 space-y-1">
               <label className={lbl}>Product Name *</label>
               <input required value={form.name} onChange={e => set("name", e.target.value)} className={inp} placeholder="Island Pink Kush" />
@@ -880,10 +957,6 @@ function ProductModal({ product, onClose, onSaved }: { product: any; onClose: ()
               <input type="number" value={form.sortOrder} onChange={e => set("sortOrder", e.target.value)} className={inp} placeholder="0" />
             </div>
             <div className="sm:col-span-2 space-y-1">
-              <label className={lbl}>Image URL</label>
-              <input value={form.image} onChange={e => set("image", e.target.value)} className={inp} placeholder="https://..." />
-            </div>
-            <div className="sm:col-span-2 space-y-1">
               <label className={lbl}>Description</label>
               <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} className={inp + " resize-none"} placeholder="Product description..." />
             </div>
@@ -908,103 +981,6 @@ function ProductModal({ product, onClose, onSaved }: { product: any; onClose: ()
   );
 }
 
-/* ── Customers Tab ────────────────────────────────────────────────────── */
-
-function CustomersTab() {
-  const { data: customersData, error, mutate: revalidateCustomers } = useSWR("admin-customers", () => api.admin.getCustomers(), {
-    refreshInterval: 30000, // Refresh every 30s
-  });
-  
-  const customers = customersData?.customers ?? [];
-  const [search, setSearch] = useState("");
-
-  const filtered = useMemo(() => customers.filter((c: any) =>
-    c.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.email?.toLowerCase().includes(search.toLowerCase()) ||
-    c.phone?.toLowerCase().includes(search.toLowerCase())
-  ), [customers, search]);
-
-  if (!customersData && !error) return <LoadingList />;
-
-  return (
-    <div className="space-y-6 sm:space-y-8 pb-20">
-      <div className="flex flex-col sm:flex-row gap-6 items-center bg-white rounded-[32px] p-6 sm:p-8 border border-brand-green/5 shadow-sm">
-        <div className="relative flex-1 w-full max-w-md">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20" size={18} />
-          <input
-            type="text"
-            placeholder="Search customers..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-brand-green/5 border border-brand-green/10 rounded-2xl px-16 py-4 text-sm font-medium outline-none focus:ring-4 focus:ring-brand-green/5 transition-all"
-          />
-        </div>
-        <div className="text-[10px] font-black uppercase tracking-widest opacity-30">{filtered.length} Records</div>
-      </div>
-
-      <div className="bg-white rounded-[32px] sm:rounded-[48px] border border-brand-green/5 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left min-w-[800px]">
-            <thead>
-              <tr className="bg-brand-green/5">
-                <th className="px-8 sm:px-10 py-6 sm:py-7 text-[9px] font-black uppercase tracking-[0.4em] opacity-30">Customer</th>
-                <th className="px-8 sm:px-10 py-6 sm:py-7 text-[9px] font-black uppercase tracking-[0.4em] opacity-30">Contact & Address</th>
-                <th className="px-8 sm:px-10 py-6 sm:py-7 text-[9px] font-black uppercase tracking-[0.4em] opacity-30 text-center">Stats</th>
-                <th className="px-8 sm:px-10 py-6 sm:py-7 text-[9px] font-black uppercase tracking-[0.4em] opacity-30 text-right">LTV</th>
-                <th className="px-8 sm:px-10 py-6 sm:py-7 text-[9px] font-black uppercase tracking-[0.4em] opacity-30 text-right">Activity</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-brand-green/5">
-              {filtered.map((c: any) => (
-                <tr key={c.id} className="hover:bg-brand-green/[0.01] transition-colors">
-                  <td className="px-8 sm:px-10 py-6 sm:py-7">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-green text-brand-earth rounded-2xl flex items-center justify-center font-black text-lg shadow-xl shadow-brand-green/10">
-                        {c.name?.charAt(0)?.toUpperCase() ?? "?"}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-black uppercase tracking-tighter truncate max-w-[150px]">{c.name ?? "Anonymous"}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {c.preferredMethod && (
-                            <span className={`px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest ${c.preferredMethod === "delivery" ? "bg-blue-50 text-blue-500 border border-blue-100" : "bg-emerald-50 text-emerald-600 border border-emerald-100"}`}>
-                              {c.preferredMethod}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-8 sm:px-10 py-6 sm:py-7">
-                    <p className="text-sm font-bold">{c.email}</p>
-                    <p className="text-[10px] opacity-40 font-medium">{c.phone ?? "—"}</p>
-                    {c.lastAddress && <p className="text-[9px] opacity-30 mt-1 max-w-[200px] truncate">{c.lastAddress}</p>}
-                  </td>
-                  <td className="px-8 sm:px-10 py-6 sm:py-7 text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="inline-flex items-center gap-2 px-3 py-1 bg-brand-green/5 rounded-full text-[11px] font-black">
-                        <ShoppingBag size={10} className="opacity-40" />{c.totalOrders ?? 0}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-8 sm:px-10 py-6 sm:py-7 text-right font-black text-lg">${Number(c.totalSpent ?? 0).toFixed(2)}</td>
-                  <td className="px-8 sm:px-10 py-6 sm:py-7 text-right">
-                    <p className="text-[10px] font-black text-brand-green uppercase tracking-widest mb-1">Last Order</p>
-                    <p className="text-[9px] font-bold opacity-30">
-                      {c.lastOrderAt ? new Date(c.lastOrderAt).toLocaleDateString("en-CA") : "—"}
-                    </p>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={5} className="px-8 sm:px-10 py-20 text-center text-[10px] font-black uppercase opacity-20 tracking-widest">No Customers Yet</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ── Promos Tab ───────────────────────────────────────────────────────── */
 

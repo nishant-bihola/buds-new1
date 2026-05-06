@@ -9,6 +9,8 @@
   --color-brand-earth: #f4f1ea;
   --color-brand-dark: #121212;
   --color-accent-gold: #d4af37;
+
+  --animate-spin-slow: spin 3s linear infinite;
 }
 
 ::selection {

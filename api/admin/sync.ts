@@ -18,10 +18,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // 1. Fetch from Barnet
     const data = await fetchBarnetProducts();
-    const barnetProducts = Array.isArray(data) ? data : (data.products || data.Products || []);
     
-    if (!barnetProducts.length) {
-      return json(res as any, { success: false, message: "No products found in Barnet response" });
+    // Improved product detection logic
+    let barnetProducts = [];
+    if (Array.isArray(data)) {
+      barnetProducts = data;
+    } else if (data.products && Array.isArray(data.products)) {
+      barnetProducts = data.products;
+    } else if (data.Products && Array.isArray(data.Products)) {
+      barnetProducts = data.Products;
+    } else if (data.data && Array.isArray(data.data)) {
+      barnetProducts = data.data; // Paginated fallback
+    } else if (data.items && Array.isArray(data.items)) {
+      barnetProducts = data.items;
+    } else if (typeof data === 'object' && data !== null) {
+      // If none of the above, try to find any array property
+      const arrayKey = Object.keys(data).find(key => Array.isArray(data[key]));
+      if (arrayKey) barnetProducts = data[arrayKey];
+    }
+    
+    if (!barnetProducts || !barnetProducts.length) {
+      console.warn("[Sync] No products found in Barnet response keys:", Object.keys(data || {}));
+      return json(res as any, { 
+        success: false, 
+        message: "No products found in Barnet response. Check your API settings or use 'Bulk Populate' as a fallback." 
+      });
     }
 
     // 2. Normalize data and Deduplicate

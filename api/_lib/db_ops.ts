@@ -149,6 +149,53 @@ export async function upsertCustomer(email: string, patch: any) {
   }
 }
 
+export async function rebuildCustomersFromOrders() {
+  const allOrders = await db.select().from(orders);
+  
+  // Reset stats mapping
+  const stats: Record<string, any> = {};
+  
+  for (const order of allOrders) {
+    const email = order.customerEmail.toLowerCase();
+    const delivery = (order.customer as any)?.delivery || (order as any).delivery;
+    
+    if (!stats[email]) {
+      stats[email] = {
+        name: order.customerName,
+        email,
+        phone: order.customerPhone,
+        totalOrders: 0,
+        totalSpent: 0,
+        lastOrderAt: order.createdAt,
+        lastAddress: delivery?.method === "delivery" ? `${delivery.street}, ${delivery.city} ${delivery.postal}` : null,
+        preferredMethod: delivery?.method ?? "pickup",
+      };
+    }
+    
+    stats[email].totalOrders += 1;
+    stats[email].totalSpent += Number(order.total) || 0;
+    if (new Date(order.createdAt) > new Date(stats[email].lastOrderAt)) {
+      stats[email].lastOrderAt = order.createdAt;
+      stats[email].lastAddress = delivery?.method === "delivery" ? `${delivery.street}, ${delivery.city} ${delivery.postal}` : null;
+      stats[email].preferredMethod = delivery?.method ?? "pickup";
+    }
+  }
+
+  // Upsert all gathered stats
+  for (const email of Object.keys(stats)) {
+    const s = stats[email];
+    const existing = await db.select().from(customers).where(eq(customers.email, email));
+    
+    if (existing.length > 0) {
+      await db.update(customers).set(s).where(eq(customers.email, email));
+    } else {
+      await db.insert(customers).values({ id: crypto.randomUUID(), ...s });
+    }
+  }
+  
+  return Object.keys(stats).length;
+}
+
 // ── PROMO CODES ─────────────────────────────────────────────────────────
 
 export async function getPromoCodes() {

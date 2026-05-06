@@ -42,6 +42,8 @@ export const api = {
     updateAutomation: (key: string, enabled: boolean) =>
       fetchWithAuth("/api/admin/automations", { method: "POST", body: JSON.stringify({ key, enabled }) }),
     getInsights: () => fetchWithAuth("/api/admin/insights"),
+    bulkImport: () => fetchWithAuth("/api/admin/bulk-import", { method: "POST" }),
+    syncCustomers: () => fetchWithAuth("/api/admin/sync-customers", { method: "POST" }),
   },
 
   chat: (message: string, history?: any[]) => 

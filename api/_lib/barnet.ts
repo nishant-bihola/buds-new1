@@ -10,28 +10,38 @@ export async function fetchBarnetProducts() {
     throw new Error('Barnet API credentials not configured');
   }
 
-  try {
-    const url = `${BARNET_API_URL}/api/products`;
-    
-    console.log(`[Barnet] Fetching products from: ${url}`);
-    
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': authHeader,
-        'Accept': 'application/json'
+  const endpoints = ['/api/products', '/api/inventory', '/api/v1/products', '/api/v1/inventory'];
+  let lastError = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      const url = `${BARNET_API_URL}${endpoint}`;
+      console.log(`[Barnet] Attempting sync from: ${url}`);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json'
+        },
+        // Add a timeout
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data) return data;
+      } else if (response.status !== 404) {
+        // If it's not a 404, the endpoint might be correct but auth/params are wrong
+        const text = await response.text();
+        throw new Error(`Endpoint ${endpoint} failed with ${response.status}: ${text}`);
       }
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Barnet API error (${response.status}): ${text}`);
+    } catch (error: any) {
+      console.error(`[Barnet] Endpoint ${endpoint} failed:`, error.message);
+      lastError = error;
     }
-
-    return await response.json();
-  } catch (error: any) {
-    console.error('[Barnet API Error]:', error.message);
-    throw error;
   }
+
+  throw lastError || new Error('All Barnet API endpoints failed or returned no data.');
 }
 
 export function mapBarnetProductToBuds(barnetProduct: any) {
