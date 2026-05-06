@@ -22,6 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(405).end();
   } catch (err: any) {
-    return json(res as any, { error: err.message }, 500);
+    console.error("[Admin Automations Error]", err);
+    return json(res as any, { error: "Internal server error" }, 500);
   }
 }

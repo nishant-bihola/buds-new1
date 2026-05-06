@@ -65,6 +65,7 @@ function LoginGate({ onLogin }: { onLogin: () => void }) {
       });
       if (response.ok) {
         localStorage.setItem("admin_auth", "true");
+        sessionStorage.setItem("admin_secret", value);
         success("Access Granted. Welcome.");
         onLogin();
       } else {
@@ -151,6 +152,7 @@ export default function Admin() {
 
   const logout = () => {
     localStorage.removeItem("admin_auth");
+    sessionStorage.removeItem("admin_secret");
     setIsLoggedIn(false);
     success("Logged Out.");
   };
@@ -1316,7 +1318,7 @@ function SettingsTab() {
           </div>
           <button
             type="button"
-            onClick={() => { localStorage.removeItem("admin_auth"); window.location.reload(); }}
+            onClick={() => { localStorage.removeItem("admin_auth"); sessionStorage.removeItem("admin_secret"); window.location.reload(); }}
             className="w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-[12px] sm:rounded-[16px] text-[9px] sm:text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-colors"
           >
             Terminate

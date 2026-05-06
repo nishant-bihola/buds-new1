@@ -1,11 +1,10 @@
-const ADMIN_SECRET = "budnbuddies2026";
-
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const headers = {
-    ...options.headers,
-    Authorization: `Bearer ${ADMIN_SECRET}`,
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
     "Content-Type": "application/json",
   };
+  const secret = sessionStorage.getItem("admin_secret") ?? localStorage.getItem("admin_secret");
+  if (secret) headers["Authorization"] = `Bearer ${secret}`;
   const response = await fetch(url, { ...options, headers });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "Unknown error" }));

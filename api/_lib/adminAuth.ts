@@ -1,11 +1,8 @@
 export function isAdmin(req: any): boolean {
-  const auth = req.headers["authorization"] ?? "";
-  if (auth === "Bearer budnbuddies2026") return true;
-  
   const secret = process.env.ADMIN_SECRET;
-  if (secret && auth === `Bearer ${secret}`) return true;
-
-  return false;
+  if (!secret) return false;
+  const auth = req.headers["authorization"] ?? "";
+  return auth === `Bearer ${secret}`;
 }
 
 export function requireAdmin(req: any, res: any): boolean {

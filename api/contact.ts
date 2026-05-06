@@ -12,6 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // For now, we'll return success.
     return res.status(200).json({ success: true });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    console.error("[contact error]", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }

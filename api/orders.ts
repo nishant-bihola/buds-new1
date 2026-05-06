@@ -2,8 +2,6 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getOrders, insertOrder, upsertCustomer, getPromoByCode } from "./_lib/db_ops.js";
 import { sendOrderConfirmation, sendAdminAlert, sendWelcome } from "./_lib/email.js";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "budnbuddies2026";
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -13,15 +11,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // GET /api/orders — admin only
   if (req.method === "GET") {
+    const secret = process.env.ADMIN_SECRET;
     const auth = req.headers.authorization ?? "";
-    if (auth !== `Bearer ${ADMIN_SECRET}`) {
+    if (!secret || auth !== `Bearer ${secret}`) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     try {
       const orders = await getOrders();
       return res.status(200).json({ orders });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      console.error("[GET orders error]", err);
+      return res.status(500).json({ error: "Internal server error" });
     }
   }
 

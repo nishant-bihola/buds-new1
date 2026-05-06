@@ -12,6 +12,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return json(res as any, stats);
   } catch (err: any) {
     console.error("[Admin Stats Error]", err);
-    return json(res as any, { error: err.message }, 500);
+    return json(res as any, { error: "Internal server error" }, 500);
   }
 }
