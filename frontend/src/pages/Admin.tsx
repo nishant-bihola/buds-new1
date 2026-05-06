@@ -578,6 +578,8 @@ function InventoryTab() {
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showCSVModal, setShowCSVModal] = useState(false);
+  const [csvData, setCSVData] = useState<any[]>([]);
   const { success, error: toastError } = useToast();
 
   const filtered = useMemo(() => {
@@ -617,6 +619,28 @@ function InventoryTab() {
     }
   };
 
+  const handleCSVImport = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const csv = e.target?.result as string;
+      const lines = csv.split("\n").filter(l => l.trim());
+      const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+
+      const data = lines.slice(1).map(line => {
+        const values = line.split(",").map(v => v.trim());
+        const obj: any = {};
+        headers.forEach((header, i) => {
+          obj[header] = values[i] || "";
+        });
+        return obj;
+      });
+
+      setCSVData(data);
+      setShowCSVModal(true);
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -624,12 +648,26 @@ function InventoryTab() {
           <h1 className="text-4xl font-black uppercase tracking-tighter">Inventory</h1>
           <p className="text-white/40 text-sm mt-1">Manage your products</p>
         </div>
-        <button
-          onClick={() => { setSelectedProduct(null); setShowModal(true); }}
-          className="px-6 py-3 bg-brand-green text-[#131a15] rounded-lg font-black uppercase text-xs tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-        >
-          <Plus size={16} /> Add Product
-        </button>
+        <div className="flex gap-2">
+          <label className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-lg font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-all flex items-center gap-2 cursor-pointer">
+            <FileUp size={16} /> Import CSV
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleCSVImport(file);
+              }}
+              className="hidden"
+            />
+          </label>
+          <button
+            onClick={() => { setSelectedProduct(null); setShowModal(true); }}
+            className="px-6 py-3 bg-brand-green text-[#131a15] rounded-lg font-black uppercase text-xs tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
+          >
+            <Plus size={16} /> Add Product
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -701,6 +739,25 @@ function InventoryTab() {
             product={selectedProduct}
             onClose={() => { setShowModal(false); setSelectedProduct(null); }}
             onSave={handleSave}
+          />
+        )}
+        {showCSVModal && (
+          <CSVImportModal
+            data={csvData}
+            onClose={() => { setShowCSVModal(false); setCSVData([]); }}
+            onImport={async (products) => {
+              try {
+                for (const p of products) {
+                  const id = `product_${crypto.randomUUID()}`;
+                  await api.admin.createProduct({ ...p, id });
+                }
+                success(`Imported ${products.length} products!`);
+                revalidateProducts();
+                setShowCSVModal(false);
+              } catch {
+                toastError("Import failed");
+              }
+            }}
           />
         )}
       </AnimatePresence>
@@ -929,6 +986,122 @@ function ProductModal({ product, onClose, onSave }: any) {
             className="flex-1 px-4 py-3 bg-brand-green text-[#131a15] rounded-lg font-black uppercase text-xs tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
           >
             {loading ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function CSVImportModal({ data, onClose, onImport }: any) {
+  const [selected, setSelected] = useState<boolean[]>(data.map(() => true));
+  const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState(false);
+
+  const handleImageUpload = (index: number, file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setImageUrls({ ...imageUrls, [index]: base64 });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImport = async () => {
+    setLoading(true);
+    const toImport = data
+      .map((row: any, i: number) => (selected[i] ? { ...row, image: imageUrls[i] || row.image || "" } : null))
+      .filter(Boolean);
+    await onImport(toImport);
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="bg-[#131a15] border border-white/10 rounded-2xl max-w-3xl w-full my-8"
+      >
+        <div className="sticky top-0 bg-[#131a15] border-b border-white/5 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-2xl font-black uppercase">Import Products ({selected.filter(Boolean).length})</h2>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+          {data.map((row: any, i: number) => (
+            <div key={i} className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-3">
+              <div className="flex items-start gap-4">
+                {/* Image Preview/Upload */}
+                <div className="w-24 h-24 flex-shrink-0">
+                  {imageUrls[i] || row.image ? (
+                    <div className="relative w-full h-full rounded-lg overflow-hidden">
+                      <img src={imageUrls[i] || row.image} alt={row.name} className="w-full h-full object-cover" />
+                      <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity cursor-pointer" title="Click to change image">
+                        <Upload size={16} className="text-white" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          title="Upload product image"
+                          onChange={(e) => e.target.files?.[0] && handleImageUpload(i, e.target.files[0])}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label className="w-full h-full bg-white/5 border border-white/10 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors" title="Click to upload image">
+                      <Upload size={16} className="opacity-40" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        title="Upload product image"
+                        onChange={(e) => e.target.files?.[0] && handleImageUpload(i, e.target.files[0])}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* Product Details */}
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      title="Select product for import"
+                      checked={selected[i]}
+                      onChange={(e) => setSelected(selected.map((s, j) => j === i ? e.target.checked : s))}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <h3 className="font-black text-sm uppercase">{row.name || row.product_name || "Unknown"}</h3>
+                      <p className="text-[10px] text-white/50 uppercase tracking-widest">
+                        {row.category || "No category"} • ${row.price || "0"}
+                      </p>
+                    </div>
+                  </div>
+                  {row.description && <p className="text-xs text-white/50">{row.description}</p>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-white/5 px-6 py-4 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleImport}
+            disabled={loading || !selected.some(Boolean)}
+            className="flex-1 px-4 py-3 bg-brand-green text-[#131a15] rounded-lg font-black uppercase text-xs tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
+          >
+            {loading ? "Importing..." : `Import ${selected.filter(Boolean).length}`}
           </button>
         </div>
       </motion.div>
