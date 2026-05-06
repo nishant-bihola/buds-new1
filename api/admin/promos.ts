@@ -13,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return json(res as any, { promos });
     }
 
-    if (req.method === "POST") {
+    if (req.method === "POST" || req.method === "PUT") {
       const promo = await upsertPromoCode(req.body);
       return json(res as any, { promo });
     }

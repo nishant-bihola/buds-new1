@@ -1121,7 +1121,7 @@ function PromosTab() {
   const handleSave = async (promo: any) => {
     try {
       if (selectedPromo?.id) {
-        await api.admin.updatePromo(promo);
+        await api.admin.updatePromo({ ...promo, id: selectedPromo.id });
         success("Promo updated!");
       } else {
         await api.admin.createPromo(promo);
@@ -1130,7 +1130,8 @@ function PromosTab() {
       revalidatePromos();
       setShowModal(false);
       setSelectedPromo(null);
-    } catch {
+    } catch (err: any) {
+      console.error("Save failed:", err);
       toastError("Save failed");
     }
   };
