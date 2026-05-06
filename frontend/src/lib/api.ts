@@ -5,12 +5,19 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   };
   const secret = sessionStorage.getItem("admin_secret") ?? localStorage.getItem("admin_secret");
   if (secret) headers["Authorization"] = `Bearer ${secret}`;
-  const response = await fetch(url, { ...options, headers });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `HTTP ${response.status}`);
+
+  try {
+    const response = await fetch(url, { ...options, headers });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
+    return data;
+  } catch (err: any) {
+    console.error(`[API Error] ${url}:`, err.message);
+    throw err;
   }
-  return response.json();
 }
 
 
