@@ -15,43 +15,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     console.log("[Sync] Starting Barnet POS sync...");
-    
-    // 1. Fetch from Barnet
-    const data = await fetchBarnetProducts();
-    
-    // Improved product detection logic
-    let barnetProducts = [];
-    if (Array.isArray(data)) {
-      barnetProducts = data;
-    } else if (data.products && Array.isArray(data.products)) {
-      barnetProducts = data.products;
-    } else if (data.Products && Array.isArray(data.Products)) {
-      barnetProducts = data.Products;
-    } else if (data.data && Array.isArray(data.data)) {
-      barnetProducts = data.data; // Paginated fallback
-    } else if (data.items && Array.isArray(data.items)) {
-      barnetProducts = data.items;
-    } else if (typeof data === 'object' && data !== null) {
-      // If none of the above, try to find any array property
-      const arrayKey = Object.keys(data).find(key => Array.isArray(data[key]));
-      if (arrayKey) barnetProducts = data[arrayKey];
-    }
-    
-    if (!barnetProducts || !barnetProducts.length) {
-      console.warn("[Sync] No products found in Barnet response keys:", Object.keys(data || {}));
-      return json(res as any, { 
-        success: false, 
-        message: "No products found in Barnet response. Check your API settings or use 'Bulk Populate' as a fallback." 
+
+    const barnetProducts = await fetchBarnetProducts();
+
+    if (!barnetProducts.length) {
+      return json(res as any, {
+        success: false,
+        message: "No products returned from Barnet POS. Verify your store_id and credentials.",
       });
     }
 
-    // 2. Normalize data and Deduplicate
-    const seenIds = new Set();
-    const normalized = [];
-    
+    const seenIds = new Set<string>();
+    const normalized: any[] = [];
+
     for (const p of barnetProducts) {
       const mapped = mapBarnetProductToBuds(p);
-      // Ensure we have a valid ID and haven't seen it yet in this batch
       if (mapped.id && !seenIds.has(mapped.id)) {
         seenIds.add(mapped.id);
         normalized.push({
@@ -61,6 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           image: mapped.image,
           category: mapped.category,
           description: mapped.description,
+          brand: mapped.brand,
+          thc: mapped.thc != null ? String(mapped.thc) : null,
+          cbd: mapped.cbd != null ? String(mapped.cbd) : null,
           inStock: mapped.in_stock,
           source: "barnet",
           updatedAt: new Date(),
@@ -68,8 +49,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 3. Upsert into Neon (Postgres)
-    // We use a transaction for safety
     await db.insert(productsTable)
       .values(normalized)
       .onConflictDoUpdate({
@@ -80,15 +59,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           image: sql`EXCLUDED.image`,
           category: sql`EXCLUDED.category`,
           description: sql`EXCLUDED.description`,
+          brand: sql`EXCLUDED.brand`,
+          thc: sql`EXCLUDED.thc`,
+          cbd: sql`EXCLUDED.cbd`,
           inStock: sql`EXCLUDED.in_stock`,
           updatedAt: sql`EXCLUDED.updated_at`,
-        }
+        },
       });
 
     return json(res as any, {
       success: true,
-      message: `Successfully synced ${normalized.length} products from Barnet POS.`,
-      count: normalized.length
+      message: `Synced ${normalized.length} products from Barnet POS.`,
+      count: normalized.length,
     });
 
   } catch (err: any) {

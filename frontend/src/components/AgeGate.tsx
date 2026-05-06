@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, ArrowLeft, ShieldCheck } from "lucide-react";
-import { TRANSITIONS, VARIANTS } from "@/lib/animations";
 
 const STORAGE_KEY = "bnb-age-verified";
 type Screen = "loading" | "gate" | "denied" | "done";
@@ -47,7 +46,7 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
             key="age-gate"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.8, ease: TRANSITIONS.PREMIUM }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
             className="age-gate-overlay fixed inset-0 z-[9999] overflow-y-auto overflow-x-hidden isolate custom-scrollbar"
           >
             <div aria-hidden className="age-gate-checker fixed inset-0 pointer-events-none opacity-20" />
@@ -58,7 +57,7 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
                   key={cls}
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: i * 0.08, duration: 1.2, ease: TRANSITIONS.PREMIUM }}
+                  transition={{ delay: i * 0.08, duration: 1.2, type: "tween" }}
                   className={`absolute rounded-full border border-white/5 ${cls}`}
                 />
               ))}
@@ -71,23 +70,25 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
                 {screen === "gate" && (
                   <motion.div
                     key="gate-content"
-                    variants={VARIANTS.FADE_UP}
-                    initial="hidden"
-                    animate="visible"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
+                    transition={{ duration: 0.6 }}
                     className="age-gate-card flex flex-col items-center text-center"
                   >
                     {/* Logo */}
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.8, ease: TRANSITIONS.PREMIUM }}
-                      className="mb-6 sm:mb-8"
+                      transition={{ duration: 0.8, ease: "easeInOut" }}
+                      className="mb-6 sm:mb-8 flex justify-center"
                     >
                       <img
                         src="/images/buds_n_buddies_logo.png"
                         alt="Bud n' Buddies"
-                        className="age-gate-logo w-auto object-contain"
+                        className="age-gate-logo h-16 sm:h-20 lg:h-24 w-auto object-contain"
+                        loading="eager"
+                        decoding="sync"
                       />
                     </motion.div>
 [1/2]
@@ -145,10 +146,10 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
                 {screen === "denied" && (
                   <motion.div
                     key="denied-content"
-                    variants={VARIANTS.FADE_UP}
-                    initial="hidden"
-                    animate="visible"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.6 }}
                     className="age-gate-card age-gate-denied flex flex-col items-center text-center"
                   >
                     <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[32px] border-2 border-red-500/20 flex items-center justify-center mb-8 sm:mb-10 bg-red-500/5">

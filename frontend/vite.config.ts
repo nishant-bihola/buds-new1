@@ -4,6 +4,7 @@ import path from 'path';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  base: "/clickncollect/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -16,6 +17,8 @@ export default defineConfig({
     cssMinify: true,
     sourcemap: false,
     chunkSizeWarningLimit: 900,
+    assetsInlineLimit: 4096,
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
         manualChunks(id) {

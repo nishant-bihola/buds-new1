@@ -3,7 +3,7 @@
  * Unauthorized copying or distribution of this file is strictly prohibited.
  */
 import { useRef, useEffect } from "react";
-import { motion, useScroll, useSpring } from "motion/react";
+import { motion, useSpring } from "motion/react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Star, Clock, Calendar } from "lucide-react";
 import { ImageTrail } from "@/components/ui/image-trail";
@@ -11,17 +11,6 @@ import { useMouseVector } from "@/components/hooks/use-mouse-vector";
 
 export function Hero() {
   const sectionRef = useRef<HTMLDivElement>(null);
-
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start start", "end end"],
-  });
-
-  const smooth = useSpring(scrollYProgress, {
-    stiffness: 40,
-    damping: 18,
-    mass: 0.8,
-  });
 
   const { vector: mouseVector } = useMouseVector(sectionRef);
 
@@ -39,14 +28,14 @@ export function Hero() {
   }, [mouseVector.dx, mouseVector.dy, parallaxX, parallaxY]);
 
   const trailImages = [
-    "/images/modern_dispensary_luxury.png",
     "/images/island_pink_kush.png",
-    "/images/boutique_cannabis_lifestyle.png",
     "/images/nano_banana_kush.png",
     "/images/multi_pack_prerolls.png",
     "/images/bubble_kush_soda.png",
     "/images/high_voltage_vape.png",
     "/images/blue_tip_classic.png",
+    "/images/bhang_cookies_cream.png",
+    "/images/chowie_wowie_caramel.png",
   ];
 
   const wordVars = {
@@ -57,11 +46,10 @@ export function Hero() {
       rotateX: 0,
       transition: {
         duration: 0.85,
-        ease: [0.16, 1, 0.3, 1],
         delay: 0.15 + i * 0.08,
       },
     }),
-  };
+  } as any;
 
   const brandStats = [
     { value: "4.9★", label: "Google Rating", icon: Star, color: "text-amber-400" },
@@ -84,9 +72,9 @@ export function Hero() {
           muted
           loop
           playsInline
-          preload="auto"
+          preload="metadata"
           className="h-full w-full object-cover pointer-events-none brightness-[0.35] contrast-[1.1] saturate-[0.8]"
-          poster="/images/brand_hero.png"
+          poster="/images/premium_bud_brand.png"
         >
           <source src="/videos/hero_bg.mp4" type="video/mp4" />
         </video>
@@ -100,13 +88,17 @@ export function Hero() {
           {trailImages.map((url, i) => (
             <div
               key={i}
-              className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl bg-white/5 backdrop-blur-sm"
+              className="w-16 h-16 sm:w-20 sm:h-20 lg:w-28 lg:h-28 rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden border border-white/20 shadow-xl bg-white/10 backdrop-blur-sm flex-shrink-0"
             >
               <img
                 src={url}
-                alt=""
+                alt="product trail"
                 className="w-full h-full object-cover"
-                loading="eager"
+                loading="lazy"
+                decoding="async"
+                onError={(e) => {
+                  e.currentTarget.src = "/images/multi_pack_prerolls.png";
+                }}
               />
             </div>
           ))}

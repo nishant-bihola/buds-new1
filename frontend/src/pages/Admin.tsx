@@ -161,7 +161,7 @@ export default function Admin() {
       </AnimatePresence>
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-[60] w-72 sm:w-80 bg-brand-green text-brand-earth transition-transform duration-500 lg:relative lg:translate-x-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-[60] w-64 sm:w-72 md:w-80 bg-brand-green text-brand-earth transition-transform duration-500 lg:relative lg:translate-x-0 overflow-y-auto ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="h-full flex flex-col p-8 sm:p-10">
           <div className="mb-12 sm:mb-16 flex items-center gap-5">
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-2xl flex items-center justify-center text-brand-green font-black text-xl shadow-lg shadow-black/10">B</div>
@@ -227,7 +227,7 @@ export default function Admin() {
         </header>
 
         <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
-          <div className="p-6 sm:p-8 lg:p-14 max-w-7xl w-full mx-auto flex-1 flex flex-col">
+          <div className="p-4 sm:p-6 md:p-8 lg:p-14 max-w-7xl w-full mx-auto flex-1 flex flex-col">
             <div className="mb-10 lg:mb-14 hidden lg:flex items-center justify-between">
               <div>
                 <h1 className="text-4xl lg:text-5xl font-black uppercase tracking-tighter leading-none mb-3">{activeTab}</h1>
@@ -336,7 +336,7 @@ function OrdersTab() {
       </div>
 
       <div className="space-y-4">
-        {filtered.length > 0 ? filtered.map((order, i) => (
+        {filtered.length > 0 ? filtered.map((order: any, i: number) => (
           <motion.div
             key={order.orderId}
             initial={{ opacity: 0, y: 15 }}
@@ -747,14 +747,14 @@ function InventoryTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 sm:gap-10">
-        {filtered.map((p, i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 md:gap-10">
+        {filtered.map((p: any, i: number) => (
           <motion.div
             key={p.id}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.04 }}
-            className="bg-white rounded-[36px] sm:rounded-[48px] p-8 sm:p-10 border border-brand-green/5 shadow-sm group hover:shadow-[0_40px_100px_rgba(10,15,12,0.1)] transition-all flex flex-col"
+            className="bg-white rounded-[28px] sm:rounded-[36px] lg:rounded-[48px] p-6 sm:p-8 lg:p-10 border border-brand-green/5 shadow-sm group hover:shadow-[0_40px_100px_rgba(10,15,12,0.1)] transition-all flex flex-col"
           >
             <div className="aspect-square bg-brand-green/[0.03] rounded-[28px] sm:rounded-[40px] mb-6 sm:mb-8 flex items-center justify-center p-8 sm:p-10 relative overflow-hidden">
               {p.image ? (
@@ -1055,14 +1055,14 @@ function PromosTab() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 sm:gap-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 md:gap-10">
         {promos.map((p, i) => (
           <motion.div
             key={p.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="bg-white rounded-[36px] sm:rounded-[48px] p-8 sm:p-12 border border-brand-green/5 shadow-sm hover:shadow-2xl transition-all relative overflow-hidden group"
+            className="bg-white rounded-[28px] sm:rounded-[36px] lg:rounded-[48px] p-6 sm:p-8 lg:p-12 border border-brand-green/5 shadow-sm hover:shadow-2xl transition-all relative overflow-hidden group"
           >
             <div className="flex justify-between items-start mb-8 sm:mb-10">
               <div className="w-14 h-14 sm:w-16 sm:h-16 bg-brand-green/5 rounded-[20px] sm:rounded-[24px] flex items-center justify-center text-brand-green group-hover:bg-brand-green group-hover:text-white transition-all duration-500">

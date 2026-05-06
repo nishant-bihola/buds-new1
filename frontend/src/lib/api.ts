@@ -14,7 +14,13 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   return response.json();
 }
 
+
 export const api = {
+  get: (url: string) => fetchWithAuth(url),
+  put: (url: string, body: any) => fetchWithAuth(url, { method: "PUT", body: JSON.stringify(body) }),
+  post: (url: string, body: any) => fetchWithAuth(url, { method: "POST", body: JSON.stringify(body) }),
+  delete: (url: string) => fetchWithAuth(url, { method: "DELETE" }),
+
   admin: {
     getStats: () => fetchWithAuth("/api/admin/stats"),
     getOrders: () => fetchWithAuth("/api/admin/orders"),
@@ -46,7 +52,7 @@ export const api = {
     syncCustomers: () => fetchWithAuth("/api/admin/sync-customers", { method: "POST" }),
   },
 
-  chat: (message: string, history?: any[]) => 
+  chat: (message: string, history?: any[]) =>
     fetchWithAuth("/api/chat", { method: "POST", body: JSON.stringify({ message, history }) }),
 
   products: {

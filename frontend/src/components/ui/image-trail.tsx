@@ -142,14 +142,18 @@ const TrailItem = ({ item, onComplete }: TrailItemProps) => {
     <motion.div
       ref={scope}
       key={item.id}
-      className="absolute"
+      className="absolute w-16 h-16 sm:w-20 sm:h-20 pointer-events-none"
       style={{
-        left: item.x,
-        top: item.y,
+        left: `${item.x}px`,
+        top: `${item.y}px`,
         rotate: item.rotation,
+        translateX: "-50%",
+        translateY: "-50%",
       }}
     >
-      {item.child}
+      <div className="w-full h-full flex items-center justify-center">
+        {item.child}
+      </div>
     </motion.div>
   )
 }

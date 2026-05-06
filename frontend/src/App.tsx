@@ -91,7 +91,7 @@ export default function App() {
 
 export function AppWrapper() {
   return (
-    <Router>
+    <Router basename="/clickncollect">
       <ScrollToTop />
       <App />
     </Router>

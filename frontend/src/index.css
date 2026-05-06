@@ -108,6 +108,77 @@
   }
 }
 
+/* ── Responsive Admin Panel ────────────────────────────── */
+@media (max-width: 640px) {
+  /* Mobile: Stack layout */
+  .age-gate-btn {
+    width: 100%;
+  }
+
+  /* Admin: Adjust padding for small screens */
+  .admin-container {
+    padding: 1rem;
+  }
+
+  /* Inventory grid: 1 column on mobile */
+  .inventory-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Orders: Stack on mobile */
+  .order-row {
+    flex-direction: column;
+  }
+
+  /* Modal adjustments */
+  .modal-content {
+    padding: 1.5rem;
+    max-height: 90vh;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Tablet: 2-column layouts */
+  .inventory-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .promo-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  /* Desktop: Full 3-column layouts */
+  .inventory-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .promo-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* ── Hero Background & Spacing Fixes ────────────────────── */
+@media (max-width: 768px) {
+  .hero-section {
+    min-height: 70vh;
+    background-attachment: scroll;
+  }
+
+  .hero-image {
+    object-fit: cover;
+    object-position: center;
+  }
+}
+
+@media (min-width: 769px) {
+  .hero-section {
+    min-height: 100vh;
+    background-attachment: fixed;
+  }
+}
+
 /* Keyboard focus ring */
 :focus-visible {
   outline: 2px solid #c5e1a5;

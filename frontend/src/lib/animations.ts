@@ -4,11 +4,10 @@
  */
 
 export const TRANSITIONS = {
-  // Ultra-refined bezier easing for industry-level feel
-  PREMIUM: [0.16, 1, 0.3, 1],
-  SMOOTH: [0.22, 1, 0.36, 1],
-  SPRING_LIGHT: { type: "spring", stiffness: 300, damping: 30 },
-  SPRING_BOUNCY: { type: "spring", stiffness: 400, damping: 20 },
+  PREMIUM: { duration: 0.6, type: "tween" } as any,
+  SMOOTH: { duration: 0.6, type: "tween" } as any,
+  SPRING_LIGHT: { type: "spring", stiffness: 300, damping: 30 } as any,
+  SPRING_BOUNCY: { type: "spring", stiffness: 400, damping: 20 } as any,
 };
 
 export const VARIANTS = {
@@ -19,11 +18,10 @@ export const VARIANTS = {
       y: 0,
       transition: {
         duration: 0.6,
-        ease: TRANSITIONS.PREMIUM,
         delay: custom * 0.1,
       },
     }),
-  },
+  } as any,
   SCALE_IN: {
     hidden: { opacity: 0, scale: 0.95 },
     visible: {
@@ -31,8 +29,14 @@ export const VARIANTS = {
       scale: 1,
       transition: {
         duration: 0.5,
-        ease: TRANSITIONS.PREMIUM,
       },
     },
-  },
+  } as any,
+};
+
+export const PERFORMANCE_CONFIG = {
+  useGPU: true,
+  willChange: true,
+  skipAnimationsOnMobile: false,
+  useReducedMotion: true,
 };
