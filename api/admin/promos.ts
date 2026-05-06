@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getProducts, upsertProduct, deleteProduct } from "../_lib/db_ops.js";
+import { getPromoCodes, upsertPromoCode, deletePromoCode } from "../_lib/db_ops.js";
 import { requireAdmin, json, cors } from "../_lib/auth.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -9,25 +9,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === "GET") {
-      const products = await getProducts(true);
-      return json(res as any, { products });
+      const promos = await getPromoCodes();
+      return json(res as any, { promos });
     }
 
-    if (req.method === "POST" || req.method === "PUT") {
-      const product = await upsertProduct(req.body);
-      return json(res as any, { product });
+    if (req.method === "POST") {
+      const promo = await upsertPromoCode(req.body);
+      return json(res as any, { promo });
     }
 
     if (req.method === "DELETE") {
       const { id } = req.query;
       if (!id) return json(res as any, { error: "Missing ID" }, 400);
-      await deleteProduct(id as string);
+      await deletePromoCode(id as string);
       return json(res as any, { success: true });
     }
 
     return json(res as any, { error: "Method not allowed" }, 405);
   } catch (err: any) {
-    console.error("[Admin Products Error]", err);
+    console.error("[Admin Promos Error]", err);
     return json(res as any, { error: err.message }, 500);
   }
 }

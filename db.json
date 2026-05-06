@@ -18,6 +18,7 @@
       "weight": "3.5g",
       "strain": "Hybrid",
       "inStock": true,
+      "quantity": 50,
       "isBestSeller": true,
       "sortOrder": 1
     },
@@ -39,6 +40,7 @@
       "weight": "3.5g",
       "strain": "Indica",
       "inStock": true,
+      "quantity": 42,
       "isBestSeller": false,
       "sortOrder": 2
     },
@@ -53,6 +55,7 @@
       "cbd": "0mg",
       "brand": "BoxHot",
       "inStock": true,
+      "quantity": 100,
       "isBestSeller": true,
       "sortOrder": 3
     },
@@ -68,6 +71,7 @@
       "weight": "3×0.5g",
       "strain": "Hybrid",
       "inStock": true,
+      "quantity": 35,
       "isBestSeller": false,
       "sortOrder": 4
     },
@@ -83,6 +87,7 @@
       "brand": "Spinach",
       "strain": "Sativa",
       "inStock": true,
+      "quantity": 20,
       "isBestSeller": false,
       "sortOrder": 5
     },
@@ -103,6 +108,7 @@
       "brand": "Dab Bods",
       "weight": "1g",
       "inStock": true,
+      "quantity": 15,
       "isBestSeller": false,
       "sortOrder": 6
     }
@@ -253,28 +259,16 @@
   ],
   "abandonedCarts": [
     {
-      "sessionKey": "0b57c0ec-bb17-47df-aab4-785d9882bd13",
+      "sessionKey": "0823683f-efc2-4eec-b857-91d02f2bf520",
       "items": [
         {
-          "name": "Premium Buds Grinder",
-          "price": 24.99,
+          "name": "Island Pink Kush",
+          "price": 32,
           "quantity": 1
         }
       ],
-      "total": 24.99,
-      "updatedAt": "2026-05-04T20:55:24.868Z"
-    },
-    {
-      "sessionKey": "901b1116-c9de-41e4-a857-7117f7fcfc30",
-      "items": [
-        {
-          "name": "Nano Banana Kush",
-          "price": 35,
-          "quantity": 1
-        }
-      ],
-      "total": 35,
-      "updatedAt": "2026-05-04T22:00:01.338Z"
+      "total": 32,
+      "updatedAt": "2026-05-06T08:41:41.434Z"
     }
   ]
 }

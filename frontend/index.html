@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover: fills the notch/dynamic island on iPhone -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Bud n' Buddies — Premium cannabis dispensary in Sherwood Park, Alberta. Hand-selected, lab-tested flower, edibles, vapes & more. Open every day till 2 AM." />
+    <meta name="theme-color" content="#1e4d2b" />
+    <!-- iOS PWA tweaks -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- Prevent iOS from auto-linking phone numbers (they look bad unstyled) -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta property="og:title" content="Bud n' Buddies Cannabis – Premium Dispensary" />
+    <meta property="og:description" content="Premium cannabis in Sherwood Park, AB. Open every day till 2 AM." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://buds-n-buddies-demo.vercel.app/" />
+    <meta property="og:image" content="https://buds-n-buddies-demo.vercel.app/images/brand_hero.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Bud n' Buddies Cannabis – Premium Dispensary" />
+    <meta name="twitter:description" content="Premium cannabis in Sherwood Park, AB. Open every day till 2 AM." />
+    <meta name="twitter:image" content="https://buds-n-buddies-demo.vercel.app/images/brand_hero.png" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://buds-n-buddies-demo.vercel.app/" />
+    <link rel="icon" type="image/png" href="/images/buds_n_buddies_logo.png" />
+    <link rel="apple-touch-icon" href="/images/buds_n_buddies_logo.png" />
+
+    <!-- DNS prefetch for all third-party origins -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+
+    <!-- Preconnect for Google Fonts — must come before the stylesheet link -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Font with display=swap so text is visible immediately using system font -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Manrope:wght@400;500;600;700;800&display=swap"
+    />
+
+    <!-- Preload the logo so navbar renders instantly -->
+    <link rel="preload" as="image" href="/images/buds_n_buddies_logo.png" />
+    <!-- Preload critical Hero assets -->
+    <link rel="preload" as="image" href="/images/brand_hero.png" />
+    <link rel="preload" as="video" href="/videos/hero_bg.mp4" type="video/mp4" />
+
+    <title>Bud n' Buddies Cannabis - Premium Dispensary</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

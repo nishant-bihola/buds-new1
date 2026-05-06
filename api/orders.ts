@@ -1,16 +1,28 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getOrders, insertOrder, upsertCustomer, getPromoByCode, incrementPromoUsage } from "./_lib/supabase.js";
+import { getOrders, insertOrder, upsertCustomer, getPromoByCode } from "./_lib/db_ops.js";
 import { sendOrderConfirmation, sendAdminAlert, sendWelcome } from "./_lib/email.js";
-import { requireAdmin, json } from "./_lib/auth.js";
+
+const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "budnbuddies2026";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
   if (req.method === "OPTIONS") return res.status(200).end();
 
   // GET /api/orders — admin only
   if (req.method === "GET") {
-    if (!requireAdmin(req as any, res as any)) return;
-    const orders = await getOrders();
-    return json(res as any, { orders });
+    const auth = req.headers.authorization ?? "";
+    if (auth !== `Bearer ${ADMIN_SECRET}`) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const orders = await getOrders();
+      return res.status(200).json({ orders });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
   }
 
   // POST /api/orders — create order (public)
@@ -22,47 +34,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "Missing required fields." });
     }
 
-    const order = {
-      order_id: orderId,
-      customer_name: customer.name,
-      customer_email: customer.email.toLowerCase(),
-      customer_phone: customer.phone,
-      customer,
-      delivery,
-      items,
-      subtotal: subtotal ?? total,
-      delivery_fee: deliveryFee ?? 0,
-      discount: discount ?? 0,
-      total,
-      promo_code: promoCode ?? null,
-      status: "confirmed",
-      driver_name: null,
-      driver_phone: null,
-      email_log: [],
-      created_at: new Date().toISOString(),
-    };
+    try {
+      const orderData = {
+        orderId,
+        customerName: customer.name,
+        customerEmail: customer.email.toLowerCase(),
+        customerPhone: customer.phone,
+        customer,
+        delivery,
+        items,
+        subtotal: Number(subtotal) || Number(total),
+        deliveryFee: Number(deliveryFee) || 0,
+        discount: Number(discount) || 0,
+        total: Number(total),
+        promoCode: promoCode ?? null,
+        status: "confirmed",
+        createdAt: new Date(),
+      };
 
-    await insertOrder(order);
+      await insertOrder(orderData);
 
-    await upsertCustomer(customer.email.toLowerCase(), {
-      name: customer.name, phone: customer.phone, totalSpent: total,
-    }).catch(() => {});
+      // async background tasks
+      upsertCustomer(customer.email.toLowerCase(), {
+        name: customer.name, phone: customer.phone, totalSpent: Number(total),
+      }).catch(e => console.error("Customer upsert failed:", e));
 
-    if (promoCode) {
-      const promo = await getPromoByCode(promoCode).catch(() => null);
-      if (promo) await incrementPromoUsage(promo.id).catch(() => {});
+      // fire emails
+      sendOrderConfirmation(body).catch(e => console.error("Email failed:", e));
+      sendAdminAlert(body).catch(e => console.error("Admin alert failed:", e));
+      sendWelcome(customer.email, customer.name.split(" ")[0]).catch(e => console.error("Welcome email failed:", e));
+
+      return res.status(201).json({ success: true, orderId });
+    } catch (err: any) {
+      console.error("[ORDER ERROR]", err);
+      return res.status(500).json({ error: "Failed to create order." });
     }
-
-    // fire emails non-blocking
-    const orderObj = { orderId, customer, delivery, items, subtotal, deliveryFee, discount, total, promoCode };
-    sendOrderConfirmation(orderObj).catch(() => {});
-    sendAdminAlert(orderObj).catch(() => {});
-
-    // welcome email for first-time customers
-    const isFirstOrder = true; // supabase upsert handles this — send optimistically
-    if (isFirstOrder) sendWelcome(customer.email, customer.name.split(" ")[0]).catch(() => {});
-
-    return res.status(201).json({ success: true, orderId });
   }
 
   return res.status(405).json({ error: "Method not allowed" });

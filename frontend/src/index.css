@@ -1,0 +1,211 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Great Vibes", cursive;
+
+  --color-brand-green: #1e4d2b;
+  --color-brand-light-green: #c5e1a5;
+  --color-brand-earth: #f4f1ea;
+  --color-brand-dark: #121212;
+  --color-accent-gold: #d4af37;
+}
+
+::selection {
+  background: var(--color-brand-green);
+  color: var(--color-brand-light-green);
+}
+
+
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #1e4d2b;
+  transform-origin: 0%;
+  z-index: 100;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: clamp(14px, 1vw + 10px, 18px);
+    /* Prevent elastic overscroll on iOS from hijacking page bounce */
+    overscroll-behavior-y: none;
+    /* Speed up rendering of off-screen components */
+    content-visibility: auto;
+  }
+
+  body {
+    @apply bg-brand-earth text-brand-dark font-sans;
+    width: 100%;
+    overflow-x: hidden;
+    /* dvh fallback: 100vh first for browsers that don't support dvh */
+    min-height: 100vh;
+    min-height: 100dvh;
+    /* iOS safe-area padding so content clears the home indicator */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Fluid headings */
+  h1 { font-size: clamp(2.5rem, 8vw, 6rem); }
+  h2 { font-size: clamp(2rem, 6vw, 4.5rem); }
+  h3 { font-size: clamp(1.5rem, 4vw, 3rem); }
+
+  /* Responsive container */
+  .container {
+    width: 100%;
+    max-width: min(1440px, 92vw);
+    margin-inline: auto;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    vertical-align: middle;
+  }
+
+  /* Remove 300ms tap delay and highlight flash on all interactive elements */
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Ensure inputs never cause iOS auto-zoom (requires font-size >= 16px) */
+  input, textarea, select {
+    font-size: 16px;
+  }
+
+  /* GPU acceleration helper */
+  .motion-gpu {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* Position sticky with Safari fallback */
+  .sticky-nav {
+    position: -webkit-sticky;
+    position: sticky;
+  }
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Keyboard focus ring */
+:focus-visible {
+  outline: 2px solid #c5e1a5;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.cart-toast {
+  will-change: transform, opacity;
+  animation: slideUpFade 0.3s ease forwards;
+}
+
+/* ── Age Gate ─────────────────────────────────────────── */
+.age-gate-overlay {
+  background: #060b08;
+}
+
+.age-gate-checker {
+  background-image: repeating-conic-gradient(rgba(36,86,48,0.06) 0% 25%, transparent 0% 50%);
+  background-size: 80px 80px;
+}
+
+.age-gate-radial {
+  background: radial-gradient(ellipse 55% 60% at 50% 50%, #060b08 40%, transparent 100%);
+}
+
+/* vmin-based ring sizes — scale with viewport on every device */
+.age-ring-1 { width: 240vmin; height: 240vmin; border: 1.5px solid rgba(36,86,48,0.05); }
+.age-ring-2 { width: 190vmin; height: 190vmin; border: 1px   solid rgba(36,86,48,0.10); }
+.age-ring-3 { width: 150vmin; height: 150vmin; border: 1.5px solid rgba(36,86,48,0.15); }
+.age-ring-4 { width: 115vmin; height: 115vmin; border: 1px   solid rgba(36,86,48,0.20); }
+.age-ring-5 { width:  86vmin; height:  86vmin; border: 1.5px solid rgba(36,86,48,0.25); }
+.age-ring-6 { width:  63vmin; height:  63vmin; border: 1px   solid rgba(36,86,48,0.30); }
+.age-ring-7 { width:  44vmin; height:  44vmin; border: 1.5px solid rgba(36,86,48,0.35); }
+.age-ring-8 { width:  28vmin; height:  28vmin; border: 1px   solid rgba(36,86,48,0.40); }
+
+/* Fluid text sizes for age gate */
+.age-gate-logo   { height: clamp(2rem, 7vw, 3rem); }
+.age-gate-label  { font-size: clamp(8px, 2vw, 10px); font-weight: 900; text-transform: uppercase; letter-spacing: 0.5em; color: rgba(197, 225, 165, 0.4); }
+.age-gate-h1     { font-size: clamp(2.4rem, 10vw, 4.5rem); }
+.age-gate-body   { font-size: clamp(0.75rem, 3vw, 0.95rem); max-width: min(340px, 85vw); }
+.age-gate-legal  { font-size: clamp(0.6rem, 2vw, 0.75rem);   max-width: min(320px, 90vw); }
+.age-gate-card   { 
+  width: 100%; 
+  max-width: min(480px, 92vw); 
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1.25rem, 3vw, 2rem);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  margin: 1rem;
+}
+.age-gate-denied { width: 100%; max-width: min(380px, 92vw); }
+
+.age-gate-btn    { flex: 1; padding: clamp(1rem, 3.5vw, 1.25rem) 0; font-size: clamp(0.7rem, 2.5vw, 0.85rem); font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; border-radius: 9999px; cursor: pointer; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.age-gate-btn-primary   { background: #1e4d2b; color: white; box-shadow: 0 10px 25px -5px rgba(30, 77, 43, 0.5); border: 1px solid rgba(197, 225, 165, 0.2); }
+.age-gate-btn-primary:hover { background: #265c34; transform: translateY(-3px); box-shadow: 0 15px 35px -5px rgba(30, 77, 43, 0.6); }
+.age-gate-btn-secondary { background: rgba(255, 255, 255, 0.05); border: 1.5px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.7); }
+.age-gate-btn-secondary:hover { background: rgba(255, 255, 255, 0.1); color: white; transform: translateY(-2px); }
+
+.age-gate-denied-logo { height: clamp(2rem, 6vw, 2.5rem); }
+.age-gate-x-wrap { width: clamp(4rem, 14vw, 5rem); height: clamp(4rem, 14vw, 5rem); }
+.age-gate-x-text { font-size: clamp(1.8rem, 6vw, 2.5rem); }
+.age-gate-denied-h2 { font-size: clamp(2rem, 8vw, 3rem); }
+
+@layer utilities {
+  /* Cross-browser custom scrollbar */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.2) rgba(255,255,255,0.05);
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  /* Hide scrollbar cross-browser (Firefox + WebKit) */
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

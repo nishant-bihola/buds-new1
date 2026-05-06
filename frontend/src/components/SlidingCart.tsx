@@ -1,0 +1,349 @@
+import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  X, Trash2, Plus, Minus, Truck, Store, Tag, Check,
+  ChevronRight, ShoppingBag, Loader2, Clock,
+} from "lucide-react";
+import { useCart } from "../context/CartContext";
+import { useToast } from "../context/ToastContext";
+import { TRANSITIONS } from "@/lib/animations";
+
+const SLOT_LABELS: Record<string, string> = {
+  asap: "ASAP · Est. 45–75 min",
+  "2h": "Today in 2 hours",
+  "4h": "Today in 4 hours",
+};
+
+const FREE_THRESHOLD = 75;
+
+export function SlidingCart() {
+  const {
+    cart, removeFromCart, updateQuantity,
+    cartCount, subtotal, deliveryFee, discount, totalPrice,
+    deliveryMethod, setDeliveryMethod,
+    deliverySlot, setDeliverySlot,
+    promoCode, setPromoCode, appliedPromo, applyPromo, removePromo,
+    isCartOpen, closeCart,
+  } = useCart();
+
+  const { success, error: toastError } = useToast();
+  const [promoLoading, setPromoLoading] = useState(false);
+  const promoRef = useRef<HTMLInputElement>(null);
+
+  const handleApplyPromo = async () => {
+    setPromoLoading(true);
+    const result = await applyPromo();
+    setPromoLoading(false);
+    if (result.ok) success(result.message);
+    else toastError(result.message);
+  };
+
+  const toFreeDelivery = Math.max(0, FREE_THRESHOLD - subtotal);
+
+  return (
+    <AnimatePresence>
+      {isCartOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            key="cart-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: TRANSITIONS.PREMIUM }}
+            onClick={closeCart}
+            className="fixed inset-0 bg-black/60 z-[150] backdrop-blur-md"
+          />
+
+          {/* Drawer */}
+          <motion.div
+            key="cart-drawer"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 350, damping: 35, mass: 0.8 }}
+            className="fixed top-0 right-0 h-[100dvh] w-full sm:max-w-md bg-brand-earth z-[160] flex flex-col shadow-2xl overflow-hidden isolate"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-6 border-b border-brand-green/10 shrink-0 bg-brand-earth/80 backdrop-blur-xl sticky top-0 z-20">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <ShoppingBag size={22} className="text-brand-green" />
+                  <AnimatePresence>
+                    {cartCount > 0 && (
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-brand-light-green rounded-full border-2 border-brand-earth"
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
+                <div>
+                  <h2 className="font-black uppercase tracking-tighter text-brand-green text-2xl leading-none">
+                    Your Menu
+                  </h2>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-green/40 mt-1">
+                    {cartCount} {cartCount === 1 ? "Item" : "Items"} Selection
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeCart}
+                className="w-12 h-12 rounded-2xl bg-brand-green/5 flex items-center justify-center text-brand-green hover:bg-brand-green hover:text-brand-earth active:scale-90 transition-all duration-300"
+              >
+                <X size={24} strokeWidth={3} />
+              </button>
+            </div>
+
+            {/* Delivery / Pickup Toggle */}
+            <div className="px-6 pt-8 pb-4 shrink-0 bg-brand-earth">
+              <div className="grid grid-cols-2 gap-2 p-1.5 bg-brand-green/5 rounded-[24px] border border-brand-green/10">
+                {(["delivery", "pickup"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setDeliveryMethod(m)}
+                    className={`flex items-center justify-center gap-2 py-4 rounded-[18px] text-[11px] font-black uppercase tracking-widest transition-all ${
+                      deliveryMethod === m
+                        ? "bg-brand-green text-brand-earth shadow-xl shadow-brand-green/20 scale-[1.02]"
+                        : "text-brand-green/40 hover:text-brand-green hover:bg-brand-green/5"
+                    }`}
+                  >
+                    {m === "delivery" ? <Truck size={16} /> : <Store size={16} />}
+                    {m === "delivery" ? "Delivery" : "Pickup"}
+                  </button>
+                ))}
+              </div>
+
+              <div className="min-h-[70px] mt-6">
+                <AnimatePresence mode="wait">
+                  {deliveryMethod === "delivery" ? (
+                    <motion.div
+                      key="delivery-slots"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex gap-3"
+                    >
+                      {(["asap", "2h", "4h"] as const).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setDeliverySlot(s)}
+                          className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-wider border-2 transition-all flex flex-col items-center gap-2 ${
+                            deliverySlot === s
+                              ? "border-brand-green bg-brand-green/5 text-brand-green"
+                              : "border-brand-green/10 text-brand-dark/30 hover:border-brand-green/30"
+                          }`}
+                        >
+                          <Clock size={14} className={deliverySlot === s ? "text-brand-green" : "text-brand-green/30"} />
+                          {s === "asap" ? "ASAP" : s}
+                        </button>
+                      ))}
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="pickup-info"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="bg-white/60 backdrop-blur-md rounded-2xl p-5 flex items-center gap-5 border border-brand-green/10 shadow-sm"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-brand-green/10 flex items-center justify-center text-brand-green shadow-inner">
+                        <Store size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-brand-green/50 mb-1">Pickup Location</p>
+                        <p className="text-sm font-black text-brand-dark truncate">130-75 Salisbury Way, Sherwood Park</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Free delivery progress */}
+              {deliveryMethod === "delivery" && (
+                <div className="mt-6 p-5 rounded-[32px] bg-brand-green/5 border border-brand-green/10">
+                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest mb-3">
+                    <span className={subtotal >= FREE_THRESHOLD ? "text-brand-green" : "text-brand-dark/40"}>
+                      {subtotal >= FREE_THRESHOLD ? "Free delivery unlocked!" : `Add $${toFreeDelivery.toFixed(2)} for free delivery`}
+                    </span>
+                    <span className="text-brand-green">{Math.min(100, Math.round((subtotal / FREE_THRESHOLD) * 100))}%</span>
+                  </div>
+                  <div className="h-2 bg-brand-green/10 rounded-full overflow-hidden shadow-inner">
+                    <motion.div
+                      className="h-full bg-brand-green"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (subtotal / FREE_THRESHOLD) * 100)}%` }}
+                      transition={{ type: "spring", stiffness: 40, damping: 20 }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cart Items */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 custom-scrollbar isolate">
+              <AnimatePresence mode="popLayout">
+                {cart.length === 0 ? (
+                  <motion.div
+                    key="empty-cart"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center justify-center py-20 text-center"
+                  >
+                    <div className="w-28 h-28 rounded-[40px] bg-brand-green/5 flex items-center justify-center mb-8 border border-brand-green/10">
+                      <ShoppingBag size={48} className="text-brand-green/20" />
+                    </div>
+                    <h3 className="font-black uppercase tracking-tight text-brand-green text-2xl mb-3">Cart is empty</h3>
+                    <p className="text-base text-brand-dark/40 max-w-[240px] mb-10 leading-relaxed font-medium">Add some premium craft products to your menu.</p>
+                    <button
+                      type="button"
+                      onClick={closeCart}
+                      className="group flex items-center gap-4 bg-brand-green text-brand-earth px-10 py-5 rounded-[24px] text-[12px] font-black uppercase tracking-widest hover:bg-brand-light-green hover:text-brand-green transition-all shadow-2xl shadow-brand-green/20"
+                    >
+                      Browse Menu <ChevronRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </motion.div>
+                ) : (
+                  cart.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                      className="group bg-white rounded-[24px] sm:rounded-[32px] p-3 sm:p-4 flex gap-3 sm:gap-5 items-center border border-brand-green/5 shadow-sm hover:shadow-xl hover:border-brand-green/15 transition-all duration-500"
+                    >
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl bg-brand-earth/50 shrink-0 overflow-hidden p-1.5 sm:p-2 border border-brand-green/5 group-hover:scale-105 transition-transform duration-500">
+                        <img src={item.image} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" loading="lazy" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-0.5 sm:mb-1 gap-2">
+                          <h4 className="font-black text-brand-green text-sm sm:text-base uppercase tracking-tight truncate flex-1">{item.name}</h4>
+                          <span className="font-black text-brand-green text-sm sm:text-base whitespace-nowrap">${(item.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                        <p className="text-[9px] sm:text-[10px] text-brand-dark/30 font-black uppercase tracking-[0.2em] mb-3 sm:mb-4">{item.category}</p>
+                        
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center bg-brand-earth rounded-xl sm:rounded-2xl p-1 sm:p-1.5 border border-brand-green/5 shadow-inner">
+                            <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-lg sm:rounded-xl transition-all duration-300 text-brand-green">
+                              <Minus size={12} sm:size={14} strokeWidth={3} />
+                            </button>
+                            <span className="w-8 sm:w-10 text-center text-xs sm:text-sm font-black text-brand-green">{item.quantity}</span>
+                            <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-lg sm:rounded-xl transition-all duration-300 text-brand-green">
+                              <Plus size={12} sm:size={14} strokeWidth={3} />
+                            </button>
+                          </div>
+                          <button type="button" onClick={() => removeFromCart(item.id)}
+                            className="text-brand-dark/10 hover:text-red-500 transition-colors p-2 sm:p-3 hover:bg-red-50 rounded-xl sm:rounded-2xl shrink-0">
+                            <Trash2 size={14} sm:size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Footer */}
+            {cart.length > 0 && (
+              <div className="px-6 pb-10 pt-6 border-t border-brand-green/10 bg-brand-earth/95 backdrop-blur-xl shrink-0 space-y-5">
+                {/* Promo code */}
+                <div className="relative">
+                  {appliedPromo ? (
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                      className="flex items-center justify-between bg-brand-green/10 rounded-[24px] px-6 py-4 border border-brand-green/20">
+                      <div className="flex items-center gap-4">
+                        <Tag size={18} className="text-brand-green" />
+                        <div>
+                          <p className="text-[11px] font-black text-brand-green uppercase tracking-[0.2em]">{appliedPromo.code}</p>
+                          <p className="text-[10px] text-brand-green/60 font-bold uppercase tracking-wider">
+                            Applied · {appliedPromo.type === "percent" ? `${appliedPromo.discount}%` : `$${appliedPromo.discount}`} Off
+                          </p>
+                        </div>
+                      </div>
+                      <button type="button" onClick={removePromo} className="w-10 h-10 flex items-center justify-center rounded-2xl hover:bg-brand-green/10 text-brand-green transition-all">
+                        <X size={18} />
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <div className="flex gap-3">
+                      <div className="flex-1 relative group">
+                        <Tag size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-brand-green/30 group-focus-within:text-brand-green transition-colors" />
+                        <input
+                          ref={promoRef}
+                          type="text"
+                          placeholder="Promo code"
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => e.key === "Enter" && handleApplyPromo()}
+                          className="w-full bg-white border border-brand-green/10 rounded-[24px] pl-12 pr-5 py-4.5 text-xs font-black uppercase tracking-[0.2em] outline-none focus:border-brand-green/30 focus:ring-8 focus:ring-brand-green/5 transition-all placeholder:text-brand-dark/20 placeholder:normal-case placeholder:font-medium placeholder:tracking-normal"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleApplyPromo}
+                        disabled={!promoCode || promoLoading}
+                        className="bg-brand-green text-brand-earth px-8 rounded-[24px] text-[11px] font-black uppercase tracking-widest hover:bg-brand-light-green hover:text-brand-green active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none shadow-xl shadow-brand-green/10"
+                      >
+                        {promoLoading ? <Loader2 size={18} className="animate-spin" /> : "Apply"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Totals */}
+                <div className="bg-white/40 rounded-[32px] p-6 space-y-3.5 border border-brand-green/5 shadow-inner">
+                  <div className="flex justify-between text-xs font-black text-brand-dark/40 uppercase tracking-[0.2em]">
+                    <span>Subtotal</span>
+                    <span className="text-brand-dark font-black">${subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-black text-brand-dark/40 uppercase tracking-[0.2em]">
+                    <span>{deliveryMethod === "delivery" ? "Delivery Fee" : "Pickup"}</span>
+                    <span className={deliveryFee === 0 ? "text-brand-green font-black" : "text-brand-dark font-black"}>
+                      {deliveryFee === 0 ? "FREE" : `$${deliveryFee.toFixed(2)}`}
+                    </span>
+                  </div>
+                  {discount > 0 && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+                      className="flex justify-between text-xs font-black text-brand-green uppercase tracking-[0.2em]">
+                      <span>Discount</span>
+                      <span>−${discount.toFixed(2)}</span>
+                    </motion.div>
+                  )}
+                  <div className="flex justify-between items-center pt-4 border-t border-brand-green/10 mt-2">
+                    <span className="font-black text-brand-green uppercase tracking-[0.3em] text-[10px]">Total Amount</span>
+                    <span className="text-3xl font-black text-brand-green tracking-tighter leading-none">${totalPrice.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <Link
+                  to="/checkout"
+                  onClick={closeCart}
+                  className="group relative w-full bg-brand-green text-brand-earth py-6 rounded-[32px] font-black uppercase tracking-[0.3em] text-[13px] flex items-center justify-center gap-4 hover:bg-brand-light-green hover:text-brand-green transition-all shadow-[0_15px_35px_rgba(30,77,43,0.3)] overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                  <span>Secure Checkout</span> 
+                  <ChevronRight size={20} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
+                </Link>
+
+                <div className="flex items-center justify-center gap-6 opacity-20">
+                   <div className="h-[1px] flex-1 bg-brand-dark" />
+                   <p className="text-[9px] font-black uppercase tracking-[0.5em] whitespace-nowrap">Bud n' Buddies AB</p>
+                   <div className="h-[1px] flex-1 bg-brand-dark" />
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
