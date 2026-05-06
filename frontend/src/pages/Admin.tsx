@@ -1,1446 +1,1019 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import useSWR, { mutate } from "swr";
+import useSWR from "swr";
 import {
-  ShoppingBag, Package, Tag, Settings as SettingsIcon, History, LayoutDashboard,
-  Plus, Pencil, Trash2, X, Lock, Menu, LogOut, Search, Bell,
-  TrendingUp, RefreshCw, Truck, Store, ExternalLink, FileUp, FileDown,
-  ToggleLeft, ToggleRight, Save, Image as ImageIcon, MapPin, Copy, Check,
-  AlertTriangle, Eye, EyeOff, Upload, Home, Download, Zap,
+  LayoutDashboard, ShoppingBag, Package, Tag, Settings as Gear,
+  LogOut, Menu, X, Search, Plus, Pencil, Trash2, Upload,
+  Truck, Store, Copy, Check, Lock, RefreshCw, Home, FileUp,
+  DollarSign, ToggleLeft, ToggleRight,
 } from "lucide-react";
-
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
-import { AuditLogs } from "../components/admin/AuditLogs";
 
-const fetcher = (fn: () => Promise<any>) => fn();
+/* ─────────────────────────────────────────────────────────────
+   Constants
+───────────────────────────────────────────────────────────── */
+const TABS = ["Dashboard", "Orders", "Inventory", "Promos", "Settings"] as const;
+type Tab = typeof TABS[number];
 
-const TABS = [
-  { id: "Dashboard", icon: LayoutDashboard },
-  { id: "Orders", icon: ShoppingBag },
-  { id: "Inventory", icon: Package },
-  { id: "Promos", icon: Tag },
-  { id: "Settings", icon: SettingsIcon },
-] as const;
+const STATUS_META: Record<string, { label: string; cls: string }> = {
+  confirmed:   { label: "Confirmed",     cls: "bg-blue-500/15 text-blue-300 border-blue-500/20" },
+  preparing:   { label: "Preparing",     cls: "bg-amber-500/15 text-amber-300 border-amber-500/20" },
+  dispatched:  { label: "Dispatched",    cls: "bg-indigo-500/15 text-indigo-300 border-indigo-500/20" },
+  delivered:   { label: "Delivered",     cls: "bg-green-500/15 text-green-300 border-green-500/20" },
+  ready_pickup:{ label: "Ready Pickup",  cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/20" },
+  cancelled:   { label: "Cancelled",     cls: "bg-red-500/15 text-red-400 border-red-500/20" },
+};
 
-type Tab = typeof TABS[number]["id"];
+const CATEGORIES = ["Dried Flower", "Pre-Roll", "Edible", "Vape", "Beverage", "Accessories", "Extract"];
+const STRAINS    = ["Indica", "Sativa", "Hybrid", "CBD", "None"];
 
-const ORDER_STATUSES = [
-  { value: "confirmed", label: "Confirmed", color: "bg-blue-50 text-blue-600 border-blue-100" },
-  { value: "preparing", label: "Preparing", color: "bg-amber-50 text-amber-600 border-amber-100" },
-  { value: "dispatched", label: "Dispatched", color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
-  { value: "delivered", label: "Delivered", color: "bg-green-50 text-brand-green border-green-100" },
-  { value: "ready_pickup", label: "Ready Pickup", color: "bg-emerald-50 text-emerald-600 border-emerald-100" },
-  { value: "cancelled", label: "Cancelled", color: "bg-red-50 text-red-500 border-red-100" },
-];
-
-function statusColor(status: string) {
-  return ORDER_STATUSES.find(s => s.value === status)?.color ?? "bg-brand-green/5 text-brand-green/50 border-brand-green/10";
+function statusBadge(status: string) {
+  const m = STATUS_META[status] ?? { label: status, cls: "bg-white/5 text-white/40 border-white/10" };
+  return (
+    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${m.cls}`}>
+      {m.label}
+    </span>
+  );
 }
 
-function LoginGate({ onLogin }: { onLogin: () => void }) {
-  const [value, setValue] = useState("");
-  const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { success, error: toastError } = useToast();
-
-  const handleLogin = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/admin/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret: value }),
-      });
-      if (response.ok) {
-        localStorage.setItem("admin_auth", "true");
-        sessionStorage.setItem("admin_secret", value);
-        success("Access Granted. Welcome.");
-        onLogin();
-      } else {
-        setError(true);
-        toastError("Invalid Access Key.");
-        setTimeout(() => setError(false), 2000);
-      }
-    } catch {
-      setError(true);
-      toastError("Authentication failed.");
-      setTimeout(() => setError(false), 2000);
-    }
-    setLoading(false);
-  };
-
+/* ─────────────────────────────────────────────────────────────
+   Shared UI atoms
+───────────────────────────────────────────────────────────── */
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#0a0f0c] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
-      <div className="absolute top-[-10%] left-[-10%] w-[60%] sm:w-[40%] h-[40%] bg-brand-green/10 blur-[80px] sm:blur-[120px] rounded-full" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] sm:w-[40%] h-[40%] bg-brand-light-green/5 blur-[80px] sm:blur-[120px] rounded-full" />
+    <div>
+      <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">{label}</label>
+      {children}
+    </div>
+  );
+}
 
+const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-brand-light-green/50 transition-colors";
+
+function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={inputCls} {...props} />;
+}
+
+function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select className={`${inputCls} bg-[#1a2219]`} {...props}>
+      {children}
+    </select>
+  );
+}
+
+function Textarea({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className={`${inputCls} resize-none`} rows={3} {...props} />;
+}
+
+function Modal({ title, onClose, footer, children }: {
+  title: string; onClose: () => void;
+  footer?: React.ReactNode; children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
       <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        initial={{ opacity: 0, y: 40, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="w-full max-w-[480px] bg-white rounded-[40px] sm:rounded-[48px] p-8 sm:p-14 shadow-[0_32px_80px_rgba(0,0,0,0.4)] relative z-10"
+        exit={{ opacity: 0, y: 40, scale: 0.97 }}
+        transition={{ type: "spring", damping: 26, stiffness: 340 }}
+        className="bg-[#111815] border border-white/10 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-xl max-h-[92vh] flex flex-col shadow-2xl"
       >
-        <div className="flex flex-col items-center mb-8 sm:mb-12 text-center">
-          <motion.div
-            whileHover={{ rotate: 10, scale: 1.05 }}
-            className="w-16 h-16 sm:w-20 sm:h-20 bg-brand-green text-brand-earth rounded-[24px] sm:rounded-[28px] flex items-center justify-center mb-6 sm:mb-8 shadow-xl shadow-brand-green/20"
-          >
-            <Lock size={28} className="sm:w-[32px] sm:h-[32px]" />
-          </motion.div>
-          <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tighter text-brand-green mb-2">Internal Access</h2>
-          <p className="text-brand-green/30 text-[9px] font-black uppercase tracking-[0.5em]">Authorization Required</p>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
+          <h2 className="text-lg font-black uppercase tracking-tight">{title}</h2>
+          <button type="button" onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"><X size={18} /></button>
         </div>
-
-        <div className="space-y-5 sm:space-y-6">
-          <div className="space-y-2">
-            <label className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-brand-green/40 ml-4">Terminal Key</label>
-            <input
-              type="password"
-              placeholder="••••••••••••"
-              value={value}
-              onChange={e => setValue(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleLogin()}
-              className={`w-full bg-brand-green/5 border-2 rounded-[20px] sm:rounded-[24px] px-6 sm:px-8 py-5 sm:py-6 outline-none text-brand-green font-black text-center text-lg sm:text-xl tracking-[0.2em] transition-all ${error ? "border-red-500/50 bg-red-50/50" : "border-brand-green/10 focus:border-brand-green/30 focus:ring-8 focus:ring-brand-green/5"}`}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full bg-brand-green text-brand-earth py-5 sm:py-6 rounded-[20px] sm:rounded-[24px] font-black uppercase tracking-widest text-[11px] sm:text-[12px] flex items-center justify-center gap-4 hover:brightness-110 active:scale-[0.98] transition-all shadow-xl shadow-brand-green/10 disabled:opacity-50"
-          >
-            {loading ? <RefreshCw size={18} className="animate-spin" /> : "Authenticate"}
-          </button>
-        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">{children}</div>
+        {footer && <div className="px-6 py-4 border-t border-white/5 flex gap-3 shrink-0">{footer}</div>}
       </motion.div>
     </div>
   );
 }
 
-export default function Admin() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("Dashboard");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { success } = useToast();
+function Btn({ variant = "primary", loading, children, ...props }: {
+  variant?: "primary" | "ghost" | "danger"; loading?: boolean;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const cls = {
+    primary: "bg-brand-light-green text-[#111815] hover:brightness-110",
+    ghost:   "bg-white/5 border border-white/10 hover:bg-white/10",
+    danger:  "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20",
+  }[variant];
+  return (
+    <button
+      type="button"
+      className={`flex-1 px-4 py-2.5 rounded-xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-40 flex items-center justify-center gap-2 ${cls}`}
+      disabled={loading || props.disabled}
+      {...props}
+    >
+      {loading ? <RefreshCw size={14} className="animate-spin" /> : children}
+    </button>
+  );
+}
 
-  useEffect(() => {
-    if (localStorage.getItem("admin_auth") === "true") setIsLoggedIn(true);
-  }, []);
+/* ─────────────────────────────────────────────────────────────
+   Login Gate
+───────────────────────────────────────────────────────────── */
+function LoginGate({ onLogin }: { onLogin: () => void }) {
+  const [value, setValue] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [shake, setShake] = useState(false);
+  const { error: toastErr } = useToast();
 
-  const logout = () => {
-    localStorage.removeItem("admin_auth");
-    sessionStorage.removeItem("admin_secret");
-    setIsLoggedIn(false);
-    success("Logged Out.");
+  const submit = async () => {
+    if (!value.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: value }),
+      });
+      if (res.ok) {
+        sessionStorage.setItem("admin_secret", value);
+        localStorage.setItem("admin_auth", "true");
+        onLogin();
+      } else {
+        setShake(true);
+        toastErr("Invalid key.");
+        setTimeout(() => setShake(false), 500);
+      }
+    } catch {
+      toastErr("Network error.");
+    }
+    setLoading(false);
   };
 
-  if (!isLoggedIn) return <LoginGate onLogin={() => setIsLoggedIn(true)} />;
-
   return (
-    <div className="min-h-screen bg-[#0f1511] flex flex-col lg:flex-row text-white font-sans selection:bg-brand-green selection:text-brand-earth overflow-hidden">
-      {/* Mobile overlay */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => setIsSidebarOpen(false)}
-            className="fixed inset-0 bg-black/60 z-[55] lg:hidden"
+    <div className="min-h-screen bg-[#0a0f0b] flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-sm bg-[#111815] border border-white/10 rounded-3xl p-10 shadow-2xl"
+      >
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-14 h-14 bg-brand-light-green rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-brand-light-green/20">
+            <Lock size={22} className="text-[#111815]" />
+          </div>
+          <h1 className="text-2xl font-black uppercase tracking-tighter">Admin Access</h1>
+          <p className="text-white/30 text-xs mt-1">Enter your access key to continue</p>
+        </div>
+
+        <motion.div animate={shake ? { x: [0, -8, 8, -8, 8, 0] } : {}}>
+          <input
+            type="password"
+            placeholder="Access key"
+            value={value}
+            autoFocus
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && submit()}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center text-sm tracking-widest font-bold focus:outline-none focus:border-brand-light-green/50 mb-4 transition-colors"
           />
-        )}
-      </AnimatePresence>
+        </motion.div>
 
-      {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-[60] w-72 bg-[#131a15] transition-transform duration-300 lg:relative lg:translate-x-0 overflow-y-auto flex flex-col ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="p-8 flex flex-col h-full">
-          {/* Logo */}
-          <div className="mb-12 flex items-center gap-3">
-            <div className="w-12 h-12 bg-brand-light-green rounded-2xl flex items-center justify-center text-[#131a15] font-black text-lg shadow-lg">B</div>
-            <div>
-              <p className="font-black uppercase tracking-tighter text-lg">Buds Admin</p>
-              <p className="text-[8px] font-black uppercase tracking-[0.4em] opacity-40 mt-1">Control Center</p>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 space-y-2">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-6 py-4 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all ${
-                  activeTab === tab.id
-                    ? "bg-brand-light-green text-[#131a15] shadow-lg shadow-brand-light-green/20"
-                    : "text-white/50 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                <tab.icon size={16} />
-                {tab.id}
-              </button>
-            ))}
-          </nav>
-
-          {/* Footer */}
-          <div className="pt-8 space-y-3 border-t border-white/5">
-            <a
-              href="/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
-            >
-              <Home size={14} /> Website
-            </a>
-            <button
-              type="button"
-              onClick={logout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest bg-red-500/10 text-red-200 border border-red-500/20 hover:bg-red-500/20 transition-all"
-            >
-              <LogOut size={14} /> Logout
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 min-h-screen flex flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="lg:hidden px-4 py-4 flex items-center justify-between bg-[#131a15] border-b border-white/5 sticky top-0 z-50">
-          <button type="button" onClick={() => setIsSidebarOpen(true)} className="p-2.5 bg-brand-green text-white rounded-lg">
-            <Menu size={18} />
-          </button>
-          <h1 className="text-sm font-black uppercase tracking-tighter">{activeTab}</h1>
-          <div className="w-10 h-10 bg-white/5 rounded-lg" />
-        </header>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-4 sm:p-6 lg:p-8">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="flex-1"
-              >
-                {activeTab === "Dashboard" && <DashboardTab />}
-                {activeTab === "Orders" && <OrdersTab />}
-                {activeTab === "Inventory" && <InventoryTab />}
-                {activeTab === "Promos" && <PromosTab />}
-                {activeTab === "Settings" && <SettingsTab />}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </div>
-      </div>
+        <Btn onClick={submit} loading={loading}>Authenticate</Btn>
+      </motion.div>
     </div>
   );
 }
 
-/* ── Dashboard Tab ────────────────────────────────────────────────── */
-
+/* ─────────────────────────────────────────────────────────────
+   Dashboard Tab
+───────────────────────────────────────────────────────────── */
 function DashboardTab() {
-  const { data: stats } = useSWR("admin-stats", () => api.admin.getStats(), { refreshInterval: 30000 });
-  const { data: ordersData } = useSWR("admin-orders", () => api.admin.getOrders(), { refreshInterval: 15000 });
+  const { data: ordersData } = useSWR("admin-orders", api.admin.getOrders, { refreshInterval: 15000 });
+  const { data: productsData } = useSWR("admin-products", api.admin.getProducts, { refreshInterval: 60000 });
+  const { data: promosData } = useSWR("admin-promos", api.admin.getPromos, { refreshInterval: 60000 });
 
-  const orders = ordersData?.orders ?? [];
-  const recentOrders = orders.slice(0, 5);
+  const orders   = ordersData?.orders   ?? [];
+  const products = productsData?.products ?? [];
+  const promos   = promosData?.promos   ?? [];
 
-  const statCards = [
-    { label: "Revenue Today", value: "$0.00", icon: TrendingUp, color: "from-green-500/20 to-brand-green/20" },
-    { label: "Orders Today", value: orders.length.toString(), icon: ShoppingBag, color: "from-blue-500/20 to-blue-600/20" },
-    { label: "Total Products", value: "0", icon: Package, color: "from-purple-500/20 to-purple-600/20" },
-    { label: "Active Promos", value: "0", icon: Tag, color: "from-amber-500/20 to-amber-600/20" },
+  const todayOrders   = orders.filter((o: any) => new Date(o.createdAt).toDateString() === new Date().toDateString());
+  const todayRevenue  = todayOrders.reduce((s: number, o: any) => s + Number(o.total ?? 0), 0);
+  const activePromos  = promos.filter((p: any) => p.active).length;
+
+  const kpis = [
+    { icon: DollarSign, label: "Revenue Today",   value: `$${todayRevenue.toFixed(2)}`, color: "from-green-500/10" },
+    { icon: ShoppingBag, label: "Orders Today",   value: todayOrders.length, color: "from-blue-500/10" },
+    { icon: Package,     label: "Total Products", value: products.length, color: "from-purple-500/10" },
+    { icon: Tag,         label: "Active Promos",  value: activePromos, color: "from-amber-500/10" },
   ];
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-black uppercase tracking-tighter mb-2">Dashboard</h1>
-        <p className="text-white/40 text-sm">Real-time overview of your business</p>
+        <h1 className="text-4xl font-black uppercase tracking-tighter">Dashboard</h1>
+        <p className="text-white/30 text-sm mt-1">Live overview · auto-refreshes every 15s</p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className={`bg-gradient-to-br ${card.color} border border-white/10 rounded-2xl p-6 backdrop-blur-sm`}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-white/50 text-xs font-black uppercase tracking-widest mb-2">{card.label}</p>
-                <p className="text-3xl font-black tracking-tighter">{card.value}</p>
-              </div>
-              <card.icon size={24} className="opacity-30" />
-            </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map((k, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+            className={`bg-gradient-to-br ${k.color} to-transparent border border-white/5 rounded-2xl p-5`}>
+            <k.icon size={18} className="opacity-40 mb-3" />
+            <p className="text-3xl font-black">{k.value}</p>
+            <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1">{k.label}</p>
           </motion.div>
         ))}
       </div>
 
-      {/* Recent Orders */}
       <div>
-        <h2 className="text-2xl font-black uppercase tracking-tighter mb-4">Recent Orders</h2>
-        <div className="space-y-2">
-          {recentOrders.length > 0 ? (
-            recentOrders.map((order: any) => (
-              <div key={order.orderId} className="bg-[#1a2219] border border-white/5 rounded-xl p-4 flex items-center justify-between hover:bg-[#202820] transition-colors">
-                <div>
-                  <p className="font-bold text-sm">#{order.orderId?.slice(0, 8)}</p>
-                  <p className="text-white/50 text-xs">{(order.customer as any)?.name}</p>
+        <h2 className="text-lg font-black uppercase tracking-tight mb-3">Recent Orders</h2>
+        {orders.length === 0
+          ? <p className="text-white/20 text-sm">No orders yet.</p>
+          : <div className="space-y-2">
+              {orders.slice(0, 8).map((o: any) => (
+                <div key={o.orderId} className="flex items-center justify-between bg-[#1a2219] border border-white/5 rounded-xl px-4 py-3">
+                  <div>
+                    <p className="text-sm font-bold">{o.orderId}</p>
+                    <p className="text-white/40 text-xs">{(o.customer as any)?.name}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {statusBadge(o.status)}
+                    <p className="text-sm font-black">${Number(o.total ?? 0).toFixed(2)}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border ${statusColor(order.status)}`}>
-                    {order.status}
-                  </span>
-                  <p className="font-bold text-sm">${Number(order.total ?? 0).toFixed(2)}</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-white/30 text-sm">No orders yet</p>
-          )}
-        </div>
+              ))}
+            </div>
+        }
       </div>
     </div>
   );
 }
 
-/* ── Orders Tab ────────────────────────────────────────────────── */
-
+/* ─────────────────────────────────────────────────────────────
+   Orders Tab
+───────────────────────────────────────────────────────────── */
 function OrdersTab() {
-  const { data: ordersData, mutate: revalidateOrders } = useSWR("admin-orders", () => api.admin.getOrders(), { refreshInterval: 15000 });
-  const orders = ordersData?.orders ?? [];
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const { success, error: toastError } = useToast();
+  const { data, mutate } = useSWR("admin-orders", api.admin.getOrders, { refreshInterval: 15000 });
+  const orders = data?.orders ?? [];
+  const [search, setSearch]       = useState("");
+  const [filter, setFilter]       = useState("all");
+  const [selected, setSelected]   = useState<any>(null);
+  const { success, error: err }   = useToast();
+
+  const filtered = useMemo(() => orders.filter((o: any) => {
+    const q = search.toLowerCase();
+    const matchQ = !q || o.orderId?.toLowerCase().includes(q)
+      || (o.customer as any)?.name?.toLowerCase().includes(q)
+      || (o.customer as any)?.email?.toLowerCase().includes(q);
+    const matchF = filter === "all" || o.status === filter;
+    return matchQ && matchF;
+  }), [orders, search, filter]);
 
   const updateStatus = async (orderId: string, status: string) => {
     try {
       await api.admin.updateOrderStatus(orderId, status);
-      success(`Order updated → ${status}`);
-      revalidateOrders();
-      setSelectedOrder(null);
-    } catch {
-      toastError("Status update failed.");
+      success(`Status → ${status}`);
+      mutate();
+      setSelected(null);
+    } catch (e: any) {
+      err(e.message || "Update failed");
     }
   };
 
-  const filtered = useMemo(() => orders.filter((o: any) => {
-    const matchSearch = o.orderId?.toLowerCase().includes(search.toLowerCase()) ||
-      (o.customer as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      (o.customer as any)?.email?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || o.status === statusFilter;
-    return matchSearch && matchStatus;
-  }), [orders, search, statusFilter]);
-
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-black uppercase tracking-tighter mb-2">Orders</h1>
-        <p className="text-white/40 text-sm">Manage all customer orders</p>
-      </div>
+      <h1 className="text-4xl font-black uppercase tracking-tighter">Orders</h1>
 
-      {/* Search & Filter */}
-      <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40" />
-          <input
-            type="text"
-            placeholder="Search by ID, name, or email..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-          />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30" />
+          <input type="text" placeholder="Search orders…" value={search} onChange={e => setSearch(e.target.value)}
+            className="w-full bg-[#1a2219] border border-white/5 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand-light-green/40" />
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {["all", "confirmed", "preparing", "dispatched", "delivered", "ready_pickup", "cancelled"].map(s => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${
-                statusFilter === s
-                  ? "bg-brand-green text-[#131a15] border-brand-green"
-                  : "bg-white/5 border-white/10 text-white/50 hover:text-white"
-              }`}
-            >
-              {s === "all" ? "All" : s.replace("_", " ")}
+        <div className="flex gap-1.5 flex-wrap">
+          {["all", ...Object.keys(STATUS_META)].map(s => (
+            <button key={s} type="button" onClick={() => setFilter(s)}
+              className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all
+                ${filter === s ? "bg-brand-light-green text-[#111815] border-brand-light-green" : "bg-white/5 border-white/10 text-white/50 hover:text-white"}`}>
+              {s === "all" ? "All" : STATUS_META[s].label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Orders List */}
-      <div className="space-y-3">
-        {filtered.length > 0 ? (
-          filtered.map((order: any) => (
-            <motion.div
-              key={order.orderId}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 hover:bg-[#202820] transition-colors cursor-pointer"
-              onClick={() => setSelectedOrder(order)}
-            >
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-black">#{order.orderId?.slice(0, 8)}</h3>
-                    <span className={`px-2 py-1 rounded text-[8px] font-black uppercase border ${statusColor(order.status)}`}>
-                      {order.status}
-                    </span>
+      {/* List */}
+      {filtered.length === 0
+        ? <div className="text-center py-24 text-white/20"><ShoppingBag size={36} className="mx-auto mb-3 opacity-30" /><p>No orders found</p></div>
+        : <div className="space-y-2">
+            {filtered.map((o: any) => (
+              <div key={o.orderId} onClick={() => setSelected(o)}
+                className="bg-[#1a2219] border border-white/5 rounded-xl p-4 flex items-center justify-between hover:border-white/10 cursor-pointer transition-all">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-sm">{o.orderId}</span>
+                    {statusBadge(o.status)}
                   </div>
-                  <p className="text-white/60 text-sm mb-1">{(order.customer as any)?.name}</p>
-                  <p className="text-white/40 text-xs flex items-center gap-1.5">
-                    {(order.delivery as any)?.method === "delivery" ? (
-                      <>
-                        <Truck size={12} /> {(order.delivery as any)?.street}, {(order.delivery as any)?.city}
-                      </>
-                    ) : (
-                      <>
-                        <Store size={12} /> In-Store Pickup
-                      </>
-                    )}
+                  <p className="text-white/50 text-xs truncate">{(o.customer as any)?.name} · {(o.customer as any)?.email}</p>
+                  <p className="text-white/30 text-xs flex items-center gap-1 mt-0.5">
+                    {(o.delivery as any)?.method === "delivery"
+                      ? <><Truck size={10} /> {(o.delivery as any)?.street}</>
+                      : <><Store size={10} /> Pickup</>}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-black">${Number(order.total ?? 0).toFixed(2)}</p>
-                  <p className="text-white/40 text-xs">{(order.items as any[])?.length ?? 0} items</p>
+                <div className="text-right shrink-0 ml-4">
+                  <p className="font-black text-lg">${Number(o.total ?? 0).toFixed(2)}</p>
+                  <p className="text-white/30 text-xs">{(o.items as any[])?.length ?? 0} items</p>
                 </div>
               </div>
-            </motion.div>
-          ))
-        ) : (
-          <div className="text-center py-20">
-            <ShoppingBag size={32} className="opacity-10 mx-auto mb-4" />
-            <p className="text-white/30">No orders found</p>
+            ))}
           </div>
-        )}
-      </div>
+      }
 
       <AnimatePresence>
-        {selectedOrder && (
-          <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onUpdateStatus={updateStatus} />
-        )}
+        {selected && <OrderModal order={selected} onClose={() => setSelected(null)} onUpdateStatus={updateStatus} />}
       </AnimatePresence>
     </div>
   );
 }
 
 function OrderModal({ order, onClose, onUpdateStatus }: any) {
-  const isDelivery = (order.delivery as any)?.method === "delivery";
-  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const isDelivery  = (order.delivery as any)?.method === "delivery";
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = (v: string, k: string) => { navigator.clipboard.writeText(v); setCopied(k); setTimeout(() => setCopied(null), 1500); };
 
   const nextStatuses = isDelivery
     ? ["preparing", "dispatched", "delivered", "cancelled"]
     : ["preparing", "ready_pickup", "cancelled"];
 
-  const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-[#131a15] border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-      >
-        <div className="sticky top-0 bg-[#131a15] border-b border-white/5 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-black uppercase">#{order.orderId?.slice(0, 8)}</h2>
-            <p className="text-white/40 text-xs mt-1">Order Details</p>
+    <Modal title={order.orderId} onClose={onClose}
+      footer={<>
+        {nextStatuses.map(s => (
+          <Btn key={s} onClick={() => onUpdateStatus(order.orderId, s)}>{s.replace("_", " ")}</Btn>
+        ))}
+      </>}
+    >
+      {/* Customer */}
+      <div className="space-y-1.5">
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Customer</p>
+        {[
+          ["Name",  (order.customer as any)?.name],
+          ["Email", (order.customer as any)?.email],
+          ["Phone", (order.customer as any)?.phone],
+        ].map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+            <div><span className="text-white/30 text-xs">{k}: </span><span className="text-sm">{v}</span></div>
+            <button type="button" onClick={() => copy(v ?? "", k!)} className="p-1 rounded hover:bg-white/10">
+              {copied === k ? <Check size={12} className="text-green-400" /> : <Copy size={12} className="opacity-30" />}
+            </button>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-            <X size={20} />
-          </button>
+        ))}
+      </div>
+
+      {/* Delivery */}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Delivery</p>
+        {isDelivery ? (
+          <div className="bg-white/5 rounded-lg p-3 text-sm space-y-1">
+            <p><span className="text-white/40">Street:</span> {(order.delivery as any)?.street}</p>
+            <p><span className="text-white/40">City:</span> {(order.delivery as any)?.city} {(order.delivery as any)?.postal}</p>
+            <p><span className="text-white/40">Slot:</span> {(order.delivery as any)?.slot}</p>
+          </div>
+        ) : (
+          <div className="bg-white/5 rounded-lg p-3 text-sm flex items-center gap-2 text-white/60">
+            <Store size={14} /> In-Store Pickup
+          </div>
+        )}
+      </div>
+
+      {/* Items */}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Items</p>
+        <div className="space-y-1.5">
+          {(order.items as any[])?.map((item: any, i: number) => (
+            <div key={i} className="flex justify-between bg-white/5 rounded-lg px-3 py-2 text-sm">
+              <span>{item.name} × {item.quantity}</span>
+              <span className="font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+            </div>
+          ))}
         </div>
+      </div>
 
-        <div className="p-6 space-y-6">
-          {/* Customer Info */}
-          <div>
-            <h3 className="text-sm font-black uppercase tracking-widest text-white/50 mb-3">Customer</h3>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between bg-white/5 rounded-lg p-3">
-                <span className="text-sm">{(order.customer as any)?.name}</span>
-                <button
-                  onClick={() => copyToClipboard((order.customer as any)?.name, "name")}
-                  className="p-1 hover:bg-white/10 rounded transition-colors"
-                >
-                  {copiedField === "name" ? <Check size={14} className="text-green-400" /> : <Copy size={14} className="opacity-40" />}
-                </button>
-              </div>
-              <div className="flex items-center justify-between bg-white/5 rounded-lg p-3">
-                <span className="text-sm">{(order.customer as any)?.email}</span>
-                <button
-                  onClick={() => copyToClipboard((order.customer as any)?.email, "email")}
-                  className="p-1 hover:bg-white/10 rounded transition-colors"
-                >
-                  {copiedField === "email" ? <Check size={14} className="text-green-400" /> : <Copy size={14} className="opacity-40" />}
-                </button>
-              </div>
-              <div className="flex items-center justify-between bg-white/5 rounded-lg p-3">
-                <span className="text-sm">{(order.customer as any)?.phone}</span>
-                <button
-                  onClick={() => copyToClipboard((order.customer as any)?.phone, "phone")}
-                  className="p-1 hover:bg-white/10 rounded transition-colors"
-                >
-                  {copiedField === "phone" ? <Check size={14} className="text-green-400" /> : <Copy size={14} className="opacity-40" />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Delivery Info */}
-          <div>
-            <h3 className="text-sm font-black uppercase tracking-widest text-white/50 mb-3">Delivery</h3>
-            {isDelivery ? (
-              <div className="bg-white/5 rounded-lg p-4 space-y-2">
-                <p className="text-sm"><span className="opacity-60">Street:</span> {(order.delivery as any)?.street}</p>
-                <p className="text-sm"><span className="opacity-60">City:</span> {(order.delivery as any)?.city}</p>
-                <p className="text-sm"><span className="opacity-60">Postal:</span> {(order.delivery as any)?.postal}</p>
-                <p className="text-sm"><span className="opacity-60">Slot:</span> {(order.delivery as any)?.slot}</p>
-              </div>
-            ) : (
-              <div className="bg-white/5 rounded-lg p-4">
-                <p className="text-sm flex items-center gap-2"><Store size={14} /> In-Store Pickup</p>
-              </div>
-            )}
-          </div>
-
-          {/* Items */}
-          <div>
-            <h3 className="text-sm font-black uppercase tracking-widest text-white/50 mb-3">Items</h3>
-            <div className="space-y-2">
-              {(order.items as any[])?.map((item, i) => (
-                <div key={i} className="bg-white/5 rounded-lg p-3 flex items-center justify-between">
-                  <span className="text-sm flex-1">{item.name} × {item.quantity}</span>
-                  <span className="text-sm font-bold">${Number(item.price * item.quantity).toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Pricing */}
-          <div className="bg-white/5 rounded-lg p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="opacity-60">Subtotal:</span>
-              <span>${Number(order.subtotal ?? 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="opacity-60">Delivery:</span>
-              <span>${Number(order.deliveryFee ?? 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="opacity-60">Discount:</span>
-              <span>-${Number(order.discount ?? 0).toFixed(2)}</span>
-            </div>
-            <div className="border-t border-white/10 pt-2 flex justify-between font-black">
-              <span>Total:</span>
-              <span>${Number(order.total ?? 0).toFixed(2)}</span>
-            </div>
-          </div>
-
-          {/* Status Actions */}
-          <div>
-            <h3 className="text-sm font-black uppercase tracking-widest text-white/50 mb-3">Update Status</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {nextStatuses.map(status => (
-                <button
-                  key={status}
-                  onClick={() => onUpdateStatus(order.orderId, status)}
-                  className="px-4 py-3 bg-brand-green text-[#131a15] rounded-lg font-bold uppercase text-[10px] tracking-widest hover:brightness-110 transition-all"
-                >
-                  {status.replace("_", " ")}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    </div>
+      {/* Totals */}
+      <div className="bg-white/5 rounded-lg p-3 space-y-1.5 text-sm">
+        <div className="flex justify-between text-white/50"><span>Subtotal</span><span>${Number(order.subtotal ?? 0).toFixed(2)}</span></div>
+        <div className="flex justify-between text-white/50"><span>Delivery fee</span><span>${Number(order.deliveryFee ?? 0).toFixed(2)}</span></div>
+        {Number(order.discount) > 0 && <div className="flex justify-between text-green-400"><span>Discount</span><span>-${Number(order.discount).toFixed(2)}</span></div>}
+        <div className="flex justify-between font-black border-t border-white/10 pt-1.5 mt-1"><span>Total</span><span>${Number(order.total ?? 0).toFixed(2)}</span></div>
+      </div>
+    </Modal>
   );
 }
 
-/* ── Inventory Tab ────────────────────────────────────────────── */
-
+/* ─────────────────────────────────────────────────────────────
+   Inventory Tab
+───────────────────────────────────────────────────────────── */
 function InventoryTab() {
-  const { data: productsData, mutate: revalidateProducts } = useSWR("admin-products", () => api.products.getAll(), { refreshInterval: 30000 });
-  const products = productsData?.products ?? [];
-  const [search, setSearch] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [showCSVModal, setShowCSVModal] = useState(false);
-  const [csvData, setCSVData] = useState<any[]>([]);
-  const { success, error: toastError } = useToast();
+  const { data, mutate } = useSWR("admin-products", api.admin.getProducts, { refreshInterval: 60000 });
+  const products = data?.products ?? [];
+  const [search, setSearch]         = useState("");
+  const [editing, setEditing]       = useState<any>(null);
+  const [showForm, setShowForm]     = useState(false);
+  const [showCSV, setShowCSV]       = useState(false);
+  const [csvRows, setCSVRows]       = useState<any[]>([]);
+  const { success, error: err }     = useToast();
 
-  const filtered = useMemo(() => {
-    return products.filter((p: any) =>
+  const filtered = useMemo(() =>
+    products.filter((p: any) =>
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
       p.category?.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [products, search]);
+    ), [products, search]);
 
-  const handleSave = async (product: any) => {
+  const saveProduct = async (data: any) => {
     try {
-      if (selectedProduct?.id) {
-        await api.admin.updateProduct({ ...product, id: selectedProduct.id });
+      if (editing?.id) {
+        await api.admin.updateProduct({ ...data, id: editing.id });
         success("Product updated!");
       } else {
-        const id = `product_${crypto.randomUUID()}`;
-        await api.admin.createProduct({ ...product, id });
+        await api.admin.createProduct({ ...data, id: `prod_${Date.now()}` });
         success("Product created!");
       }
-      revalidateProducts();
-      setShowModal(false);
-      setSelectedProduct(null);
-    } catch {
-      toastError("Save failed");
+      mutate();
+      setShowForm(false);
+      setEditing(null);
+    } catch (e: any) {
+      err(e.message || "Save failed");
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Delete this product?")) {
-      try {
-        await api.admin.deleteProduct(id);
-        success("Product deleted!");
-        revalidateProducts();
-      } catch {
-        toastError("Delete failed");
-      }
-    }
+  const deleteProduct = async (id: string) => {
+    if (!confirm("Delete this product?")) return;
+    try {
+      await api.admin.deleteProduct(id);
+      success("Deleted");
+      mutate();
+    } catch (e: any) { err(e.message || "Delete failed"); }
   };
 
-  const handleCSVImport = (file: File) => {
+  const importCSV = (file: File) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const csv = e.target?.result as string;
-      const lines = csv.split("\n").filter(l => l.trim());
-      const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
-
-      const data = lines.slice(1).map(line => {
-        const values = line.split(",").map(v => v.trim());
-        const obj: any = {};
-        headers.forEach((header, i) => {
-          obj[header] = values[i] || "";
-        });
-        return obj;
-      });
-
-      setCSVData(data);
-      setShowCSVModal(true);
+    reader.onload = e => {
+      const lines = (e.target?.result as string).split("\n").filter(l => l.trim());
+      const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/\s+/g, "_"));
+      const rows = lines.slice(1).map(line => {
+        const vals = line.split(",").map(v => v.trim());
+        return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? ""]));
+      }).filter(r => r.name);
+      setCSVRows(rows);
+      setShowCSV(true);
     };
     reader.readAsText(file);
   };
 
+  const bulkImport = async (rows: any[]) => {
+    let count = 0;
+    for (const row of rows) {
+      try {
+        await api.admin.createProduct({
+          id: `prod_${Date.now()}_${count}`,
+          name: row.name || row.product_name,
+          price: Number(row.price) || 0,
+          category: row.category || "Dried Flower",
+          brand: row.brand || "",
+          strain: row.strain || "",
+          thc: row.thc || "",
+          cbd: row.cbd || "",
+          weight: row.weight || "",
+          description: row.description || "",
+          image: row.image || row.image_url || "",
+          inStock: row.in_stock !== "false",
+          quantity: Number(row.quantity) || 0,
+          isBestSeller: row.is_best_seller === "true",
+          sortOrder: Number(row.sort_order) || 0,
+        });
+        count++;
+      } catch { /* skip bad rows */ }
+    }
+    success(`Imported ${count} products`);
+    mutate();
+    setShowCSV(false);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-4xl font-black uppercase tracking-tighter">Inventory</h1>
-          <p className="text-white/40 text-sm mt-1">Manage your products</p>
-        </div>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-4xl font-black uppercase tracking-tighter">Inventory</h1>
         <div className="flex gap-2">
-          <label className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-lg font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-all flex items-center gap-2 cursor-pointer">
-            <FileUp size={16} /> Import CSV
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleCSVImport(file);
-              }}
-              className="hidden"
-            />
+          <label className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2 cursor-pointer">
+            <FileUp size={14} /> Import CSV
+            <input type="file" accept=".csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) importCSV(f); e.target.value = ""; }} />
           </label>
-          <button
-            onClick={() => { setSelectedProduct(null); setShowModal(true); }}
-            className="px-6 py-3 bg-brand-green text-[#131a15] rounded-lg font-black uppercase text-xs tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-          >
-            <Plus size={16} /> Add Product
+          <button type="button" onClick={() => { setEditing(null); setShowForm(true); }}
+            className="px-4 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
+            <Plus size={14} /> Add Product
           </button>
         </div>
       </div>
 
-      {/* Search */}
       <div className="relative">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40" />
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full bg-[#1a2219] border border-white/5 rounded-lg px-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-        />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30" />
+        <input type="text" placeholder="Search by name or category…" value={search} onChange={e => setSearch(e.target.value)}
+          className="w-full bg-[#1a2219] border border-white/5 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand-light-green/40" />
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((product: any) => (
-          <motion.div
-            key={product.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-[#1a2219] border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-all"
-          >
-            {/* Image */}
-            <div className="w-full aspect-square bg-white/5 overflow-hidden">
-              {product.image ? (
-                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <ImageIcon size={32} className="opacity-20" />
+      {filtered.length === 0
+        ? <div className="text-center py-24 text-white/20"><Package size={36} className="mx-auto mb-3 opacity-30" /><p>No products found</p></div>
+        : <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {filtered.map((p: any) => (
+              <div key={p.id} className="bg-[#1a2219] border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-all group">
+                <div className="aspect-square bg-white/5 overflow-hidden relative">
+                  {p.image
+                    ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+                    : <div className="w-full h-full flex items-center justify-center text-white/10"><Package size={28} /></div>
+                  }
+                  {!p.inStock && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-red-400">Out of Stock</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="p-4 space-y-3">
-              <div>
-                <h3 className="font-black text-sm uppercase tracking-tight">{product.name}</h3>
-                <p className="text-[8px] text-white/50 uppercase tracking-widest mt-1">{product.category}</p>
+                <div className="p-3">
+                  <p className="font-black text-xs uppercase tracking-tight truncate">{p.name}</p>
+                  <p className="text-white/30 text-[9px] uppercase tracking-widest">{p.category}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="font-black text-sm">${Number(p.price).toFixed(2)}</p>
+                    <div className="flex gap-1">
+                      <button type="button" title="Edit product" onClick={() => { setEditing(p); setShowForm(true); }}
+                        className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"><Pencil size={12} /></button>
+                      <button type="button" title="Delete product" onClick={() => deleteProduct(p.id)}
+                        className="p-1.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"><Trash2 size={12} /></button>
+                    </div>
+                  </div>
+                </div>
               </div>
-
-              <div className="flex items-center justify-between">
-                <p className="text-lg font-black">${Number(product.price).toFixed(2)}</p>
-                <button
-                  onClick={() => {
-                    setSelectedProduct(product);
-                    setShowModal(true);
-                  }}
-                  className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <Pencil size={14} />
-                </button>
-              </div>
-
-              <button
-                onClick={() => handleDelete(product.id)}
-                className="w-full px-3 py-2 bg-red-500/10 text-red-300 rounded-lg font-bold uppercase text-[8px] hover:bg-red-500/20 transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Trash2 size={12} /> Delete
-              </button>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+            ))}
+          </div>
+      }
 
       <AnimatePresence>
-        {showModal && (
-          <ProductModal
-            product={selectedProduct}
-            onClose={() => { setShowModal(false); setSelectedProduct(null); }}
-            onSave={handleSave}
-          />
+        {showForm && (
+          <ProductForm product={editing} onClose={() => { setShowForm(false); setEditing(null); }} onSave={saveProduct} />
         )}
-        {showCSVModal && (
-          <CSVImportModal
-            data={csvData}
-            onClose={() => { setShowCSVModal(false); setCSVData([]); }}
-            onImport={async (products: any[]) => {
-              try {
-                for (const p of products) {
-                  const id = `product_${crypto.randomUUID()}`;
-                  await api.admin.createProduct({ ...p, id });
-                }
-                success(`Imported ${products.length} products!`);
-                revalidateProducts();
-                setShowCSVModal(false);
-              } catch {
-                toastError("Import failed");
-              }
-            }}
-          />
+        {showCSV && (
+          <CSVPreview rows={csvRows} onClose={() => setShowCSV(false)} onImport={bulkImport} />
         )}
       </AnimatePresence>
     </div>
   );
 }
 
-function ProductModal({ product, onClose, onSave }: any) {
-  const [formData, setFormData] = useState(product || {
-    name: "",
-    price: 0,
-    category: "Dried Flower",
-    brand: "",
-    strain: "Hybrid",
-    thc: "",
-    cbd: "",
-    weight: "",
-    description: "",
-    quantity: 0,
-    inStock: true,
-    isBestSeller: false,
-    image: "",
+function ProductForm({ product, onClose, onSave }: { product?: any; onClose: () => void; onSave: (d: any) => Promise<void> }) {
+  const isEdit = !!product?.id;
+  const [form, setForm] = useState({
+    name: "", price: 0, category: "Dried Flower", brand: "", strain: "Hybrid",
+    thc: "", cbd: "", weight: "", description: "", image: "", quantity: 0,
+    inStock: true, isBestSeller: false, sortOrder: 0,
+    ...(product ?? {}),
   });
-  const [imagePreview, setImagePreview] = useState(product?.image || "");
+  const [preview, setPreview] = useState(product?.image ?? "");
   const [loading, setLoading] = useState(false);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const set = (k: string, v: any) => setForm((f: typeof form) => ({ ...f, [k]: v }));
+
+  const pickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.size <= 2 * 1024 * 1024) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setImagePreview(result);
-        setFormData({ ...formData, image: result });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!formData.name || !formData.price) {
-      alert("Name and price required");
-      return;
-    }
-    setLoading(true);
-    await onSave(formData);
-    setLoading(false);
-  };
-
-  return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-[#131a15] border border-white/10 rounded-2xl max-w-2xl w-full my-8"
-      >
-        <div className="sticky top-0 bg-[#131a15] border-b border-white/5 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-black uppercase">{product ? "Edit" : "New"} Product</h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-          {/* Image Upload */}
-          <div>
-            <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Product Image</label>
-            <div className="relative">
-              {imagePreview ? (
-                <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-white/5">
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => { setImagePreview(""); setFormData({ ...formData, image: "" }); }}
-                    className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-lg"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ) : (
-                <label className="w-full aspect-video bg-white/5 border border-white/10 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors">
-                  <div className="text-center">
-                    <Upload size={24} className="mx-auto mb-2 opacity-50" />
-                    <p className="text-xs text-white/50">Click to upload</p>
-                  </div>
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                </label>
-              )}
-            </div>
-          </div>
-
-          {/* Form Fields */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Product Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Price</label>
-              <input
-                type="number"
-                value={formData.price}
-                onChange={e => setFormData({ ...formData, price: Number(e.target.value) })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Quantity</label>
-              <input
-                type="number"
-                value={formData.quantity}
-                onChange={e => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Category</label>
-              <select
-                value={formData.category}
-                onChange={e => setFormData({ ...formData, category: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              >
-                <option>Dried Flower</option>
-                <option>Edible</option>
-                <option>Vape</option>
-                <option>Pre-Roll</option>
-                <option>Beverage</option>
-                <option>Accessories</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Brand</label>
-              <input
-                type="text"
-                value={formData.brand}
-                onChange={e => setFormData({ ...formData, brand: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Strain</label>
-              <select
-                value={formData.strain}
-                onChange={e => setFormData({ ...formData, strain: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              >
-                <option>Indica</option>
-                <option>Sativa</option>
-                <option>Hybrid</option>
-                <option>CBD</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">THC %</label>
-              <input
-                type="text"
-                value={formData.thc}
-                onChange={e => setFormData({ ...formData, thc: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">CBD %</label>
-              <input
-                type="text"
-                value={formData.cbd}
-                onChange={e => setFormData({ ...formData, cbd: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Description</label>
-              <textarea
-                value={formData.description}
-                onChange={e => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.inStock}
-                onChange={e => setFormData({ ...formData, inStock: e.target.checked })}
-                className="w-4 h-4 cursor-pointer"
-              />
-              <label className="text-xs font-black uppercase tracking-widest">In Stock</label>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.isBestSeller}
-                onChange={e => setFormData({ ...formData, isBestSeller: e.target.checked })}
-                className="w-4 h-4 cursor-pointer"
-              />
-              <label className="text-xs font-black uppercase tracking-widest">Best Seller</label>
-            </div>
-          </div>
-        </div>
-
-        <div className="sticky bottom-0 bg-[#131a15] border-t border-white/5 px-6 py-4 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="flex-1 px-4 py-3 bg-brand-green text-[#131a15] rounded-lg font-black uppercase text-xs tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
-          >
-            {loading ? "Saving..." : "Save"}
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-function CSVImportModal({ data, onClose, onImport }: any) {
-  const [selected, setSelected] = useState<boolean[]>(data.map(() => true));
-  const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
-  const [loading, setLoading] = useState(false);
-
-  const handleImageUpload = (index: number, file: File) => {
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { alert("Max 3 MB"); return; }
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      setImageUrls({ ...imageUrls, [index]: base64 });
-    };
+    reader.onload = ev => { const b64 = ev.target?.result as string; setPreview(b64); set("image", b64); };
     reader.readAsDataURL(file);
   };
 
-  const handleImport = async () => {
+  const submit = async () => {
+    if (!form.name.trim()) { alert("Name required"); return; }
+    if (!form.price) { alert("Price required"); return; }
     setLoading(true);
-    const toImport = data
-      .map((row: any, i: number) => (selected[i] ? { ...row, image: imageUrls[i] || row.image || "" } : null))
-      .filter(Boolean);
-    await onImport(toImport);
+    await onSave(form);
     setLoading(false);
   };
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-[#131a15] border border-white/10 rounded-2xl max-w-3xl w-full my-8"
-      >
-        <div className="sticky top-0 bg-[#131a15] border-b border-white/5 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-black uppercase">Import Products ({selected.filter(Boolean).length})</h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg">
-            <X size={20} />
-          </button>
-        </div>
+    <Modal title={isEdit ? "Edit Product" : "New Product"} onClose={onClose}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn loading={loading} onClick={submit}>Save</Btn></>}>
 
-        <div className="p-6 space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
-          {data.map((row: any, i: number) => (
-            <div key={i} className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-3">
-              <div className="flex items-start gap-4">
-                {/* Image Preview/Upload */}
-                <div className="w-24 h-24 flex-shrink-0">
-                  {imageUrls[i] || row.image ? (
-                    <div className="relative w-full h-full rounded-lg overflow-hidden">
-                      <img src={imageUrls[i] || row.image} alt={row.name} className="w-full h-full object-cover" />
-                      <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity cursor-pointer" title="Click to change image">
-                        <Upload size={16} className="text-white" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          title="Upload product image"
-                          onChange={(e) => e.target.files?.[0] && handleImageUpload(i, e.target.files[0])}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  ) : (
-                    <label className="w-full h-full bg-white/5 border border-white/10 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors" title="Click to upload image">
-                      <Upload size={16} className="opacity-40" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        title="Upload product image"
-                        onChange={(e) => e.target.files?.[0] && handleImageUpload(i, e.target.files[0])}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
-                </div>
-
-                {/* Product Details */}
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      title="Select product for import"
-                      checked={selected[i]}
-                      onChange={(e) => setSelected(selected.map((s, j) => j === i ? e.target.checked : s))}
-                      className="w-4 h-4 cursor-pointer"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-black text-sm uppercase">{row.name || row.product_name || "Unknown"}</h3>
-                      <p className="text-[10px] text-white/50 uppercase tracking-widest">
-                        {row.category || "No category"} • ${row.price || "0"}
-                      </p>
-                    </div>
-                  </div>
-                  {row.description && <p className="text-xs text-white/50">{row.description}</p>}
+      {/* Image */}
+      <Field label="Product Image">
+        <label className="block cursor-pointer">
+          <input type="file" accept="image/*" className="hidden" onChange={pickImage} />
+          {preview
+            ? <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-white/5">
+                <img src={preview} alt="" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <Upload size={20} className="text-white" />
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            : <div className="w-full aspect-video bg-white/5 border border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-white/8 transition-colors">
+                <Upload size={20} className="opacity-30" />
+                <p className="text-xs text-white/30">Click to upload (max 3 MB)</p>
+              </div>
+          }
+        </label>
+        <Input className={`${inputCls} mt-2`} placeholder="Or paste an image URL…" value={form.image.startsWith("data:") ? "" : form.image}
+          onChange={e => { set("image", e.target.value); setPreview(e.target.value); }} />
+      </Field>
 
-        <div className="border-t border-white/5 px-6 py-4 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-colors"
-          >
-            Cancel
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Name"><Input placeholder="Product name" value={form.name} onChange={e => set("name", e.target.value)} /></Field>
+        <Field label="Price ($)"><Input type="number" placeholder="0.00" value={form.price || ""} onChange={e => set("price", Number(e.target.value))} /></Field>
+        <Field label="Category">
+          <Select value={form.category} onChange={e => set("category", e.target.value)}>
+            {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+          </Select>
+        </Field>
+        <Field label="Strain">
+          <Select value={form.strain} onChange={e => set("strain", e.target.value)}>
+            {STRAINS.map(s => <option key={s}>{s}</option>)}
+          </Select>
+        </Field>
+        <Field label="Brand"><Input placeholder="Brand name" value={form.brand} onChange={e => set("brand", e.target.value)} /></Field>
+        <Field label="Weight"><Input placeholder="e.g. 3.5g" value={form.weight} onChange={e => set("weight", e.target.value)} /></Field>
+        <Field label="THC %"><Input placeholder="e.g. 24%" value={form.thc} onChange={e => set("thc", e.target.value)} /></Field>
+        <Field label="CBD %"><Input placeholder="e.g. 1%" value={form.cbd} onChange={e => set("cbd", e.target.value)} /></Field>
+        <Field label="Qty in Stock"><Input type="number" value={form.quantity || 0} onChange={e => set("quantity", Number(e.target.value))} /></Field>
+        <Field label="Sort Order"><Input type="number" value={form.sortOrder || 0} onChange={e => set("sortOrder", Number(e.target.value))} /></Field>
+      </div>
+
+      <Field label="Description">
+        <Textarea placeholder="Product description…" value={form.description} onChange={e => set("description", e.target.value)} />
+      </Field>
+
+      <div className="flex gap-4">
+        {[["inStock", "In Stock"], ["isBestSeller", "Best Seller"]].map(([k, label]) => (
+          <button key={k} type="button" onClick={() => set(k, !form[k as keyof typeof form])}
+            className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white/60 hover:text-white transition-colors">
+            {form[k as keyof typeof form]
+              ? <ToggleRight size={20} className="text-brand-light-green" />
+              : <ToggleLeft size={20} className="text-white/20" />}
+            {label}
           </button>
-          <button
-            onClick={handleImport}
-            disabled={loading || !selected.some(Boolean)}
-            className="flex-1 px-4 py-3 bg-brand-green text-[#131a15] rounded-lg font-black uppercase text-xs tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
-          >
-            {loading ? "Importing..." : `Import ${selected.filter(Boolean).length}`}
-          </button>
-        </div>
-      </motion.div>
-    </div>
+        ))}
+      </div>
+    </Modal>
   );
 }
 
-/* ── Promos Tab ────────────────────────────────────────────── */
+function CSVPreview({ rows, onClose, onImport }: { rows: any[]; onClose: () => void; onImport: (r: any[]) => Promise<void> }) {
+  const [sel, setSel]   = useState<boolean[]>(rows.map(() => true));
+  const [imgs, setImgs] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState(false);
 
+  const upload = (i: number, file: File) => {
+    const r = new FileReader();
+    r.onload = e => setImgs(prev => ({ ...prev, [i]: e.target?.result as string }));
+    r.readAsDataURL(file);
+  };
+
+  const submit = async () => {
+    setLoading(true);
+    const selected = rows.filter((_, i) => sel[i]).map((r, i) => ({ ...r, image: imgs[i] || r.image || r.image_url || "" }));
+    await onImport(selected);
+    setLoading(false);
+  };
+
+  return (
+    <Modal title={`Import ${sel.filter(Boolean).length} / ${rows.length} products`} onClose={onClose}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn loading={loading} onClick={submit} disabled={!sel.some(Boolean)}>Import</Btn></>}>
+      <p className="text-white/40 text-xs">Review rows, attach images if needed, uncheck rows to skip.</p>
+      {rows.map((row, i) => (
+        <div key={i} className={`flex gap-3 p-3 rounded-xl border transition-all ${sel[i] ? "bg-white/5 border-white/10" : "bg-transparent border-white/5 opacity-40"}`}>
+          <label className="w-14 h-14 shrink-0 bg-white/5 rounded-lg overflow-hidden cursor-pointer flex items-center justify-center hover:bg-white/10 transition-colors">
+            {imgs[i] || row.image
+              ? <img src={imgs[i] || row.image} alt="" className="w-full h-full object-cover" />
+              : <Upload size={14} className="opacity-30" />
+            }
+            <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && upload(i, e.target.files[0])} />
+          </label>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm truncate">{row.name || row.product_name || "Unnamed"}</p>
+            <p className="text-white/40 text-xs">{row.category} · ${row.price} · {row.strain}</p>
+            {row.description && <p className="text-white/30 text-xs truncate mt-0.5">{row.description}</p>}
+          </div>
+          <input type="checkbox" title="Include in import" checked={sel[i]} onChange={e => setSel(prev => prev.map((v, j) => j === i ? e.target.checked : v))}
+            className="w-4 h-4 cursor-pointer mt-1 shrink-0" />
+        </div>
+      ))}
+    </Modal>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Promos Tab
+───────────────────────────────────────────────────────────── */
 function PromosTab() {
-  const { data: promosData, mutate: revalidatePromos } = useSWR("admin-promos", () => api.admin.getPromos(), { refreshInterval: 30000 });
-  const promos = promosData?.promos ?? [];
-  const [showModal, setShowModal] = useState(false);
-  const [selectedPromo, setSelectedPromo] = useState<any>(null);
-  const { success, error: toastError } = useToast();
+  const { data, mutate } = useSWR("admin-promos", api.admin.getPromos, { refreshInterval: 60000 });
+  const promos = data?.promos ?? [];
+  const [editing, setEditing]   = useState<any>(null);
+  const [showForm, setShowForm] = useState(false);
+  const { success, error: err } = useToast();
 
-  const handleSave = async (promo: any) => {
+  const savePromo = async (form: any) => {
     try {
-      if (selectedPromo?.id) {
-        await api.admin.updatePromo({ ...promo, id: selectedPromo.id });
+      if (editing?.id) {
+        await api.admin.updatePromo({ ...form, id: editing.id });
         success("Promo updated!");
       } else {
-        await api.admin.createPromo(promo);
+        await api.admin.createPromo({ ...form, id: `promo_${Date.now()}` });
         success("Promo created!");
       }
-      await revalidatePromos();
-      setShowModal(false);
-      setSelectedPromo(null);
-    } catch (err: any) {
-      const errorMsg = err?.message || String(err) || "Unknown error";
-      console.error("Promo save failed:", errorMsg, err);
-      toastError(`Save failed: ${errorMsg.substring(0, 50)}`);
+      mutate();
+      setShowForm(false);
+      setEditing(null);
+    } catch (e: any) {
+      err(e.message || "Save failed");
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Delete this promo?")) {
-      try {
-        await api.admin.deletePromo(id);
-        success("Promo deleted!");
-        revalidatePromos();
-      } catch {
-        toastError("Delete failed");
-      }
-    }
+  const deletePromo = async (id: string) => {
+    if (!confirm("Delete this promo?")) return;
+    try {
+      await api.admin.deletePromo(id);
+      success("Deleted");
+      mutate();
+    } catch (e: any) { err(e.message || "Delete failed"); }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-4xl font-black uppercase tracking-tighter">Promos</h1>
-          <p className="text-white/40 text-sm mt-1">Manage discount codes</p>
-        </div>
-        <button
-          onClick={() => { setSelectedPromo(null); setShowModal(true); }}
-          className="px-6 py-3 bg-brand-green text-[#131a15] rounded-lg font-black uppercase text-xs tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-        >
-          <Plus size={16} /> New Promo
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl font-black uppercase tracking-tighter">Promos</h1>
+        <button type="button" onClick={() => { setEditing(null); setShowForm(true); }}
+          className="px-4 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
+          <Plus size={14} /> New Promo
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {promos.map((promo: any) => (
-          <div key={promo.id} className="bg-[#1a2219] border border-white/5 rounded-xl p-6">
-            <div className="mb-4">
-              <p className="text-2xl font-black uppercase tracking-tight">{promo.code}</p>
-              <p className="text-sm text-white/50 mt-2">
-                {promo.discount}{promo.type === "percent" ? "%" : "$"} Off
-              </p>
-            </div>
-            <div className="flex items-center gap-2 mb-4 text-xs text-white/40">
-              {promo.active ? (
-                <>
-                  <Zap size={12} className="text-green-400" />
-                  <span>Active</span>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle size={12} className="text-red-400" />
-                  <span>Inactive</span>
-                </>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setSelectedPromo(promo); setShowModal(true); }}
-                className="flex-1 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(promo.id)}
-                className="px-3 py-2 bg-red-500/10 text-red-300 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-red-500/20 transition-colors"
-              >
-                Delete
-              </button>
-            </div>
+      {promos.length === 0
+        ? <div className="text-center py-24 text-white/20"><Tag size={36} className="mx-auto mb-3 opacity-30" /><p>No promos yet</p></div>
+        : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {promos.map((p: any) => (
+              <div key={p.id} className="bg-[#1a2219] border border-white/5 rounded-xl p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="font-black text-xl tracking-tighter">{p.code}</p>
+                    <p className="text-white/40 text-xs mt-0.5">
+                      {p.type === "percent" ? `${p.discount}% off` : `$${p.discount} off`}
+                      {p.maxUses ? ` · max ${p.maxUses} uses` : ""}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${p.active ? "bg-green-500/15 text-green-300 border-green-500/20" : "bg-white/5 text-white/30 border-white/10"}`}>
+                    {p.active ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setEditing(p); setShowForm(true); }}
+                    className="flex-1 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5">
+                    <Pencil size={11} /> Edit
+                  </button>
+                  <button type="button" onClick={() => deletePromo(p.id)}
+                    className="px-3 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-xs font-black uppercase tracking-widest transition-colors">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+      }
 
       <AnimatePresence>
-        {showModal && (
-          <PromoModal
-            promo={selectedPromo}
-            onClose={() => { setShowModal(false); setSelectedPromo(null); }}
-            onSave={handleSave}
-          />
-        )}
+        {showForm && <PromoForm promo={editing} onClose={() => { setShowForm(false); setEditing(null); }} onSave={savePromo} />}
       </AnimatePresence>
     </div>
   );
 }
 
-function PromoModal({ promo, onClose, onSave }: any) {
-  const [formData, setFormData] = useState(promo || { code: "", discount: 10, type: "percent", active: true });
+function PromoForm({ promo, onClose, onSave }: { promo?: any; onClose: () => void; onSave: (d: any) => Promise<void> }) {
+  const isEdit = !!promo?.id;
+  const initial = {
+    code: promo?.code ?? "",
+    discount: promo?.discount ?? 10,
+    type: promo?.type ?? "percent",
+    active: promo?.active ?? true,
+    maxUses: promo?.maxUses ?? "",
+  };
+  const [form, setForm] = useState(initial);
   const [loading, setLoading] = useState(false);
+  const set = (k: string, v: any) => setForm((f: typeof initial) => ({ ...f, [k]: v }));
 
-  const handleSubmit = async () => {
-    if (!formData.code || !formData.discount) {
-      alert("Code and discount required");
-      return;
-    }
+  const submit = async () => {
+    if (!form.code.trim()) { alert("Code required"); return; }
+    if (!form.discount)    { alert("Discount required"); return; }
     setLoading(true);
-    try {
-      // Ensure ID exists for new promos
-      const dataToSave = {
-        ...formData,
-        id: formData.id || `promo_${Date.now()}`,
-      };
-      await onSave(dataToSave);
-    } catch (err) {
-      console.error("PromoModal onSave error:", err);
-    } finally {
-      setLoading(false);
-    }
+    await onSave({ ...form, code: form.code.toUpperCase(), discount: Number(form.discount), maxUses: form.maxUses ? Number(form.maxUses) : null });
+    setLoading(false);
   };
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-[#131a15] border border-white/10 rounded-2xl max-w-md w-full"
-      >
-        <div className="border-b border-white/5 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-black uppercase">{promo ? "Edit" : "New"} Promo</h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Code</label>
-            <input
-              type="text"
-              value={formData.code}
-              onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Amount</label>
-              <input
-                type="number"
-                value={formData.discount}
-                onChange={e => setFormData({ ...formData, discount: Number(e.target.value) })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Type</label>
-              <select
-                value={formData.type}
-                onChange={e => setFormData({ ...formData, type: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-              >
-                <option value="percent">Percent (%)</option>
-                <option value="fixed">Fixed ($)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={formData.active}
-              onChange={e => setFormData({ ...formData, active: e.target.checked })}
-              className="w-4 h-4 cursor-pointer"
-            />
-            <label className="text-xs font-black uppercase tracking-widest">Active</label>
-          </div>
-        </div>
-
-        <div className="border-t border-white/5 px-6 py-4 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg font-black uppercase text-xs tracking-widest hover:bg-white/10 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="flex-1 px-4 py-3 bg-brand-green text-[#131a15] rounded-lg font-black uppercase text-xs tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
-          >
-            {loading ? "Saving..." : "Save"}
-          </button>
-        </div>
-      </motion.div>
-    </div>
+    <Modal title={isEdit ? "Edit Promo" : "New Promo"} onClose={onClose}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn loading={loading} onClick={submit}>Save</Btn></>}>
+      <Field label="Promo Code">
+        <Input placeholder="e.g. SUMMER20" value={form.code} onChange={e => set("code", e.target.value.toUpperCase())} />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Discount Amount">
+          <Input type="number" value={form.discount} onChange={e => set("discount", e.target.value)} />
+        </Field>
+        <Field label="Type">
+          <Select value={form.type} onChange={e => set("type", e.target.value)}>
+            <option value="percent">Percent (%)</option>
+            <option value="fixed">Fixed ($)</option>
+          </Select>
+        </Field>
+        <Field label="Max Uses (optional)">
+          <Input type="number" placeholder="Unlimited" value={form.maxUses} onChange={e => set("maxUses", e.target.value)} />
+        </Field>
+      </div>
+      <button type="button" onClick={() => set("active", !form.active)}
+        className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-white/60 hover:text-white transition-colors">
+        {form.active ? <ToggleRight size={22} className="text-brand-light-green" /> : <ToggleLeft size={22} className="text-white/20" />}
+        {form.active ? "Active" : "Inactive"}
+      </button>
+    </Modal>
   );
 }
 
-/* ── Settings Tab ────────────────────────────────────────────── */
-
+/* ─────────────────────────────────────────────────────────────
+   Settings Tab
+───────────────────────────────────────────────────────────── */
 function SettingsTab() {
-  const [storeInfo, setStoreInfo] = useState({ name: "Buds N' Buddies", phone: "(780) 123-4567", address: "Sherwood Park, AB", email: "info@buds.local" });
-  const [automations, setAutomations] = useState([
-    { key: "order_confirmation_customer", label: "Order Confirmation to Customer", enabled: true },
-    { key: "order_preparing", label: "Order Preparing Notification", enabled: true },
-    { key: "order_ready_pickup", label: "Ready for Pickup Notification", enabled: true },
-    { key: "order_dispatched", label: "Dispatched Notification", enabled: true },
-    { key: "order_delivered", label: "Delivered Notification", enabled: true },
-    { key: "welcome_email", label: "Welcome Email (New Customers)", enabled: true },
-  ]);
-  const { success } = useToast();
+  const { data: autoData, mutate: mutateAuto } = useSWR("admin-automations", api.admin.getAutomations, { refreshInterval: 60000 });
+  const automations = autoData ?? [];
+  const { success, error: err } = useToast();
 
-  const handleSaveStore = () => {
-    success("Store info updated!");
+  const defaultToggles = [
+    { key: "order_confirmation_customer", label: "Order Confirmation (Customer)" },
+    { key: "new_order_alert_admin",        label: "New Order Alert (Admin)" },
+    { key: "welcome_email_customer",       label: "Welcome Email (New Customers)" },
+    { key: "order_preparing_customer",     label: "Preparing Notification" },
+    { key: "order_dispatched_customer",    label: "Dispatched Notification" },
+    { key: "order_delivered_customer",     label: "Delivered Notification" },
+    { key: "ready_for_pickup_customer",    label: "Ready for Pickup" },
+  ];
+
+  const getEnabled = (key: string) => {
+    const found = automations.find((a: any) => a.key === key);
+    return found ? found.enabled : true;
   };
 
-  const toggleAutomation = (key: string) => {
-    setAutomations(automations.map(a => a.key === key ? { ...a, enabled: !a.enabled } : a));
+  const toggle = async (key: string, current: boolean) => {
+    try {
+      await api.admin.updateAutomation(key, !current);
+      success(`${!current ? "Enabled" : "Disabled"}`);
+      mutateAuto();
+    } catch (e: any) { err(e.message || "Failed"); }
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-black uppercase tracking-tighter">Settings</h1>
-        <p className="text-white/40 text-sm mt-1">Configure your store</p>
-      </div>
+    <div className="space-y-8 max-w-xl">
+      <h1 className="text-4xl font-black uppercase tracking-tighter">Settings</h1>
 
-      {/* Store Information */}
-      <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-4">
-        <h2 className="text-lg font-black uppercase">Store Information</h2>
-
-        <div>
-          <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Store Name</label>
-          <input
-            type="text"
-            value={storeInfo.name}
-            onChange={e => setStoreInfo({ ...storeInfo, name: e.target.value })}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Phone</label>
-            <input
-              type="text"
-              value={storeInfo.phone}
-              onChange={e => setStoreInfo({ ...storeInfo, phone: e.target.value })}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Email</label>
-            <input
-              type="email"
-              value={storeInfo.email}
-              onChange={e => setStoreInfo({ ...storeInfo, email: e.target.value })}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-black uppercase tracking-widest text-white/50 mb-2 block">Address</label>
-          <input
-            type="text"
-            value={storeInfo.address}
-            onChange={e => setStoreInfo({ ...storeInfo, address: e.target.value })}
-            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green/50"
-          />
-        </div>
-
-        <button
-          onClick={handleSaveStore}
-          className="px-6 py-3 bg-brand-green text-[#131a15] rounded-lg font-black uppercase text-xs tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-        >
-          <Save size={14} /> Save Changes
-        </button>
-      </div>
-
-      {/* Email Automations */}
-      <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-4">
-        <h2 className="text-lg font-black uppercase">Email Automations</h2>
-
-        <div className="space-y-3">
-          {automations.map(auto => (
-            <div key={auto.key} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
-              <div>
-                <p className="text-sm font-bold">{auto.label}</p>
-              </div>
-              <button
-                onClick={() => toggleAutomation(auto.key)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${auto.enabled ? "bg-brand-green" : "bg-white/10"}`}
-              >
-                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${auto.enabled ? "translate-x-6" : "translate-x-0.5"}`} />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Audit Logs */}
       <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
-        <h2 className="text-lg font-black uppercase mb-4">Audit Logs</h2>
-        <AuditLogs />
+        <h2 className="font-black uppercase tracking-tight mb-5">Email Automations</h2>
+        <div className="space-y-3">
+          {defaultToggles.map(({ key, label }) => {
+            const on = getEnabled(key);
+            return (
+              <div key={key} className="flex items-center justify-between">
+                <p className="text-sm text-white/70">{label}</p>
+                <button type="button" onClick={() => toggle(key, on)} className="transition-colors">
+                  {on
+                    ? <ToggleRight size={26} className="text-brand-light-green" />
+                    : <ToggleLeft  size={26} className="text-white/20" />}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
+        <h2 className="font-black uppercase tracking-tight mb-1">Store</h2>
+        <p className="text-white/30 text-xs mb-4">Bud N' Buddies · Sherwood Park, AB</p>
+        <a href="/" target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
+          <Home size={13} /> View Live Site
+        </a>
       </div>
     </div>
   );
 }
 
-function LoadingList() {
+/* ─────────────────────────────────────────────────────────────
+   Root Admin Layout
+───────────────────────────────────────────────────────────── */
+const NAV = [
+  { id: "Dashboard", icon: LayoutDashboard },
+  { id: "Orders",    icon: ShoppingBag },
+  { id: "Inventory", icon: Package },
+  { id: "Promos",    icon: Tag },
+  { id: "Settings",  icon: Gear },
+] as const;
+
+export default function Admin() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [tab, setTab]           = useState<Tab>("Dashboard");
+  const [sideOpen, setSideOpen] = useState(false);
+  const { success }             = useToast();
+
+  useEffect(() => {
+    if (localStorage.getItem("admin_auth") === "true") setLoggedIn(true);
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem("admin_auth");
+    sessionStorage.removeItem("admin_secret");
+    setLoggedIn(false);
+    success("Logged out");
+  };
+
+  if (!loggedIn) return <LoginGate onLogin={() => setLoggedIn(true)} />;
+
   return (
-    <div className="space-y-3">
-      {[1, 2, 3].map(i => (
-        <div key={i} className="h-20 bg-white/5 rounded-lg animate-pulse" />
-      ))}
+    <div className="min-h-screen bg-[#0d1210] text-white font-sans flex flex-col lg:flex-row overflow-hidden selection:bg-brand-light-green selection:text-[#111815]">
+
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {sideOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 lg:hidden" onClick={() => setSideOpen(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-[60] w-64 bg-[#111815] border-r border-white/5 flex flex-col transition-transform duration-300 lg:relative lg:translate-x-0 ${sideOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        {/* Logo */}
+        <div className="px-6 py-7 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-brand-light-green rounded-xl flex items-center justify-center text-[#111815] font-black text-base shadow-lg shadow-brand-light-green/20">B</div>
+            <div>
+              <p className="font-black text-sm uppercase tracking-tight">Buds Admin</p>
+              <p className="text-[9px] text-white/25 uppercase tracking-[0.3em]">Control Center</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {NAV.map(n => (
+            <button key={n.id} type="button"
+              onClick={() => { setTab(n.id as Tab); setSideOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
+                tab === n.id
+                  ? "bg-brand-light-green text-[#111815] shadow-md shadow-brand-light-green/20"
+                  : "text-white/40 hover:text-white hover:bg-white/5"
+              }`}>
+              <n.icon size={15} />
+              {n.id}
+            </button>
+          ))}
+        </nav>
+
+        {/* Bottom */}
+        <div className="px-3 py-4 border-t border-white/5 space-y-2">
+          <a href="/" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:bg-white/5 transition-all">
+            <Home size={14} /> View Site
+          </a>
+          <button type="button" onClick={logout}
+            className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-all">
+            <LogOut size={14} /> Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        {/* Mobile top bar */}
+        <header className="lg:hidden sticky top-0 z-40 bg-[#111815] border-b border-white/5 px-4 py-3 flex items-center justify-between">
+          <button type="button" onClick={() => setSideOpen(true)} className="p-2 bg-brand-light-green text-[#111815] rounded-lg">
+            <Menu size={16} />
+          </button>
+          <p className="font-black text-sm uppercase tracking-tight">{tab}</p>
+          <div className="w-8" />
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            <AnimatePresence mode="wait">
+              <motion.div key={tab}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15 }}>
+                {tab === "Dashboard" && <DashboardTab />}
+                {tab === "Orders"    && <OrdersTab />}
+                {tab === "Inventory" && <InventoryTab />}
+                {tab === "Promos"    && <PromosTab />}
+                {tab === "Settings"  && <SettingsTab />}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
