@@ -1,4 +1,8 @@
 {
+  "buildCommand": "cd frontend && npm install && vite build",
+  "outputDirectory": "frontend/dist",
+  "devCommand": "cd frontend && vite --port $PORT",
+  "installCommand": "npm install",
   "crons": [
     {
       "path": "/api/admin/sync",
