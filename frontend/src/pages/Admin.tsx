@@ -745,7 +745,7 @@ function InventoryTab() {
           <CSVImportModal
             data={csvData}
             onClose={() => { setShowCSVModal(false); setCSVData([]); }}
-            onImport={async (products) => {
+            onImport={async (products: any[]) => {
               try {
                 for (const p of products) {
                   const id = `product_${crypto.randomUUID()}`;
