@@ -7,6 +7,7 @@ import { motion, useSpring } from "motion/react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Star, Clock, Calendar } from "lucide-react";
 import { ImageTrail } from "@/components/ui/image-trail";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useMouseVector } from "@/components/hooks/use-mouse-vector";
 import { useSection } from "../context/ContentContext";
 
@@ -77,6 +78,7 @@ export function Hero() {
 
       {/* ── Image Trail ───────────────────────────────────────────── */}
       <div className="absolute inset-0 z-[5] pointer-events-none">
+        <ErrorBoundary fallback={<></>}>
         <ImageTrail containerRef={sectionRef}>
           {trailImages.map((url, i) => (
             <div
@@ -96,6 +98,7 @@ export function Hero() {
             </div>
           ))}
         </ImageTrail>
+        </ErrorBoundary>
       </div>
 
       {/* ── Content ──────────────────────────────────────────────── */}
@@ -127,16 +130,7 @@ export function Hero() {
                     animate="visible"
                     variants={wordVars}
                     transition={{ delay: 0.15 + i * 0.08 }}
-                    className="block"
-                    style={
-                      i === 1
-                        ? {
-                          color: "transparent",
-                          WebkitTextStroke:
-                            "clamp(1px, 0.2vw, 2.5px) rgba(255,255,255,0.75)",
-                        }
-                        : {}
-                    }
+                    className={i === 1 ? "block hero-headline-outline" : "block"}
                   >
                     {word}
                   </motion.span>

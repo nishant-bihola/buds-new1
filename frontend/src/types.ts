@@ -22,12 +22,10 @@ export interface Product {
 
 export interface Review {
   id: string;
-  reviewerName: string;
-  rating: number;
-  title?: string;
-  content: string;
-  isVerified: boolean;
-  date: string;
+  name: string;
+  blurb: string;
+  quote: string;
+  active?: boolean;
 }
 
 export interface OrderItem {

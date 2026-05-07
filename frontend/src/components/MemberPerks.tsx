@@ -72,7 +72,7 @@ export default function MemberPerks() {
               whileInView="visible"
               viewport={{ once: true, margin: "-50px" }}
               transition={{ delay: (i + 2) * 0.1 }}
-              whileHover={{ y: -12, transition: { duration: 0.4, ease: TRANSITIONS.PREMIUM } }}
+              whileHover={{ y: -12, transition: { ...TRANSITIONS.PREMIUM, duration: 0.4 } }}
               className="group bg-white/[0.03] backdrop-blur-2xl border border-white/5 p-8 sm:p-10 rounded-[48px] hover:bg-white/[0.07] hover:border-white/10 transition-all duration-500"
             >
               <div className="w-16 h-16 rounded-3xl bg-brand-light-green/10 flex items-center justify-center text-brand-light-green mb-10 group-hover:bg-brand-light-green group-hover:text-brand-green transition-all duration-500 group-hover:scale-110 group-hover:rotate-3">

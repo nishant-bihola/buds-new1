@@ -12,6 +12,7 @@ import { CartProvider } from "./context/CartContext";
 import { ToastProvider } from "./context/ToastContext";
 import { ContentProvider } from "./context/ContentContext";
 import { StoreProvider } from "./context/StoreContext";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const Home = React.lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
 const AboutPage = React.lazy(() => import("./pages/About").then(m => ({ default: m.AboutPage })));
@@ -79,17 +80,33 @@ function AppInner() {
   );
 }
 
+const AppCrashFallback = (
+  <div className="min-h-screen bg-[#060b08] flex flex-col items-center justify-center gap-6 text-white px-4">
+    <img src="/images/buds_n_buddies_logo.png" alt="Bud N' Buddies" className="h-14 w-auto object-contain" />
+    <p className="text-brand-light-green font-black uppercase tracking-widest text-sm">Something went wrong</p>
+    <button
+      type="button"
+      onClick={() => window.location.reload()}
+      className="bg-brand-green text-white px-8 py-3 rounded-full font-black uppercase tracking-widest text-xs hover:brightness-110 transition-all"
+    >
+      Reload Page
+    </button>
+  </div>
+);
+
 export default function App() {
   return (
-    <ToastProvider>
-      <StoreProvider>
-        <ContentProvider>
-          <CartProvider>
-            <AppInner />
-          </CartProvider>
-        </ContentProvider>
-      </StoreProvider>
-    </ToastProvider>
+    <ErrorBoundary fallback={AppCrashFallback}>
+      <ToastProvider>
+        <StoreProvider>
+          <ContentProvider>
+            <CartProvider>
+              <AppInner />
+            </CartProvider>
+          </ContentProvider>
+        </StoreProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

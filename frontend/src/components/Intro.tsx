@@ -86,7 +86,7 @@ export function Intro() {
                     rotateY: isCurrent ? 0 : isNext ? -10 : 10,
                     zIndex: isCurrent ? 20 : 10,
                   }}
-                  transition={{ duration: 0.8, ease: TRANSITIONS.PREMIUM }}
+                  transition={{ ...TRANSITIONS.PREMIUM, duration: 0.8 }}
                   className={`absolute inset-0 flex items-center justify-center rounded-[48px] sm:rounded-[64px] overflow-hidden ${img.bg} p-12 sm:p-16 shadow-2xl border-8 border-white/95 backdrop-blur-md`}
                 >
                   <img

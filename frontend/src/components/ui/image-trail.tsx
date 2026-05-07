@@ -1,18 +1,9 @@
-import { Children, useCallback, useEffect, useMemo, useRef } from "react"
-import {
-  AnimationSequence,
-  motion,
-  Target,
-  Transition,
-  useAnimate,
-  useAnimationFrame,
-} from "motion/react"
+import { Children, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { motion, useAnimationFrame } from "motion/react"
 import { v4 as uuidv4 } from "uuid"
-
 import { useMouseVector } from "@/components/hooks/use-mouse-vector"
 
-type TrailSegment = [Target, Transition]
-
+type TrailSegment = [Record<string, any>, Record<string, any>]
 type TrailAnimationSequence = TrailSegment[]
 
 interface ImageTrailProps {
@@ -20,7 +11,7 @@ interface ImageTrailProps {
   containerRef?: React.RefObject<HTMLElement | null>
   newOnTop?: boolean
   rotationRange?: number
-  animationSequence?: TrailAnimationSequence // Updated type
+  animationSequence?: TrailAnimationSequence
   interval?: number
   velocityDependentSpawn?: boolean
 }
@@ -30,8 +21,6 @@ interface TrailItem {
   x: number
   y: number
   rotation: number
-  animationSequence: TrailAnimationSequence // Updated type
-  scale: number
   child: React.ReactNode
 }
 
@@ -40,23 +29,15 @@ const ImageTrail = ({
   newOnTop = true,
   rotationRange = 15,
   containerRef,
-  animationSequence = [
-    [{ scale: 1.2 }, { duration: 0.1, ease: "circOut" }],
-    [{ scale: 0 }, { duration: 0.5, ease: "circIn" }],
-  ],
   interval = 100,
 }: ImageTrailProps) => {
-  const trailRef = useRef<TrailItem[]>([])
-
+  const [trail, setTrail] = useState<TrailItem[]>([])
   const lastAddedTimeRef = useRef<number>(0)
-  const { position: mousePosition } =
-    useMouseVector(containerRef)
+  const { position: mousePosition } = useMouseVector(containerRef)
   const lastMousePosRef = useRef(mousePosition)
   const currentIndexRef = useRef(0)
-  // Convert children to array for random selection
   const childrenArray = useMemo(() => Children.toArray(children), [children])
 
-  // Batch updates using useCallback
   const addToTrail = useCallback(
     (mousePos: { x: number; y: number }) => {
       const newItem: TrailItem = {
@@ -64,62 +45,38 @@ const ImageTrail = ({
         x: mousePos.x,
         y: mousePos.y,
         rotation: (Math.random() - 0.5) * rotationRange * 2,
-        animationSequence,
-        scale: 1,
         child: childrenArray[currentIndexRef.current],
       }
-
-      // Increment index and wrap around if needed
-      currentIndexRef.current =
-        (currentIndexRef.current + 1) % childrenArray.length
-
-      if (newOnTop) {
-        trailRef.current.push(newItem)
-      } else {
-        trailRef.current.unshift(newItem)
-      }
+      currentIndexRef.current = (currentIndexRef.current + 1) % childrenArray.length
+      setTrail((prev) => newOnTop ? [...prev, newItem] : [newItem, ...prev])
     },
-    [childrenArray, rotationRange, animationSequence, newOnTop]
+    [childrenArray, rotationRange, newOnTop]
   )
 
   const removeFromTrail = useCallback((itemId: string) => {
-    const index = trailRef.current.findIndex((item) => item.id === itemId)
-    if (index !== -1) {
-      trailRef.current.splice(index, 1)
-    }
+    setTrail((prev) => prev.filter((item) => item.id !== itemId))
   }, [])
 
   useAnimationFrame((time) => {
-    // Skip if mouse hasn't moved
     if (
       lastMousePosRef.current.x === mousePosition.x &&
       lastMousePosRef.current.y === mousePosition.y
-    ) {
-      return
-    }
+    ) return
 
-    const currentTime = time
-
-    if (currentTime - lastAddedTimeRef.current < interval) {
-      return
-    }
+    if (time - lastAddedTimeRef.current < interval) return
 
     const dx = mousePosition.x - lastMousePosRef.current.x
     const dy = mousePosition.y - lastMousePosRef.current.y
-    const distance = Math.sqrt(dx * dx + dy * dy)
-
-    if (distance < 10) {
-      return
-    }
+    if (Math.sqrt(dx * dx + dy * dy) < 10) return
 
     lastMousePosRef.current = mousePosition
-    lastAddedTimeRef.current = currentTime
+    lastAddedTimeRef.current = time
     addToTrail(mousePosition)
   })
 
   return (
     <div className="relative w-full h-full pointer-events-none">
-      {trailRef.current.map((item) => (
+      {trail.map((item) => (
         <TrailItem key={item.id} item={item} onComplete={removeFromTrail} />
       ))}
     </div>
@@ -132,36 +89,36 @@ interface TrailItemProps {
 }
 
 const TrailItem = ({ item, onComplete }: TrailItemProps) => {
-  const [scope, animate] = useAnimate()
+  const mountedRef = useRef(true)
 
   useEffect(() => {
-    const sequence = item.animationSequence.map((segment: TrailSegment) => [
-      scope.current,
-      ...segment,
-    ])
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
-    animate(sequence as AnimationSequence).then(() => {
+  // Use CSS animation instead of motion/react animate() to avoid null-ref crash
+  const onAnimationEnd = useCallback(() => {
+    if (mountedRef.current) {
       onComplete(item.id)
-    })
-  }, [animate, item.animationSequence, item.id, onComplete, scope])
+    }
+  }, [item.id, onComplete])
 
   return (
-    <motion.div
-      ref={scope}
-      key={item.id}
-      className="absolute w-16 h-16 sm:w-20 sm:h-20 pointer-events-none"
-      style={{
-        left: `${item.x}px`,
-        top: `${item.y}px`,
-        rotate: item.rotation,
-        translateX: "-50%",
-        translateY: "-50%",
-      }}
+    <div
+      className="trail-item-animate absolute w-16 h-16 pointer-events-none"
+      style={
+        {
+          left: `${item.x}px`,
+          top: `${item.y}px`,
+          "--trail-rotate": `${item.rotation}deg`,
+        } as React.CSSProperties
+      }
+      onAnimationEnd={onAnimationEnd}
     >
       <div className="w-full h-full flex items-center justify-center">
         {item.child}
       </div>
-    </motion.div>
+    </div>
   )
 }
 

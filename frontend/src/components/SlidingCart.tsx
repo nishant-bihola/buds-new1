@@ -51,7 +51,7 @@ export function SlidingCart() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: TRANSITIONS.PREMIUM }}
+            transition={{ ...TRANSITIONS.PREMIUM, duration: 0.3 }}
             onClick={closeCart}
             className="fixed inset-0 bg-black/60 z-[150] backdrop-blur-md"
           />

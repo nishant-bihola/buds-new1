@@ -7,7 +7,7 @@ const ADMIN_EMAIL = "biholanishant0@gmail.com";
 const STORE_NAME = "Bud N' Buddies";
 const STORE_PHONE = "(825) 218-8234";
 const STORE_ADDRESS = "130-75 Salisbury Way, Sherwood Park, AB T8B 1K4";
-const STORE_URL = process.env.STORE_URL ?? "https://budnbuddies.vercel.app";
+const STORE_URL = process.env.STORE_URL ?? "https://budnbuddies.ca";
 const FROM = process.env.RESEND_FROM_EMAIL ?? `${STORE_NAME} <onboarding@resend.dev>`;
 const TEST_EMAIL = process.env.TEST_EMAIL; // if set, all customer emails redirect here
 

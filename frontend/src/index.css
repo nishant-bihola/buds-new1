@@ -192,6 +192,37 @@
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+/* ── Hero ───────────────────────────────────────────────── */
+.hero-headline-outline {
+  color: transparent;
+  -webkit-text-stroke: clamp(1px, 0.2vw, 2.5px) rgba(255, 255, 255, 0.75);
+}
+
+/* ── Image Trail ────────────────────────────────────────── */
+@keyframes trailItemOpacity {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes trailItemScale {
+  0%   { scale: 0.6; }
+  15%  { scale: 1.15; }
+  30%  { scale: 1; }
+  80%  { scale: 1; }
+  100% { scale: 0.4; }
+}
+
+.trail-item-animate {
+  animation:
+    trailItemOpacity 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    trailItemScale   0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, scale;
+  translate: -50% -50%;
+  rotate: var(--trail-rotate, 0deg);
+}
+
 .cart-toast {
   will-change: transform, opacity;
   animation: slideUpFade 0.3s ease forwards;

@@ -83,7 +83,7 @@ function Modal({ title, onClose, footer, children }: {
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
           <h2 className="text-lg font-black uppercase tracking-tight">{title}</h2>
-          <button type="button" onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"><X size={18} /></button>
+          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"><X size={18} /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">{children}</div>
         {footer && <div className="px-6 py-4 border-t border-white/5 flex gap-3 shrink-0">{footer}</div>}
@@ -336,6 +336,10 @@ function OrderModal({ order, onClose, onUpdateStatus }: any) {
   const isDelivery  = (order.delivery as any)?.method === "delivery";
   const [copied, setCopied] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
+  const [driverName, setDriverName] = useState("");
+  const [driverPhone, setDriverPhone] = useState("");
+  const { data: driversData } = useSWR("admin-drivers", api.admin.getDrivers);
+  const drivers: any[] = driversData?.drivers ?? [];
   const copy = (v: string, k: string) => { navigator.clipboard.writeText(v); setCopied(k); setTimeout(() => setCopied(null), 1500); };
 
   const FLOW_DELIVERY = ["confirmed", "preparing", "dispatched", "delivered"];
@@ -344,10 +348,12 @@ function OrderModal({ order, onClose, onUpdateStatus }: any) {
   const currentIdx = flow.indexOf(order.status);
   const nextStatus = currentIdx >= 0 && currentIdx < flow.length - 1 ? flow[currentIdx + 1] : null;
   const isFinal = ["delivered", "ready_pickup", "cancelled"].includes(order.status);
+  const needsDriver = nextStatus === "dispatched" && isDelivery;
 
   const advance = async (status: string) => {
     setLoading(status);
-    await onUpdateStatus(order.orderId, status);
+    const extra = status === "dispatched" && driverName ? { driverName, driverPhone } : undefined;
+    await onUpdateStatus(order.orderId, status, extra);
     setLoading(null);
   };
 
@@ -419,6 +425,30 @@ function OrderModal({ order, onClose, onUpdateStatus }: any) {
           </div>
         )}
       </div>
+
+      {/* Driver Assignment — shown when next step is "dispatched" */}
+      {needsDriver && (
+        <div className="bg-brand-light-green/5 border border-brand-light-green/20 rounded-xl p-4 space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-brand-light-green/70">Assign Driver (optional)</p>
+          {drivers.length > 0 && (
+            <Select
+              value={driverName}
+              onChange={e => {
+                const d = drivers.find((d: any) => d.name === e.target.value);
+                setDriverName(d?.name ?? "");
+                setDriverPhone(d?.phone ?? "");
+              }}
+            >
+              <option value="">— Select a driver —</option>
+              {drivers.filter((d: any) => d.active).map((d: any) => (
+                <option key={d.id} value={d.name}>{d.name}{d.phone ? ` · ${d.phone}` : ""}</option>
+              ))}
+            </Select>
+          )}
+          <Input placeholder="Driver name" value={driverName} onChange={e => setDriverName(e.target.value)} />
+          <Input placeholder="Driver phone (optional)" value={driverPhone} onChange={e => setDriverPhone(e.target.value)} />
+        </div>
+      )}
 
       {/* Items */}
       <div>
