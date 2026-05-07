@@ -1475,12 +1475,12 @@ function DriversTab() {
             <Field label="Phone (optional)">
               <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (780) 000-0000" />
             </Field>
-            <Field label="Status">
-              <Select value={form.active ? "active" : "inactive"} onChange={e => setForm(f => ({ ...f, active: e.target.value === "active" }))}>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </Select>
-            </Field>
+            <Dropdown
+              label="Status"
+              value={form.active ? "Active" : "Inactive"}
+              options={["Active", "Inactive"]}
+              onChange={v => setForm(f => ({ ...f, active: v === "Active" }))}
+            />
           </Modal>
         )}
       </AnimatePresence>
