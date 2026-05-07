@@ -32,19 +32,12 @@ function normalizeStreet(street: string): string {
 
 function calcFee(km: number, orderTotal: number) {
   if (km > 25) return { fee: -1, label: "Outside delivery range (25 km+)", zone: "unavailable" };
-  if (km <= 5) {
-    if (orderTotal >= 75) return { fee: 0, label: "FREE — order over $75", zone: "local" };
-    return { fee: 5.49, label: "Flat rate — under 5 km", zone: "local" };
-  }
+  // Free delivery on orders $75+ regardless of distance
+  if (orderTotal >= 75) return { fee: 0, label: "FREE — order over $75", zone: km <= 5 ? "local" : km <= 15 ? "standard" : "extended" };
+  if (km <= 5) return { fee: 5.49, label: "Flat rate — under 5 km", zone: "local" };
   const base = 5.49 + (km - 5) * 0.55;
-  let fee: number;
-  let discount: string;
-  if (orderTotal >= 150) { fee = base * 0.70; discount = "30% off"; }
-  else if (orderTotal >= 100) { fee = base * 0.80; discount = "20% off"; }
-  else if (orderTotal >= 75)  { fee = base * 0.90; discount = "10% off"; }
-  else { fee = base; discount = ""; }
   const zoneLabel = km <= 15 ? "standard zone" : "extended zone";
-  return { fee: Math.round(fee * 100) / 100, label: discount ? `${discount} large order — ${zoneLabel}` : zoneLabel, zone: km <= 15 ? "standard" : "extended" };
+  return { fee: Math.round(base * 100) / 100, label: zoneLabel, zone: km <= 15 ? "standard" : "extended" };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

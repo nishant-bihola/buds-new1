@@ -20,6 +20,7 @@ const ShopPage = React.lazy(() => import("./pages/Shop").then(m => ({ default: m
 const ProductDetails = React.lazy(() => import("./pages/ProductDetails").then(m => ({ default: m.ProductDetails })));
 const Checkout = React.lazy(() => import("./pages/Checkout").then(m => ({ default: m.Checkout })));
 const Admin = React.lazy(() => import("./pages/Admin"));
+const Till = React.lazy(() => import("./pages/Till").then(m => ({ default: m.Till })));
 const OrderTracking = React.lazy(() => import("./pages/OrderTracking").then(m => ({ default: m.OrderTracking })));
 const SherwoodPark = React.lazy(() => import("./pages/seo/SherwoodPark").then(m => ({ default: m.SherwoodPark })));
 
@@ -33,7 +34,7 @@ function AppInner() {
   const location = useLocation();
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
-  const isAdmin = location.pathname.startsWith("/admin");
+  const isAdmin = location.pathname.startsWith("/admin") || location.pathname.startsWith("/till");
 
   return (
     <div className="min-h-screen selection:bg-brand-green selection:text-brand-light-green">
@@ -66,6 +67,7 @@ function AppInner() {
                   <Route path="/checkout" element={<Checkout />} />
                   <Route path="/order/:orderId" element={<OrderTracking />} />
                   <Route path="/admin" element={<Admin />} />
+                  <Route path="/till" element={<Till />} />
                   <Route path="/sherwood-park-cannabis" element={<SherwoodPark />} />
                 </Routes>
               </motion.div>

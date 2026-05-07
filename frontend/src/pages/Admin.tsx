@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import useSWR from "swr";
 import {
@@ -289,11 +289,59 @@ function DashboardTab() {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   New-order sound + notification hook
+───────────────────────────────────────────────────────────── */
+function playOrderChime() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const start = ctx.currentTime + i * 0.12;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.25, start + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+      osc.start(start);
+      osc.stop(start + 0.5);
+    });
+  } catch { /* browser blocked audio */ }
+}
+
+function useNewOrderAlert(orders: any[]) {
+  const prevCountRef = useRef(0);
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!initializedRef.current) {
+      prevCountRef.current = orders.length;
+      initializedRef.current = true;
+      return;
+    }
+    if (orders.length > prevCountRef.current) {
+      playOrderChime();
+      const newCount = orders.length - prevCountRef.current;
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(`🛒 ${newCount} new order${newCount > 1 ? "s" : ""}!`, {
+          body: `${orders[0]?.orderId} — $${Number(orders[0]?.total ?? 0).toFixed(2)}`,
+          icon: "/images/buds_n_buddies_logo.png",
+        });
+      }
+    }
+    prevCountRef.current = orders.length;
+  }, [orders.length]);
+}
+
+/* ─────────────────────────────────────────────────────────────
    Orders Tab
 ───────────────────────────────────────────────────────────── */
 function OrdersTab() {
   const { data, mutate } = useSWR("admin-orders", api.admin.getOrders, { refreshInterval: 15000 });
   const orders = data?.orders ?? [];
+  useNewOrderAlert(orders);
   const [search, setSearch]       = useState("");
   const [filter, setFilter]       = useState("all");
   const [selected, setSelected]   = useState<any>(null);
@@ -1591,6 +1639,12 @@ export default function Admin() {
   useEffect(() => {
     if (localStorage.getItem("admin_auth") === "true") setLoggedIn(true);
   }, []);
+
+  useEffect(() => {
+    if (loggedIn && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, [loggedIn]);
 
   const logout = () => {
     localStorage.removeItem("admin_auth");
