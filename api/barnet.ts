@@ -28,41 +28,54 @@ async function barnetFetch(path: string): Promise<any> {
 }
 
 function mapBarnetProduct(item: any): any {
-  // Variations may be an array or empty string
   const variations = Array.isArray(item.variations) ? item.variations : [];
   const variation = variations[0] ?? null;
-  const price = parseFloat(variation?.price ?? item.price ?? 0) || 0;
-  const quantity = parseInt(variation?.on_hand ?? item.on_hand ?? 0, 10) || 0;
-  const weight = variation?.unit ?? variation?.name ?? "";
 
-  // THC/CBD from variation or product level
-  const thcVal = variation?.thc_percent ?? variation?.thc ?? item.thc_percent ?? item.thc ?? "";
-  const cbdVal = variation?.cbd_percent ?? variation?.cbd ?? item.cbd_percent ?? item.cbd ?? "";
-  const thc = thcVal ? `${thcVal}%` : "";
-  const cbd = cbdVal ? `${cbdVal}%` : "";
+  // Price — use price1 (regular), fall back to price2 (member)
+  const price = parseFloat(variation?.price1 ?? variation?.price2 ?? variation?.price ?? 0) || 0;
 
-  // Images — thumbs may be empty string or object
+  // Stock — check quantityStatus from variation
+  const qStatus = variation?.quantityStatus?.quantityName ?? "";
+  const inStock = qStatus === "In Stock" || qStatus === "Available" || price > 0;
+
+  // Weight from variation displayname (e.g. "0.5g", "3.5g")
+  const weight = variation?.displayname ?? variation?.unit ?? variation?.name ?? "";
+
+  // THC/CBD from variation
+  const thcRaw = parseFloat(variation?.thc_percent ?? variation?.thc ?? 0);
+  const cbdRaw = parseFloat(variation?.cbd_percent ?? variation?.cbd ?? 0);
+  const thc = thcRaw > 0 ? `${thcRaw}%` : "";
+  const cbd = cbdRaw > 0 ? `${cbdRaw}%` : "";
+
+  // Images
   const thumbs = item.thumbs && typeof item.thumbs === "object" ? item.thumbs : {};
-  const imageArr = Array.isArray(item.images) ? item.images : [];
+  const imageArr = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
   const image = thumbs["320"] || thumbs["540"] || thumbs["140"] || imageArr[0] || "";
 
-  // Use product_info as description (richer), fall back to description (SKU line)
-  const description = item.product_info || item.description || "";
+  // Full SKU name from description, display name from productName
+  // Use description as the full product name (e.g. "1964 Comatose FSE Resin 0.5g Disposable Vape")
+  const name = item.description || item.productName || "";
+
+  // Rich description from product_info
+  const description = item.product_info || "";
+
+  // Terpenes as comma string
+  const terpenes = Array.isArray(item.terpenes) ? item.terpenes.filter(Boolean).join(", ") : "";
 
   return {
     id: `barnet_${item.productId}`,
-    name: item.productName || item.description || "",
+    name,
     price,
     image: typeof image === "string" ? image : "",
     category: item.category || "",
-    description,
+    description: description + (terpenes ? `\n\nTerpenes: ${terpenes}` : ""),
     thc,
     cbd,
     brand: item.brandname || "",
     weight,
     strain: item.species || "",
-    inStock: quantity > 0 || price > 0,
-    quantity,
+    inStock,
+    quantity: 0, // Barnet hides exact quantity, just tracks in/out of stock
     isBestSeller: item.favorite === true,
     sortOrder: 0,
     source: "barnet",
@@ -79,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // GET /api/barnet/preview — fetch from Barnet without saving
   if (action === "preview" && req.method === "GET") {
     try {
-      const data = await barnetFetch(`/products?store_id=${BARNET_STORE_ID}&on_hand=True&page_size=200`);
+      const data = await barnetFetch(`/products?store_id=${BARNET_STORE_ID}&page_size=200`);
       const items = (data.items || []).map(mapBarnetProduct);
       return json(res as any, { products: items, total: data.paginator?.items_count ?? items.length });
     } catch (err: any) {
@@ -99,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       do {
         const data = await barnetFetch(
-          `/products?store_id=${BARNET_STORE_ID}&on_hand=True&page_size=${pageSize}&page=${page}`
+          `/products?store_id=${BARNET_STORE_ID}&page_size=${pageSize}&page=${page}`
         );
         const items: any[] = data.items || [];
         allItems = allItems.concat(items);
