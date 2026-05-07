@@ -4,7 +4,7 @@ import {
   deliveryZones, drivers, storeHours, config, 
   specialOrders, stockLogs, auditLogs, staff 
 } from "./schema.js";
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql, gte } from "drizzle-orm";
 import crypto from "crypto";
 
 // ── PRODUCTS ─────────────────────────────────────────────────────────────
@@ -418,7 +418,31 @@ export async function updateAutomation(key: string, enabled: boolean) {
 // ── DRIVERS ──────────────────────────────────────────────────────────────
 
 export async function getDrivers() {
-  return await db.select().from(drivers).orderBy(asc(drivers.name));
+  const allDrivers = await db.select().from(drivers).orderBy(asc(drivers.name));
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const results = await Promise.all(allDrivers.map(async (d) => {
+    const active = await db.select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(and(eq(orders.driverName, d.name), eq(orders.status, "dispatched")));
+    
+    const today = await db.select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(and(
+        eq(orders.driverName, d.name), 
+        eq(orders.status, "delivered"),
+        gte(orders.createdAt, startOfDay)
+      ));
+
+    return {
+      ...d,
+      activeOrders: Number(active[0]?.count ?? 0),
+      todayDeliveries: Number(today[0]?.count ?? 0),
+    };
+  }));
+
+  return results;
 }
 
 export async function upsertDriver(data: { id?: string; name: string; phone?: string; active?: boolean }) {

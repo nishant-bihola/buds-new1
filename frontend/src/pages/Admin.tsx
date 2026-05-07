@@ -240,6 +240,7 @@ function DashboardTab() {
     { icon: ShoppingBag, label: "Orders Today",   value: todayOrders.length, color: "from-blue-500/10" },
     { icon: Package,     label: "Total Products", value: products.length, color: "from-purple-500/10" },
     { icon: Tag,         label: "Active Promos",  value: activePromos, color: "from-amber-500/10" },
+    { icon: Users,       label: "Drivers On Duty",value: drivers.filter((d: any) => d.active).length, color: "from-emerald-500/10" },
   ];
 
   return (
@@ -449,6 +450,18 @@ function OrderModal({ order, onClose, onUpdateStatus }: any) {
           </div>
         ))}
       </div>
+
+      {/* Assigned Driver Display */}
+      {order.driverName && (
+        <div className="bg-brand-light-green/10 border border-brand-light-green/20 rounded-xl p-4 flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-brand-light-green mb-1">Assigned Driver</p>
+            <p className="font-bold text-sm">{order.driverName}</p>
+            {order.driverPhone && <p className="text-white/40 text-xs">{order.driverPhone}</p>}
+          </div>
+          <Truck size={20} className="text-brand-light-green opacity-50" />
+        </div>
+      )}
 
       {/* Delivery */}
       <div>
@@ -1426,28 +1439,66 @@ function DriversTab() {
 
       {drivers.length === 0
         ? <div className="text-white/20 text-sm text-center py-16">No drivers yet. Add one above.</div>
-        : <div className="space-y-2">
+        : <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {drivers.map((d: any) => (
-              <div key={d.id} className="flex items-center justify-between bg-[#1a2219] border border-white/5 rounded-xl px-5 py-4">
-                <div className="flex items-center gap-4">
-                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${d.active ? "bg-green-400" : "bg-white/20"}`} />
-                  <div>
-                    <p className="font-bold text-sm">{d.name}</p>
-                    <p className="text-white/40 text-xs">{d.phone || "No phone"}</p>
+              <div key={d.id} className="bg-[#1a2219] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all group relative overflow-hidden">
+                {/* Background glow for active drivers */}
+                {d.active && <div className="absolute -right-12 -top-12 w-24 h-24 bg-brand-light-green/5 blur-3xl rounded-full" />}
+                
+                <div className="flex items-start justify-between mb-4 relative">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${
+                      d.active ? "bg-brand-light-green text-[#111815]" : "bg-white/5 text-white/20"
+                    }`}>
+                      {d.name[0]}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-black text-base">{d.name}</p>
+                        {d.activeOrders > 0 && (
+                          <span className="flex h-2 w-2 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-light-green opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-light-green"></span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-white/40 text-xs font-medium">{d.phone || "No phone number"}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5">
+                    <button type="button" onClick={() => openEdit(d)} className="p-2 hover:bg-white/10 rounded-lg transition-colors"><Pencil size={14} /></button>
+                    <button type="button" onClick={() => remove(d.id)} disabled={deleting === d.id} className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors disabled:opacity-40">
+                      {deleting === d.id ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
-                    d.active ? "bg-green-500/15 text-green-300 border-green-500/20" : "bg-white/5 text-white/30 border-white/10"
-                  }`}>{d.active ? "Active" : "Inactive"}</span>
-                  <button type="button" aria-label="Edit driver" onClick={() => openEdit(d)}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                    <Pencil size={14} />
-                  </button>
-                  <button type="button" aria-label="Delete driver" onClick={() => remove(d.id)} disabled={deleting === d.id}
-                    className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors disabled:opacity-40">
-                    {deleting === d.id ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                  </button>
+
+                <div className="grid grid-cols-2 gap-3 relative">
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">Live Orders</p>
+                    <p className={`text-xl font-black ${d.activeOrders > 0 ? "text-brand-light-green" : "text-white/60"}`}>
+                      {d.activeOrders}
+                    </p>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">Completed Today</p>
+                    <p className="text-xl font-black text-white/60">{d.todayDeliveries}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between pt-4 border-t border-white/5">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${d.active ? "bg-brand-light-green shadow-[0_0_8px_#c5e1a5]" : "bg-white/10"}`} />
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${d.active ? "text-brand-light-green" : "text-white/20"}`}>
+                      {d.active ? "On Duty" : "Off Duty"}
+                    </span>
+                  </div>
+                  {d.activeOrders > 0 && (
+                    <span className="text-[10px] font-black uppercase tracking-widest text-brand-light-green/60">
+                      Currently Delivering
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

@@ -35,6 +35,8 @@ export const orders = pgTable("orders", {
   discount: doublePrecision("discount"),
   promoCode: text("promo_code"),
   emailLog: jsonb("email_log").default([]),
+  driverName: text("driver_name"),
+  driverPhone: text("driver_phone"),
   source: text("source").default("website"),
   createdAt: timestamp("created_at").defaultNow(),
 });
