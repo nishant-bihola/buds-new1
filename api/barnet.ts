@@ -6,7 +6,7 @@ const BARNET_BASE = (process.env.BARNET_API_URL || "http://budnbuddies.barnetpor
   .replace(/^http:\/\//, "https://"); // always use HTTPS
 const BARNET_KEY = process.env.BARNET_API_KEY || "";
 const BARNET_PASS = process.env.BARNET_API_PASS || "";
-const BARNET_STORE_ID = parseInt(process.env.BARNET_STORE_ID || "1", 10);
+const BARNET_STORE_ID = parseInt(process.env.BARNET_STORE_ID || "5", 10);
 
 function basicAuth(): string {
   return "Basic " + Buffer.from(`${BARNET_KEY}:${BARNET_PASS}`).toString("base64");
@@ -28,46 +28,42 @@ async function barnetFetch(path: string): Promise<any> {
 }
 
 function mapBarnetProduct(item: any): any {
-  // Pick the first variation price, fallback to 0
-  const variation = Array.isArray(item.variations) ? item.variations[0] : null;
-  const price = variation?.price ?? item.price ?? 0;
-  const quantity = variation?.on_hand ?? item.on_hand ?? 0;
+  // Variations may be an array or empty string
+  const variations = Array.isArray(item.variations) ? item.variations : [];
+  const variation = variations[0] ?? null;
+  const price = parseFloat(variation?.price ?? item.price ?? 0) || 0;
+  const quantity = parseInt(variation?.on_hand ?? item.on_hand ?? 0, 10) || 0;
   const weight = variation?.unit ?? variation?.name ?? "";
 
-  // Build THC/CBD display string
-  const thc = item.thc_percent
-    ? `${item.thc_percent}%`
-    : item.thc
-    ? `${item.thc}mg`
-    : "";
-  const cbd = item.cbd_percent
-    ? `${item.cbd_percent}%`
-    : item.cbd
-    ? `${item.cbd}mg`
-    : "";
+  // THC/CBD from variation or product level
+  const thcVal = variation?.thc_percent ?? variation?.thc ?? item.thc_percent ?? item.thc ?? "";
+  const cbdVal = variation?.cbd_percent ?? variation?.cbd ?? item.cbd_percent ?? item.cbd ?? "";
+  const thc = thcVal ? `${thcVal}%` : "";
+  const cbd = cbdVal ? `${cbdVal}%` : "";
 
-  // Pick best image
-  const image =
-    item.thumbs?.["320"] ||
-    item.thumbs?.["140"] ||
-    (Array.isArray(item.images) && item.images[0]) ||
-    "";
+  // Images — thumbs may be empty string or object
+  const thumbs = item.thumbs && typeof item.thumbs === "object" ? item.thumbs : {};
+  const imageArr = Array.isArray(item.images) ? item.images : [];
+  const image = thumbs["320"] || thumbs["540"] || thumbs["140"] || imageArr[0] || "";
+
+  // Use product_info as description (richer), fall back to description (SKU line)
+  const description = item.product_info || item.description || "";
 
   return {
     id: `barnet_${item.productId}`,
-    name: item.productName || "",
-    price: parseFloat(price) || 0,
+    name: item.productName || item.description || "",
+    price,
     image: typeof image === "string" ? image : "",
     category: item.category || "",
-    description: item.description || "",
+    description,
     thc,
     cbd,
     brand: item.brandname || "",
     weight,
     strain: item.species || "",
-    inStock: quantity > 0,
-    quantity: parseInt(quantity, 10) || 0,
-    isBestSeller: false,
+    inStock: quantity > 0 || price > 0,
+    quantity,
+    isBestSeller: item.favorite === true,
     sortOrder: 0,
     source: "barnet",
   };
