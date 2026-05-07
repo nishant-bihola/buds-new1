@@ -56,16 +56,60 @@ function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input className={inputCls} {...props} />;
 }
 
-function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={inputCls} {...props} />;
+}
+
+/* Custom Dropdown to replace problematic native selects */
+function Dropdown({ label, value, options, onChange }: {
+  label?: string; value: string; options: string[]; onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
   return (
-    <select className={`${inputCls} bg-[#1a2219]`} {...props}>
-      {children}
-    </select>
+    <div className="relative">
+      {label && <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">{label}</label>}
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full bg-[#1a2219] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white flex items-center justify-between hover:border-white/20 transition-all text-left"
+      >
+        <span className="truncate">{value || "Select..."}</span>
+        <Menu size={14} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-[400]" onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              className="absolute left-0 right-0 top-full mt-2 z-[401] bg-[#1a2219] border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto custom-scrollbar"
+            >
+              {options.map(opt => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => { onChange(opt); setOpen(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-brand-light-green hover:text-[#111815] ${
+                    opt === value ? "bg-brand-light-green/10 text-brand-light-green font-bold" : "text-white/70"
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
 function Textarea({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={`${inputCls} resize-none`} rows={3} {...props} />;
+  return <textarea className={`${inputCls} resize-none custom-scrollbar`} rows={3} {...props} />;
 }
 
 function Modal({ title, onClose, footer, children }: {
@@ -431,19 +475,17 @@ function OrderModal({ order, onClose, onUpdateStatus }: any) {
         <div className="bg-brand-light-green/5 border border-brand-light-green/20 rounded-xl p-4 space-y-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-brand-light-green/70">Assign Driver (optional)</p>
           {drivers.length > 0 && (
-            <Select
+            <Dropdown
+              label="Select a driver"
               value={driverName}
-              onChange={e => {
-                const d = drivers.find((d: any) => d.name === e.target.value);
-                setDriverName(d?.name ?? "");
+              options={["— Select a driver —", ...drivers.filter((d: any) => d.active).map((d: any) => d.name)]}
+              onChange={val => {
+                const name = val === "— Select a driver —" ? "" : val;
+                const d = drivers.find((d: any) => d.name === name);
+                setDriverName(name);
                 setDriverPhone(d?.phone ?? "");
               }}
-            >
-              <option value="">— Select a driver —</option>
-              {drivers.filter((d: any) => d.active).map((d: any) => (
-                <option key={d.id} value={d.name}>{d.name}{d.phone ? ` · ${d.phone}` : ""}</option>
-              ))}
-            </Select>
+            />
           )}
           <Input placeholder="Driver name" value={driverName} onChange={e => setDriverName(e.target.value)} />
           <Input placeholder="Driver phone (optional)" value={driverPhone} onChange={e => setDriverPhone(e.target.value)} />
@@ -689,16 +731,8 @@ function ProductForm({ product, onClose, onSave }: { product?: any; onClose: () 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Name"><Input placeholder="Product name" value={form.name} onChange={e => set("name", e.target.value)} /></Field>
         <Field label="Price ($)"><Input type="number" placeholder="0.00" value={form.price || ""} onChange={e => set("price", Number(e.target.value))} /></Field>
-        <Field label="Category">
-          <Select value={form.category} onChange={e => set("category", e.target.value)}>
-            {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-          </Select>
-        </Field>
-        <Field label="Strain">
-          <Select value={form.strain} onChange={e => set("strain", e.target.value)}>
-            {STRAINS.map(s => <option key={s}>{s}</option>)}
-          </Select>
-        </Field>
+        <Dropdown label="Category" value={form.category} options={CATEGORIES} onChange={v => set("category", v)} />
+        <Dropdown label="Strain" value={form.strain} options={STRAINS} onChange={v => set("strain", v)} />
         <Field label="Brand"><Input placeholder="Brand name" value={form.brand} onChange={e => set("brand", e.target.value)} /></Field>
         <Field label="Weight"><Input placeholder="e.g. 3.5g" value={form.weight} onChange={e => set("weight", e.target.value)} /></Field>
         <Field label="THC %"><Input placeholder="e.g. 24%" value={form.thc} onChange={e => set("thc", e.target.value)} /></Field>
