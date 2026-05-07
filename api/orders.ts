@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getOrders, insertOrder, upsertCustomer, getCustomerByEmail, getPromoByCode, incrementPromoUsage } from "./_lib/db_ops.js";
+import { getOrders, insertOrder, upsertCustomer, getCustomerByEmail, getPromoByCode, incrementPromoUsage, getOrderById } from "./_lib/db_ops.js";
 import { sendOrderConfirmation, sendAdminAlert, sendWelcome } from "./_lib/email.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -8,6 +8,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") return res.status(200).end();
+
+  // GET /api/orders/:id — public order tracking
+  const urlParts = (req.url ?? "").replace(/^\/api\/orders\/?/, "").split("?");
+  const idSegment = urlParts[0];
+  if (idSegment && req.method === "GET") {
+    try {
+      const order = await getOrderById(idSegment);
+      if (!order) return res.status(404).json({ error: "Order not found." });
+      return res.status(200).json({ order });
+    } catch (err: any) {
+      return res.status(500).json({ error: "Failed to fetch order" });
+    }
+  }
 
   // GET /api/orders — admin only
   if (req.method === "GET") {

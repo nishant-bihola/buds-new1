@@ -96,7 +96,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const content: Record<string, any> = {};
   for (const section of SECTIONS) {
     const stored = await getConfig(`content.${section}`).catch(() => null);
-    content[section] = stored ? { ...CONTENT_DEFAULTS[section as keyof typeof CONTENT_DEFAULTS], ...stored } : { ...CONTENT_DEFAULTS[section as keyof typeof CONTENT_DEFAULTS] };
+    const defaults = CONTENT_DEFAULTS[section as keyof typeof CONTENT_DEFAULTS] as Record<string, any>;
+    content[section] = stored ? { ...defaults, ...(stored as object) } : { ...defaults };
   }
 
   return res.status(200).json({ content });

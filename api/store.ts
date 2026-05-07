@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const stored = await getConfig("store.info").catch(() => null);
-    const info = stored ? { ...STORE_DEFAULTS, ...stored } : { ...STORE_DEFAULTS };
+    const info = stored ? { ...STORE_DEFAULTS, ...(stored as object) } : { ...STORE_DEFAULTS };
     return res.status(200).json({ store: info });
   } catch (err: any) {
     return res.status(200).json({ store: STORE_DEFAULTS });
