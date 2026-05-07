@@ -16,8 +16,8 @@ import { useToast } from "../context/ToastContext";
 const TABS = ["Dashboard", "Orders", "Inventory", "Promos", "Drivers", "Content", "Settings"] as const;
 type Tab = typeof TABS[number];
 
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  pending:      { label: "Pending",       cls: "bg-yellow-500/15 text-yellow-300 border-yellow-500/20" },
+const STATUS_META: Record<string, { label: string; cls: string; pulse?: boolean }> = {
+  pending:      { label: "Pending",       cls: "bg-red-500/15 text-red-400 border-red-500/20", pulse: true },
   confirmed:    { label: "Confirmed",     cls: "bg-blue-500/15 text-blue-300 border-blue-500/20" },
   preparing:    { label: "Preparing",     cls: "bg-amber-500/15 text-amber-300 border-amber-500/20" },
   dispatched:   { label: "Dispatched",    cls: "bg-indigo-500/15 text-indigo-300 border-indigo-500/20" },
@@ -33,7 +33,7 @@ const STRAINS    = ["Indica", "Sativa", "Hybrid", "CBD", "None"];
 function statusBadge(status: string) {
   const m = STATUS_META[status] ?? { label: status, cls: "bg-white/5 text-white/40 border-white/10" };
   return (
-    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${m.cls}`}>
+    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${m.cls} ${m.pulse ? "animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.3)]" : ""}`}>
       {m.label}
     </span>
   );
@@ -296,14 +296,18 @@ function OrdersTab() {
   const [selected, setSelected]   = useState<any>(null);
   const { success, error: err }   = useToast();
 
-  const filtered = useMemo(() => orders.filter((o: any) => {
-    const q = search.toLowerCase();
-    const matchQ = !q || o.orderId?.toLowerCase().includes(q)
-      || (o.customer as any)?.name?.toLowerCase().includes(q)
-      || (o.customer as any)?.email?.toLowerCase().includes(q);
-    const matchF = filter === "all" || o.status === filter;
-    return matchQ && matchF;
-  }), [orders, search, filter]);
+  const filtered = useMemo(() => {
+    return orders
+      .filter((o: any) => {
+        const q = search.toLowerCase();
+        const matchQ = !q || o.orderId?.toLowerCase().includes(q)
+          || (o.customer as any)?.name?.toLowerCase().includes(q)
+          || (o.customer as any)?.email?.toLowerCase().includes(q);
+        const matchF = filter === "all" || o.status === filter;
+        return matchQ && matchF;
+      })
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [orders, search, filter]);
 
   const updateStatus = async (orderId: string, status: string) => {
     try {
