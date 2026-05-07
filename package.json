@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "cd frontend && vite",
+    "dev:full": "vercel dev",
     "build": "cd frontend && vite build",
     "preview": "cd frontend && vite preview",
     "lint": "cd frontend && tsc --noEmit",

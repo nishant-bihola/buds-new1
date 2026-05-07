@@ -10,20 +10,26 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     console.warn("[API] No admin secret found in storage");
   }
 
-  try {
-    const response = await fetch(url, { ...options, headers });
-    const data = await response.json();
+  const response = await fetch(url, { ...options, headers });
 
+  const contentType = response.headers.get("content-type") ?? "";
+  let data: any;
+  if (contentType.includes("application/json")) {
+    data = await response.json();
+  } else {
+    const text = await response.text();
     if (!response.ok) {
-      const errorMsg = data.error || `HTTP ${response.status}`;
-      console.error(`[API Error] ${url}:`, errorMsg, data);
-      throw new Error(errorMsg);
+      throw new Error(`API ${response.status}: ${text.slice(0, 120)}`);
     }
-    return data;
-  } catch (err: any) {
-    console.error(`[API Error] ${url}:`, err.message, err);
-    throw err;
+    return {};
   }
+
+  if (!response.ok) {
+    const errorMsg = data?.error || `HTTP ${response.status}`;
+    console.error(`[API Error] ${url}:`, errorMsg, data);
+    throw new Error(errorMsg);
+  }
+  return data;
 }
 
 

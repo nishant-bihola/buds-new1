@@ -1,5 +1,6 @@
 {
   "buildCommand": "npm install && npm run build",
+  "devCommand": "cd frontend && vite --port $PORT",
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install",
   "rewrites": [
