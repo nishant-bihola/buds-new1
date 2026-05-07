@@ -4,7 +4,7 @@ import { Search, SlidersHorizontal, ChevronDown, X, Grid, List as ListIcon, Info
 import { useSearchParams } from "react-router-dom";
 import type { Product } from "../types";
 import { ProductCard } from "../components/ProductGrid";
-import { TRANSITIONS, VARIANTS } from "@/lib/animations";
+import { VARIANTS } from "@/lib/animations";
 
 import { api } from "../lib/api";
 
@@ -205,23 +205,13 @@ export function ShopPage() {
               ) : products.length > 0 ? (
                 <motion.div
                   key="products"
-                  layout
-                  className={viewMode === "grid" 
+                  className={viewMode === "grid"
                     ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8"
                     : "flex flex-col gap-8"
                   }
                 >
-                  {products.map((product, idx) => (
-                    <motion.div
-                      key={product.id}
-                      layout
-                      variants={VARIANTS.FADE_UP}
-                      custom={idx % 6}
-                      initial="hidden"
-                      animate="visible"
-                    >
-                      <ProductCard product={product} viewMode={viewMode} />
-                    </motion.div>
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} viewMode={viewMode} />
                   ))}
                 </motion.div>
               ) : (
