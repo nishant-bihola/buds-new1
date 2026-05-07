@@ -21,6 +21,10 @@
       "destination": "/api/admin?_path=$1"
     },
     {
+      "source": "/api/barnet/(.*)",
+      "destination": "/api/barnet?_path=$1"
+    },
+    {
       "source": "/api/products/(.*)",
       "destination": "/api/products?id=$1"
     },

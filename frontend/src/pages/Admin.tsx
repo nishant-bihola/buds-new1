@@ -571,6 +571,21 @@ function InventoryTab() {
     } catch (e: any) { err(e.message || "Delete failed"); }
   };
 
+  const [syncing, setSyncing] = useState(false);
+
+  const syncBarnet = async () => {
+    setSyncing(true);
+    try {
+      const res = await api.admin.syncBarnet(false);
+      success(`Synced ${res.synced} products from Barnet`);
+      mutate();
+    } catch (e: any) {
+      err(e.message || "Barnet sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const importCSV = (file: File) => {
     const reader = new FileReader();
     reader.onload = e => {
@@ -624,6 +639,10 @@ function InventoryTab() {
             <FileUp size={14} /> Import CSV
             <input type="file" accept=".csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) importCSV(f); e.target.value = ""; }} />
           </label>
+          <button type="button" onClick={syncBarnet} disabled={syncing}
+            className="px-4 py-2.5 bg-blue-500/20 border border-blue-500/30 text-blue-300 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-500/30 transition-all flex items-center gap-2 disabled:opacity-50">
+            <RefreshCw size={14} className={syncing ? "animate-spin" : ""} /> {syncing ? "Syncing…" : "Sync Barnet"}
+          </button>
           <button type="button" onClick={() => { setEditing(null); setShowForm(true); }}
             className="px-4 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-xs font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
             <Plus size={14} /> Add Product
