@@ -1387,6 +1387,50 @@ function SettingsTab() {
           <TestEmailBtn />
         </div>
       </div>
+
+      <DangerZone />
+    </div>
+  );
+}
+
+function DangerZone() {
+  const { success, error: err } = useToast();
+  const [clearing, setClearing] = useState<string | null>(null);
+
+  const clear = async (target: "orders" | "products" | "customers" | "all") => {
+    const labels: Record<string, string> = {
+      orders: "ALL orders", products: "ALL products", customers: "ALL customers", all: "ALL orders, products & customers"
+    };
+    if (!confirm(`This will permanently delete ${labels[target]}. This cannot be undone. Continue?`)) return;
+    setClearing(target);
+    try {
+      const res = await api.admin.clearData(target);
+      success(`Cleared: ${res.cleared}`);
+    } catch (e: any) {
+      err(e.message || "Clear failed");
+    } finally {
+      setClearing(null);
+    }
+  };
+
+  return (
+    <div className="bg-red-950/20 border border-red-500/20 rounded-2xl p-6">
+      <h2 className="font-black uppercase tracking-tight mb-1 text-red-400">Danger Zone</h2>
+      <p className="text-white/40 text-xs mb-4">These actions are permanent and cannot be undone.</p>
+      <div className="flex gap-2 flex-wrap">
+        {(["orders", "products", "customers"] as const).map(target => (
+          <button key={target} type="button" onClick={() => clear(target)} disabled={!!clearing}
+            className="px-4 py-2.5 bg-red-500/10 border border-red-500/20 text-red-300 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-50 flex items-center gap-2">
+            {clearing === target ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            Clear {target}
+          </button>
+        ))}
+        <button type="button" onClick={() => clear("all")} disabled={!!clearing}
+          className="px-4 py-2.5 bg-red-500/20 border border-red-500/40 text-red-300 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-500/30 transition-all disabled:opacity-50 flex items-center gap-2">
+          {clearing === "all" ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+          Clear Everything
+        </button>
+      </div>
     </div>
   );
 }

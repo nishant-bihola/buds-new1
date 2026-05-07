@@ -2,7 +2,8 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireAdmin, json, cors } from "./_lib/auth.js";
 import { upsertProduct, getProducts, deleteProduct } from "./_lib/db_ops.js";
 
-const BARNET_BASE = process.env.BARNET_API_URL || "http://budnbuddies.barnetportal.com/ht";
+const BARNET_BASE = (process.env.BARNET_API_URL || "http://budnbuddies.barnetportal.com/ht")
+  .replace(/^http:\/\//, "https://"); // always use HTTPS
 const BARNET_KEY = process.env.BARNET_API_KEY || "";
 const BARNET_PASS = process.env.BARNET_API_PASS || "";
 const BARNET_STORE_ID = parseInt(process.env.BARNET_STORE_ID || "1", 10);
@@ -12,7 +13,10 @@ function basicAuth(): string {
 }
 
 async function barnetFetch(path: string): Promise<any> {
-  const url = `${BARNET_BASE}/swagger${path}`;
+  // BARNET_BASE = "http://budnbuddies.barnetportal.com/ht"
+  // API docs: endpoint is at /ht/swagger/products
+  const base = BARNET_BASE.replace(/\/$/, "");
+  const url = `${base}/swagger${path}`;
   const res = await fetch(url, {
     headers: {
       Authorization: basicAuth(),

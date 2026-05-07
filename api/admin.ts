@@ -9,6 +9,7 @@ import {
   getStoreHours, upsertStoreHours,
   getStats, getAuditLogs,
   getConfig, setConfig,
+  clearAllOrders, clearAllProducts, clearAllCustomers,
 } from "./_lib/db_ops.js";
 import { requireAdmin, json, cors } from "./_lib/auth.js";
 import {
@@ -251,6 +252,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await setConfig(key, value);
         return json(res as any, { success: true });
       }
+    }
+
+    // ── CLEAR DATA ───────────────────────────────────────────────────
+    if (path === "clear") {
+      if (req.method !== "POST") return json(res as any, { error: "Method not allowed" }, 405);
+      const { target } = body(req);
+      if (target === "orders") { await clearAllOrders(); return json(res as any, { success: true, cleared: "orders" }); }
+      if (target === "products") { await clearAllProducts(); return json(res as any, { success: true, cleared: "products" }); }
+      if (target === "customers") { await clearAllCustomers(); return json(res as any, { success: true, cleared: "customers" }); }
+      if (target === "all") {
+        await clearAllOrders();
+        await clearAllProducts();
+        await clearAllCustomers();
+        return json(res as any, { success: true, cleared: "orders, products, customers" });
+      }
+      return json(res as any, { error: "Invalid target. Use: orders, products, customers, all" }, 400);
     }
 
     // ── TEST EMAIL ───────────────────────────────────────────────────

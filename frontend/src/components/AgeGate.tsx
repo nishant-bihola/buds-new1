@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, ArrowLeft, ShieldCheck } from "lucide-react";
 
 const STORAGE_KEY = "bnb-age-verified";
-const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 type Screen = "loading" | "gate" | "denied" | "done";
 
 const RING_CLASSES = [
@@ -17,8 +16,7 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const verified = raw && Date.now() - parseInt(raw, 10) < TTL_MS;
+      const verified = sessionStorage.getItem(STORAGE_KEY) === "yes";
       setScreen(verified ? "done" : "gate");
     } catch {
       setScreen("gate");
@@ -27,7 +25,7 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleYes = () => {
-    try { localStorage.setItem(STORAGE_KEY, Date.now().toString()); } catch { /* ignore */ }
+    try { sessionStorage.setItem(STORAGE_KEY, "yes"); } catch { /* ignore */ }
     setScreen("done");
   };
 

@@ -128,6 +128,18 @@ export async function deleteOrder(orderId: string) {
   return await db.delete(orders).where(eq(orders.orderId, orderId)).returning();
 }
 
+export async function clearAllOrders() {
+  return await db.delete(orders);
+}
+
+export async function clearAllProducts() {
+  return await db.delete(products);
+}
+
+export async function clearAllCustomers() {
+  return await db.delete(customers);
+}
+
 // ── CUSTOMERS ────────────────────────────────────────────────────────────
 
 export async function getCustomers() {

@@ -89,6 +89,8 @@ export const api = {
       fetchWithAuth(`/api/admin/reviews?id=${id}`, { method: "DELETE" }),
     syncBarnet: (removeStale = false) =>
       fetchWithAuth("/api/barnet/sync", { method: "POST", body: JSON.stringify({ removeStale }) }),
+    clearData: (target: "orders" | "products" | "customers" | "all") =>
+      fetchWithAuth("/api/admin/clear", { method: "POST", body: JSON.stringify({ target }) }),
   },
 
   products: {
