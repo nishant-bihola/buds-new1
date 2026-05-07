@@ -4,7 +4,7 @@ import {
   deliveryZones, drivers, storeHours, config, 
   specialOrders, stockLogs, auditLogs, staff 
 } from "./schema.js";
-import { eq, and, desc, asc, sql, gte } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 import crypto from "crypto";
 
 // ── PRODUCTS ─────────────────────────────────────────────────────────────
@@ -37,6 +37,16 @@ export async function deleteProduct(id: string, staffId?: string) {
   if (staffId) {
     await logAudit(staffId, "delete", "product", id);
   }
+}
+
+export async function decreaseProductStock(productId: string, quantity: number) {
+  return await db.update(products)
+    .set({
+      quantity: sql`${products.quantity} - ${quantity}`,
+      inStock: sql`CASE WHEN ${products.quantity} - ${quantity} <= 0 THEN false ELSE ${products.inStock} END`
+    })
+    .where(eq(products.id, productId))
+    .returning();
 }
 
 // ── STOCK LOGS ───────────────────────────────────────────────────────────
@@ -418,31 +428,7 @@ export async function updateAutomation(key: string, enabled: boolean) {
 // ── DRIVERS ──────────────────────────────────────────────────────────────
 
 export async function getDrivers() {
-  const allDrivers = await db.select().from(drivers).orderBy(asc(drivers.name));
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  const results = await Promise.all(allDrivers.map(async (d) => {
-    const active = await db.select({ count: sql<number>`count(*)` })
-      .from(orders)
-      .where(and(eq(orders.driverName, d.name), eq(orders.status, "dispatched")));
-    
-    const today = await db.select({ count: sql<number>`count(*)` })
-      .from(orders)
-      .where(and(
-        eq(orders.driverName, d.name), 
-        eq(orders.status, "delivered"),
-        gte(orders.createdAt, startOfDay)
-      ));
-
-    return {
-      ...d,
-      activeOrders: Number(active[0]?.count ?? 0),
-      todayDeliveries: Number(today[0]?.count ?? 0),
-    };
-  }));
-
-  return results;
+  return await db.select().from(drivers).orderBy(asc(drivers.name));
 }
 
 export async function upsertDriver(data: { id?: string; name: string; phone?: string; active?: boolean }) {
