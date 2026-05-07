@@ -64,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { id } = req.query;
         if (!id) return json(res as any, { error: "Missing order ID" }, 400);
         const { status, driverName, driverPhone, ...rest } = body(req);
-        const VALID = ["pending","confirmed","preparing","dispatched","delivered","ready_pickup","picked_up","cancelled"];
+        const VALID = ["confirmed","preparing","dispatched","delivered","ready_pickup","picked_up","cancelled"];
         if (status && !VALID.includes(status)) return json(res as any, { error: "Invalid status" }, 400);
         const patch: Record<string, any> = { ...rest };
         if (status) patch.status = status;

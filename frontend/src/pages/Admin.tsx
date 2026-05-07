@@ -17,7 +17,6 @@ const TABS = ["Dashboard", "Orders", "Inventory", "Promos", "Drivers", "Content"
 type Tab = typeof TABS[number];
 
 const STATUS_META: Record<string, { label: string; cls: string; pulse?: boolean }> = {
-  pending:      { label: "Pending",       cls: "bg-red-500/15 text-red-400 border-red-500/20", pulse: true },
   confirmed:    { label: "Confirmed",     cls: "bg-blue-500/15 text-blue-300 border-blue-500/20" },
   preparing:    { label: "Preparing",     cls: "bg-amber-500/15 text-amber-300 border-amber-500/20" },
   dispatched:   { label: "Dispatched",    cls: "bg-indigo-500/15 text-indigo-300 border-indigo-500/20" },
