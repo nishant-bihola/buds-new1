@@ -113,20 +113,20 @@ function Modal({ title, onClose, footer, children }: {
   footer?: React.ReactNode; children: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md">
       <motion.div
-        initial={{ opacity: 0, y: 40, scale: 0.97 }}
+        initial={{ opacity: 0, y: 100, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 40, scale: 0.97 }}
-        transition={{ type: "spring", damping: 26, stiffness: 340 }}
-        className="bg-[#111815] border border-white/10 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-xl max-h-[92vh] flex flex-col shadow-2xl"
+        exit={{ opacity: 0, y: 100, scale: 0.98 }}
+        transition={{ type: "spring", damping: 28, stiffness: 350 }}
+        className="bg-[#111815] border-t sm:border border-white/10 rounded-t-[2.5rem] sm:rounded-3xl w-full sm:max-w-lg max-h-[95vh] flex flex-col shadow-2xl overflow-hidden"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
-          <h2 className="text-lg font-black uppercase tracking-tight">{title}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"><X size={18} /></button>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+          <h2 className="text-base font-black uppercase tracking-widest">{title}</h2>
+          <button type="button" onClick={onClose} className="p-2 hover:bg-white/5 rounded-xl transition-colors"><X size={18} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">{children}</div>
-        {footer && <div className="px-6 py-4 border-t border-white/5 flex gap-3 shrink-0">{footer}</div>}
+        <div className="flex-1 overflow-y-auto px-6 py-7 space-y-5 custom-scrollbar">{children}</div>
+        {footer && <div className="px-6 py-5 border-t border-white/5 flex flex-col sm:flex-row gap-3">{footer}</div>}
       </motion.div>
     </div>
   );
@@ -249,13 +249,13 @@ function DashboardTab() {
         <p className="text-white/30 text-sm mt-1">Live overview · auto-refreshes every 15s</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((k, i) => (
-          <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-            className={`bg-gradient-to-br ${k.color} to-transparent border border-white/5 rounded-2xl p-5`}>
-            <k.icon size={18} className="opacity-40 mb-3" />
-            <p className="text-3xl font-black">{k.value}</p>
-            <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1">{k.label}</p>
+          <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
+            className={`bg-gradient-to-br ${k.color} to-transparent border border-white/5 rounded-2xl p-6 flex flex-col items-center sm:items-start text-center sm:text-left`}>
+            <k.icon size={20} className="opacity-30 mb-4" />
+            <p className="text-4xl font-black tracking-tighter">{k.value}</p>
+            <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] mt-1.5">{k.label}</p>
           </motion.div>
         ))}
       </div>
@@ -1431,26 +1431,26 @@ function DriversTab() {
         ? <div className="text-white/20 text-sm text-center py-16">No drivers yet. Add one above.</div>
         : <div className="space-y-2">
             {drivers.map((d: any) => (
-              <div key={d.id} className="flex items-center justify-between bg-[#1a2219] border border-white/5 rounded-xl px-5 py-4">
+              <div key={d.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#1a2219] border border-white/5 rounded-2xl p-5 gap-4">
                 <div className="flex items-center gap-4">
-                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${d.active ? "bg-green-400" : "bg-white/20"}`} />
+                  <div className={`w-3 h-3 rounded-full shrink-0 ${d.active ? "bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.4)]" : "bg-white/10"}`} />
                   <div>
-                    <p className="font-bold text-sm">{d.name}</p>
-                    <p className="text-white/40 text-xs">{d.phone || "No phone"}</p>
+                    <p className="font-black text-sm uppercase tracking-tight">{d.name}</p>
+                    <p className="text-white/40 text-xs font-mono">{d.phone || "No phone"}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
-                    d.active ? "bg-green-500/15 text-green-300 border-green-500/20" : "bg-white/5 text-white/30 border-white/10"
+                <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-white/5 pt-4 sm:pt-0">
+                  <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
+                    d.active ? "bg-green-500/10 text-green-300 border-green-500/20" : "bg-white/5 text-white/30 border-white/10"
                   }`}>{d.active ? "Active" : "Inactive"}</span>
-                  <button type="button" aria-label="Edit driver" onClick={() => openEdit(d)}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                    <Pencil size={14} />
-                  </button>
-                  <button type="button" aria-label="Delete driver" onClick={() => remove(d.id)} disabled={deleting === d.id}
-                    className="p-2 hover:bg-red-500/10 text-red-400 rounded-lg transition-colors disabled:opacity-40">
-                    {deleting === d.id ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button type="button" title="Edit" onClick={() => openEdit(d)}
+                      className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all"><Pencil size={15} /></button>
+                    <button type="button" title="Delete" onClick={() => remove(d.id)} disabled={deleting === d.id}
+                      className="p-2.5 bg-red-500/5 text-red-400/60 hover:bg-red-500/20 hover:text-red-400 rounded-xl transition-all disabled:opacity-40">
+                      {deleting === d.id ? <RefreshCw size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
