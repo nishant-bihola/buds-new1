@@ -124,6 +124,10 @@ export async function updateOrder(orderId: string, patch: any) {
   return result[0];
 }
 
+export async function deleteOrder(orderId: string) {
+  return await db.delete(orders).where(eq(orders.orderId, orderId)).returning();
+}
+
 // ── CUSTOMERS ────────────────────────────────────────────────────────────
 
 export async function getCustomers() {

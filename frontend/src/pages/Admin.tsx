@@ -343,22 +343,32 @@ function OrdersTab() {
         : <div className="space-y-2">
             {filtered.map((o: any) => (
               <div key={o.orderId} onClick={() => setSelected(o)}
-                className="bg-[#1a2219] border border-white/5 rounded-xl p-4 flex items-center justify-between hover:border-white/10 cursor-pointer transition-all">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-sm">{o.orderId}</span>
+                className="bg-[#1a2219] border border-white/5 rounded-2xl p-5 flex items-center justify-between hover:border-brand-light-green/30 cursor-pointer transition-all hover:bg-[#20291f] group">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className="font-black text-sm tracking-tight">{o.orderId}</span>
                     {statusBadge(o.status)}
+                    {/* Fulfillment Badge */}
+                    {(o.delivery as any)?.method === "delivery" ? (
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20 text-[9px] font-black uppercase tracking-widest shadow-sm shadow-orange-500/5">
+                        <Truck size={12} /> Delivery
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[9px] font-black uppercase tracking-widest shadow-sm shadow-purple-500/5">
+                        <Store size={12} /> Pickup
+                      </span>
+                    )}
                   </div>
-                  <p className="text-white/50 text-xs truncate">{(o.customer as any)?.name} · {(o.customer as any)?.email}</p>
-                  <p className="text-white/30 text-xs flex items-center gap-1 mt-0.5">
-                    {(o.delivery as any)?.method === "delivery"
-                      ? <><Truck size={10} /> {(o.delivery as any)?.street}</>
-                      : <><Store size={10} /> Pickup</>}
-                  </p>
+                  <p className="text-white/50 text-xs font-medium">{(o.customer as any)?.name} · <span className="opacity-50">{(o.customer as any)?.email}</span></p>
+                  {(o.delivery as any)?.method === "delivery" && (
+                    <p className="text-white/30 text-[10px] mt-1.5 flex items-center gap-1.5 font-mono">
+                      <Truck size={12} className="opacity-40" /> {(o.delivery as any)?.street}, {(o.delivery as any)?.city}
+                    </p>
+                  )}
                 </div>
-                <div className="text-right shrink-0 ml-4">
-                  <p className="font-black text-lg">${Number(o.total ?? 0).toFixed(2)}</p>
-                  <p className="text-white/30 text-xs">{(o.items as any[])?.length ?? 0} items</p>
+                <div className="text-right shrink-0 ml-6">
+                  <p className="font-black text-2xl tracking-tighter text-white group-hover:text-brand-light-green transition-colors">${Number(o.total ?? 0).toFixed(2)}</p>
+                  <p className="text-white/20 text-[10px] font-black uppercase tracking-widest mt-0.5">{(o.items as any[])?.length ?? 0} items</p>
                 </div>
               </div>
             ))}

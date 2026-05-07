@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import crypto from "crypto";
 import {
-  getOrders, updateOrder, getOrderById,
+  getOrders, updateOrder, getOrderById, deleteOrder,
   getProducts, upsertProduct, deleteProduct,
   getPromoCodes, upsertPromoCode, deletePromoCode,
   getCustomers, getDrivers, upsertDriver, deleteDriver,
@@ -78,8 +78,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const isPickup = (full.delivery as any)?.method === "pickup";
             if (status === "preparing") sendPreparing(full).catch(console.error);
             else if (status === "dispatched" && !isPickup) sendDispatched({ ...full, driverName, driverPhone }).catch(console.error);
-            else if (status === "delivered") sendDelivered(full).catch(console.error);
-            else if (status === "ready_pickup" && isPickup) sendReadyForPickup(full).catch(console.error);
+            else if (status === "delivered") {
+              await sendDelivered(full).catch(console.error);
+              // Auto-delete delivered orders to keep dashboard clean
+              await deleteOrder(id as string).catch(console.error);
+            }
+            else if (status === "ready_pickup" && isPickup) {
+              await sendReadyForPickup(full).catch(console.error);
+              // Auto-delete ready-for-pickup orders if they are considered "done" once ready?
+              // User specifically said "delivered orders auto delete", so we stick to that.
+            }
             else if (status === "cancelled") sendCancelled(full).catch(console.error);
           }
         }
