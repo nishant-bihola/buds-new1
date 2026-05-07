@@ -32,7 +32,14 @@ export function Checkout() {
   const { success, error: toastError } = useToast();
   const navigate = useNavigate();
 
+  const topRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState<CheckoutStep>("details");
+
+  const goToStep = (s: CheckoutStep) => {
+    setStep(s);
+    // Small timeout lets the new content render before scrolling
+    setTimeout(() => topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
   const [loading, setLoading] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
   const [feeQuote, setFeeQuote] = useState<{ km: number | null; label: string; zone: string } | null>(null);
@@ -178,7 +185,7 @@ export function Checkout() {
   }
 
   return (
-    <div className="pt-24 sm:pt-32 pb-16 md:pb-24 bg-brand-earth min-h-screen">
+    <div ref={topRef} className="pt-24 sm:pt-32 pb-16 md:pb-24 bg-brand-earth min-h-screen">
       <div className="max-w-7xl mx-auto px-4">
         <h1 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase tracking-tighter text-brand-green mb-8 md:mb-12">Checkout</h1>
 
@@ -197,9 +204,9 @@ export function Checkout() {
           ))}
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Form */}
-          <div className="md:col-span-2 space-y-8">
+        <div className="grid md:grid-cols-3 gap-8 items-start">
+          {/* Form — always first visually on mobile */}
+          <div className="md:col-span-2 space-y-8 order-1">
             <AnimatePresence mode="wait">
               {step === "details" && (
                 <motion.div key="details" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
@@ -323,7 +330,7 @@ export function Checkout() {
                     <button
                       type="button"
                       disabled={outsideZone || addrNotFound || feeLoading}
-                      onClick={() => validateDetails() && setStep("confirm")}
+                      onClick={() => validateDetails() && goToStep("confirm")}
                       className="w-full bg-brand-green text-brand-earth py-5 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl"
                     >
                       {feeLoading ? <><Loader2 size={18} className="animate-spin" /> Calculating fee…</> : <>Continue <ArrowRight size={18} /></>}
@@ -409,7 +416,7 @@ export function Checkout() {
                     <div className="flex gap-3">
                       <button
                         type="button"
-                        onClick={() => setStep("details")}
+                        onClick={() => goToStep("details")}
                         className="flex-1 bg-brand-dark/10 text-brand-dark py-4 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-brand-dark/20 transition-all"
                       >
                         Back
@@ -430,9 +437,9 @@ export function Checkout() {
             </AnimatePresence>
           </div>
 
-          {/* Cart Summary */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl p-6 sticky top-24 space-y-6">
+          {/* Cart Summary — below form on mobile, sticky sidebar on desktop */}
+          <div className="space-y-6 order-2 md:order-none">
+            <div className="bg-white rounded-2xl p-6 md:sticky md:top-24 space-y-6">
               <h2 className="text-lg font-black uppercase text-brand-green">Order Summary</h2>
 
               {/* Items */}
