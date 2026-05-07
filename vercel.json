@@ -3,6 +3,18 @@
   "devCommand": "cd frontend && vite --port $PORT",
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install",
+  "redirects": [
+    {
+      "source": "/clickncollect/(.*)",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/clickncollect",
+      "destination": "/",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/admin/(.*)",
