@@ -17,13 +17,14 @@ const TABS = ["Dashboard", "Orders", "Inventory", "Promos", "Drivers", "Content"
 type Tab = typeof TABS[number];
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
-  pending:     { label: "Pending",       cls: "bg-yellow-500/15 text-yellow-300 border-yellow-500/20" },
-  confirmed:   { label: "Confirmed",     cls: "bg-blue-500/15 text-blue-300 border-blue-500/20" },
-  preparing:   { label: "Preparing",     cls: "bg-amber-500/15 text-amber-300 border-amber-500/20" },
-  dispatched:  { label: "Dispatched",    cls: "bg-indigo-500/15 text-indigo-300 border-indigo-500/20" },
-  delivered:   { label: "Delivered",     cls: "bg-green-500/15 text-green-300 border-green-500/20" },
-  ready_pickup:{ label: "Ready Pickup",  cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/20" },
-  cancelled:   { label: "Cancelled",     cls: "bg-red-500/15 text-red-400 border-red-500/20" },
+  pending:      { label: "Pending",       cls: "bg-yellow-500/15 text-yellow-300 border-yellow-500/20" },
+  confirmed:    { label: "Confirmed",     cls: "bg-blue-500/15 text-blue-300 border-blue-500/20" },
+  preparing:    { label: "Preparing",     cls: "bg-amber-500/15 text-amber-300 border-amber-500/20" },
+  dispatched:   { label: "Dispatched",    cls: "bg-indigo-500/15 text-indigo-300 border-indigo-500/20" },
+  delivered:    { label: "Delivered",     cls: "bg-green-500/15 text-green-300 border-green-500/20" },
+  ready_pickup: { label: "Ready Pickup",  cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/20" },
+  picked_up:    { label: "Picked Up",     cls: "bg-gray-500/15 text-gray-400 border-gray-500/20" },
+  cancelled:    { label: "Cancelled",     cls: "bg-red-500/15 text-red-400 border-red-500/20" },
 };
 
 const CATEGORIES = ["Dried Flower", "Pre-Roll", "Edible", "Vape", "Beverage", "Accessories", "Extract"];
@@ -393,11 +394,11 @@ function OrderModal({ order, onClose, onUpdateStatus }: any) {
   const copy = (v: string, k: string) => { navigator.clipboard.writeText(v); setCopied(k); setTimeout(() => setCopied(null), 1500); };
 
   const FLOW_DELIVERY = ["confirmed", "preparing", "dispatched", "delivered"];
-  const FLOW_PICKUP   = ["confirmed", "preparing", "ready_pickup"];
+  const FLOW_PICKUP   = ["confirmed", "preparing", "ready_pickup", "picked_up"];
   const flow = isDelivery ? FLOW_DELIVERY : FLOW_PICKUP;
   const currentIdx = flow.indexOf(order.status);
   const nextStatus = currentIdx >= 0 && currentIdx < flow.length - 1 ? flow[currentIdx + 1] : null;
-  const isFinal = ["delivered", "ready_pickup", "cancelled"].includes(order.status);
+  const isFinal = ["delivered", "ready_pickup", "picked_up", "cancelled"].includes(order.status);
   const needsDriver = nextStatus === "dispatched" && isDelivery;
 
   const advance = async (status: string) => {

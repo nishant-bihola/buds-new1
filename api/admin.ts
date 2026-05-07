@@ -64,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { id } = req.query;
         if (!id) return json(res as any, { error: "Missing order ID" }, 400);
         const { status, driverName, driverPhone, ...rest } = body(req);
-        const VALID = ["pending","confirmed","preparing","dispatched","delivered","ready_pickup","cancelled"];
+        const VALID = ["pending","confirmed","preparing","dispatched","delivered","ready_pickup","picked_up","cancelled"];
         if (status && !VALID.includes(status)) return json(res as any, { error: "Invalid status" }, 400);
         const patch: Record<string, any> = { ...rest };
         if (status) patch.status = status;
@@ -80,13 +80,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             else if (status === "dispatched" && !isPickup) sendDispatched({ ...full, driverName, driverPhone }).catch(console.error);
             else if (status === "delivered") {
               await sendDelivered(full).catch(console.error);
-              // Auto-delete delivered orders to keep dashboard clean
+              await deleteOrder(id as string).catch(console.error);
+            }
+            else if (status === "picked_up" && isPickup) {
+              // Auto-delete picked up orders as they are considered finished
               await deleteOrder(id as string).catch(console.error);
             }
             else if (status === "ready_pickup" && isPickup) {
               await sendReadyForPickup(full).catch(console.error);
-              // Auto-delete ready-for-pickup orders if they are considered "done" once ready?
-              // User specifically said "delivered orders auto delete", so we stick to that.
             }
             else if (status === "cancelled") sendCancelled(full).catch(console.error);
           }
