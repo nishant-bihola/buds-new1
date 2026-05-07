@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, ArrowLeft, ShieldCheck } from "lucide-react";
 
 const STORAGE_KEY = "bnb-age-verified";
+const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 type Screen = "loading" | "gate" | "denied" | "done";
 
 const RING_CLASSES = [
@@ -15,13 +16,18 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const verified = sessionStorage.getItem(STORAGE_KEY) === "yes";
-    setScreen(verified ? "done" : "gate");
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const verified = raw && Date.now() - parseInt(raw, 10) < TTL_MS;
+      setScreen(verified ? "done" : "gate");
+    } catch {
+      setScreen("gate");
+    }
     setMounted(true);
   }, []);
 
   const handleYes = () => {
-    sessionStorage.setItem(STORAGE_KEY, "yes");
+    try { localStorage.setItem(STORAGE_KEY, Date.now().toString()); } catch { /* ignore */ }
     setScreen("done");
   };
 
@@ -83,13 +89,15 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
                       transition={{ duration: 0.8, ease: "easeInOut" }}
                       className="mb-6 sm:mb-8 flex justify-center"
                     >
-                      <img
-                        src="/images/buds_n_buddies_logo.png"
-                        alt="Bud n' Buddies"
-                        className="age-gate-logo h-16 sm:h-20 lg:h-24 w-auto object-contain"
-                        loading="eager"
-                        decoding="sync"
-                      />
+                      <div className="bg-white rounded-2xl px-6 py-3 shadow-lg">
+                        <img
+                          src="/images/buds_n_buddies_logo.png"
+                          alt="Bud n' Buddies"
+                          className="age-gate-logo h-16 sm:h-20 lg:h-24 w-auto object-contain"
+                          loading="eager"
+                          decoding="sync"
+                        />
+                      </div>
                     </motion.div>
 [1/2]
                     {/* Badge */}
