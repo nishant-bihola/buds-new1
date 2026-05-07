@@ -5,16 +5,16 @@
   "installCommand": "npm install",
   "rewrites": [
     {
-      "source": "/api/admin/:path*",
-      "destination": "/api/admin"
+      "source": "/api/admin/(.*)",
+      "destination": "/api/admin?_path=$1"
     },
     {
-      "source": "/api/products/:id",
-      "destination": "/api/products"
+      "source": "/api/products/(.*)",
+      "destination": "/api/products?id=$1"
     },
     {
-      "source": "/api/orders/:id",
-      "destination": "/api/orders"
+      "source": "/api/orders/(.*)",
+      "destination": "/api/orders?id=$1"
     },
     {
       "source": "/api/promos/validate",

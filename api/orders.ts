@@ -62,6 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         total: Number(total),
         promoCode: promoCode ?? null,
         status: "confirmed",
+        source: "website",
+        emailLog: [],
         createdAt: new Date(),
       };
 

@@ -41,7 +41,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // /api/admin/auth — public (no requireAdmin)
   const url = req.url ?? "";
-  const path = url.replace(/^\/api\/admin\/?/, "").split("?")[0];
+  const queryPath = req.query._path as string;
+  const path = queryPath || url.replace(/^\/api\/admin\/?/, "").split("?")[0];
 
   if (path === "auth") {
     if (req.method !== "POST") return json(res as any, { error: "Method not allowed" }, 405);
