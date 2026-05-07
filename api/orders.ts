@@ -104,14 +104,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         preferredMethod: delivery?.method ?? "pickup",
       }).catch(e => console.error("Customer upsert failed:", e));
 
-      // fire emails
-      sendOrderConfirmation({ ...body, paymentMethod: paymentMethod ?? "pay_at_store" }).catch(e => console.error("Email failed:", e));
-      sendAdminAlert({ ...body, paymentMethod: paymentMethod ?? "pay_at_store" }).catch(e => console.error("Admin alert failed:", e));
-
-      // Only send welcome email to new customers
-      if (isNewCustomer) {
-        sendWelcome(customer.email, customer.name.split(" ")[0]).catch(e => console.error("Welcome email failed:", e));
-      }
+      // fire emails (awaited for reliability in serverless env)
+      await Promise.all([
+        sendOrderConfirmation({ ...body, paymentMethod: paymentMethod ?? "pay_at_store" }).catch(e => console.error("Email failed:", e)),
+        sendAdminAlert({ ...body, paymentMethod: paymentMethod ?? "pay_at_store" }).catch(e => console.error("Admin alert failed:", e)),
+        isNewCustomer ? sendWelcome(customer.email, customer.name.split(" ")[0]).catch(e => console.error("Welcome email failed:", e)) : Promise.resolve()
+      ]);
 
       return res.status(201).json({ success: true, orderId, order: insertedOrder });
     } catch (err: any) {
