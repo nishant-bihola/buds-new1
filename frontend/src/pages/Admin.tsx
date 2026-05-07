@@ -402,7 +402,7 @@ function OrderModal({ order, onClose, onUpdateStatus }: any) {
   const flow = isDelivery ? FLOW_DELIVERY : FLOW_PICKUP;
   const currentIdx = flow.indexOf(order.status);
   const nextStatus = currentIdx >= 0 && currentIdx < flow.length - 1 ? flow[currentIdx + 1] : null;
-  const isFinal = ["delivered", "ready_pickup", "picked_up", "cancelled"].includes(order.status);
+  const isFinal = ["delivered", "picked_up", "cancelled"].includes(order.status);
   const needsDriver = nextStatus === "dispatched" && isDelivery;
 
   const advance = async (status: string) => {
