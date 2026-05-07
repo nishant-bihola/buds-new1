@@ -177,7 +177,7 @@ curl http://localhost:3000/api/admin/orders \
 DATABASE_URL=postgresql://...
 
 # Authentication
-ADMIN_SECRET=budnbuddies
+ADMIN_SECRET=bud
 
 # Email
 RESEND_API_KEY=re_...

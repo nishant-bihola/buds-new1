@@ -218,7 +218,7 @@ All commits ready for production deployment.
 ## Environment Variables Required
 
 ```
-ADMIN_SECRET=budnbuddies
+ADMIN_SECRET=bud
 DATABASE_URL=postgresql://...
 RESEND_API_KEY=re_...
 STORE_URL=http://localhost:3000
