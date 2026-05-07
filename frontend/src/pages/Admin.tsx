@@ -56,6 +56,10 @@ function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input className={inputCls} {...props} />;
 }
 
+function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={inputCls} {...props}>{children}</select>;
+}
+
 /* Custom Dropdown to replace problematic native selects */
 function Dropdown({ label, value, options, onChange }: {
   label?: string; value: string; options: string[]; onChange: (v: string) => void;
