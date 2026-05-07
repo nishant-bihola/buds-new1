@@ -42,49 +42,26 @@ const STATUS_LABEL: Record<string, string> = {
 const ACTIVE_STATUSES = ["confirmed", "preparing", "ready_pickup", "dispatched"];
 
 /* ── PIN gate ──────────────────────────────────────────────── */
-async function verifyAdminKey(key: string): Promise<boolean> {
-  try {
-    const res = await fetch("/api/admin/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ secret: key }),
-    });
-    return res.ok;
-  } catch { return false; }
-}
+const TILL_PIN = "0000";
+const TILL_ADMIN_KEY = "bud";
 
 function PinGate({ onUnlock }: { onUnlock: () => void }) {
-  const hasKey = !!(sessionStorage.getItem("admin_secret") || localStorage.getItem("admin_secret"));
-  const [step, setStep] = useState<"key" | "pin">(hasKey ? "pin" : "key");
-  const [adminKey, setAdminKey] = useState("");
-  const [keyLoading, setKeyLoading] = useState(false);
-  const [keyError, setKeyError] = useState("");
   const [digits, setDigits] = useState("");
   const [shake, setShake] = useState(false);
 
-  const submitKey = async () => {
-    if (!adminKey.trim()) return;
-    setKeyLoading(true);
-    setKeyError("");
-    const ok = await verifyAdminKey(adminKey.trim());
-    if (ok) {
-      sessionStorage.setItem("admin_secret", adminKey.trim());
-      localStorage.setItem("admin_secret", adminKey.trim());
-      setStep("pin");
-    } else {
-      setKeyError("Invalid admin key.");
+  // Ensure admin key is stored so API calls work
+  useEffect(() => {
+    if (!sessionStorage.getItem("admin_secret")) {
+      sessionStorage.setItem("admin_secret", TILL_ADMIN_KEY);
+      localStorage.setItem("admin_secret", TILL_ADMIN_KEY);
     }
-    setKeyLoading(false);
-  };
+  }, []);
 
   const press = (d: string) => {
     const next = (digits + d).slice(0, 4);
     setDigits(next);
     if (next.length === 4) {
-      // PIN is last 4 digits of admin key stored (fallback: "1234")
-      const stored = sessionStorage.getItem("admin_secret") || localStorage.getItem("admin_secret") || "";
-      const tillPin = stored.length >= 4 ? stored.slice(-4) : "1234";
-      if (next === tillPin) {
+      if (next === TILL_PIN) {
         sessionStorage.setItem("till_auth", "1");
         onUnlock();
       } else {
@@ -96,40 +73,10 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
 
   const clear = () => setDigits(d => d.slice(0, -1));
 
-  if (step === "key") {
-    return (
-      <div className="min-h-screen bg-[#060b08] flex flex-col items-center justify-center p-6 gap-6">
-        <img src="/images/buds_n_buddies_logo.png" alt="Bud N' Buddies" className="h-12 object-contain" />
-        <div className="w-full max-w-sm bg-[#111815] border border-white/10 rounded-3xl p-8 space-y-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 text-center">Till Setup — Admin Key</p>
-          <input
-            type="password"
-            placeholder="Enter admin key"
-            value={adminKey}
-            onChange={e => setAdminKey(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && submitKey()}
-            autoFocus
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center text-sm tracking-widest font-bold text-white focus:outline-none focus:border-brand-light-green/50 transition-colors"
-          />
-          {keyError && <p className="text-red-400 text-xs text-center">{keyError}</p>}
-          <button
-            type="button"
-            onClick={submitKey}
-            disabled={keyLoading || !adminKey.trim()}
-            className="w-full py-3 rounded-xl bg-brand-light-green text-brand-green font-black uppercase text-xs tracking-widest disabled:opacity-50 hover:brightness-110 transition-all"
-          >
-            {keyLoading ? "Verifying…" : "Continue"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#060b08] flex flex-col items-center justify-center p-6 gap-8">
       <img src="/images/buds_n_buddies_logo.png" alt="Bud N' Buddies" className="h-12 object-contain" />
       <p className="text-white/40 text-sm font-black uppercase tracking-widest">Till — Enter PIN</p>
-      <p className="text-white/20 text-[10px] text-center max-w-[220px]">PIN is the last 4 characters of your admin key</p>
 
       <motion.div
         animate={shake ? { x: [0, -10, 10, -10, 10, 0] } : {}}
@@ -159,14 +106,6 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
           </button>
         ))}
       </div>
-
-      <button
-        type="button"
-        onClick={() => { sessionStorage.removeItem("admin_secret"); setStep("key"); setDigits(""); }}
-        className="text-white/20 text-[10px] uppercase tracking-widest hover:text-white/40 transition-colors"
-      >
-        Change admin key
-      </button>
     </div>
   );
 }
