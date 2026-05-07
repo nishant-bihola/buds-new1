@@ -2,18 +2,12 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  X, Trash2, Plus, Minus, Truck, Store, Tag, Check,
+  X, Trash2, Plus, Minus, Truck, Store, Tag,
   ChevronRight, ShoppingBag, Loader2, Clock,
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
 import { TRANSITIONS } from "@/lib/animations";
-
-const SLOT_LABELS: Record<string, string> = {
-  asap: "ASAP · Est. 45–75 min",
-  "2h": "Today in 2 hours",
-  "4h": "Today in 4 hours",
-};
 
 const FREE_THRESHOLD = 75;
 
@@ -40,9 +34,9 @@ export function SlidingCart() {
   };
 
   const toFreeDelivery = Math.max(0, FREE_THRESHOLD - subtotal);
-  // Calculate savings: free delivery value + promo discount
-  const standardDeliveryFee = subtotal >= FREE_THRESHOLD && deliveryMethod === "delivery" ? 5.49 : 0;
-  const totalSaved = standardDeliveryFee + discount;
+  // Calculate savings: free delivery (what they would have paid) + promo discount
+  const deliveryWaived = subtotal >= FREE_THRESHOLD && deliveryMethod === "delivery" ? 5.49 : 0;
+  const totalSaved = deliveryWaived + discount;
 
   return (
     <AnimatePresence>
@@ -69,7 +63,7 @@ export function SlidingCart() {
             className="fixed top-0 right-0 h-[100dvh] w-full sm:max-w-md bg-brand-earth z-[160] flex flex-col shadow-2xl overflow-hidden isolate"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-brand-green/10 shrink-0 bg-brand-earth/80 backdrop-blur-xl sticky top-0 z-20">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-brand-green/10 shrink-0 bg-brand-earth/80 backdrop-blur-xl sticky top-0 z-20">
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <ShoppingBag size={20} className="text-brand-green" />
@@ -103,7 +97,7 @@ export function SlidingCart() {
             </div>
 
             {/* Delivery / Pickup Toggle */}
-            <div className="px-6 pt-4 pb-2 shrink-0 bg-brand-earth">
+            <div className="px-4 pt-3 pb-2 shrink-0 bg-brand-earth">
               <div className="grid grid-cols-2 gap-2 p-1 bg-brand-green/5 rounded-[20px] border border-brand-green/10">
                 {(["delivery", "pickup"] as const).map((m) => (
                   <button
@@ -122,44 +116,25 @@ export function SlidingCart() {
                 ))}
               </div>
 
-              <div className="min-h-[60px] mt-4">
+              <div className="mt-3">
                 <AnimatePresence mode="wait">
                   {deliveryMethod === "delivery" ? (
-                    <motion.div
-                      key="delivery-slots"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="flex gap-2"
-                    >
+                    <motion.div key="delivery-slots" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="flex gap-2">
                       {(["asap", "2h", "4h"] as const).map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setDeliverySlot(s)}
-                          className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all flex flex-col items-center gap-1.5 ${
-                            deliverySlot === s
-                              ? "border-brand-green bg-brand-green/5 text-brand-green"
-                              : "border-brand-green/10 text-brand-dark/30 hover:border-brand-green/30"
-                          }`}
-                        >
-                          <Clock size={12} className={deliverySlot === s ? "text-brand-green" : "text-brand-green/30"} />
+                        <button key={s} type="button" onClick={() => setDeliverySlot(s)}
+                          className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all flex flex-col items-center gap-1 ${
+                            deliverySlot === s ? "border-brand-green bg-brand-green/5 text-brand-green" : "border-brand-green/10 text-brand-dark/30 hover:border-brand-green/30"
+                          }`}>
+                          <Clock size={11} className={deliverySlot === s ? "text-brand-green" : "text-brand-green/30"} />
                           {s === "asap" ? "ASAP" : s}
                         </button>
                       ))}
                     </motion.div>
                   ) : (
-                    <motion.div
-                      key="pickup-info"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="bg-white/60 backdrop-blur-md rounded-xl p-4 flex items-center gap-4 border border-brand-green/10 shadow-sm"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-brand-green/10 flex items-center justify-center text-brand-green shadow-inner">
-                        <Store size={18} />
-                      </div>
-                      <div className="flex-1 min-w-0">
+                    <motion.div key="pickup-info" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                      className="bg-white/60 rounded-xl px-4 py-2.5 flex items-center gap-3 border border-brand-green/10">
+                      <Store size={16} className="text-brand-green shrink-0" />
+                      <div className="min-w-0">
                         <p className="text-[8px] font-black uppercase tracking-widest text-brand-green/50">Pickup Location</p>
                         <p className="text-xs font-black text-brand-dark truncate">Salisbury Way, Sherwood Park</p>
                       </div>
@@ -170,20 +145,17 @@ export function SlidingCart() {
 
               {/* Free delivery progress */}
               {deliveryMethod === "delivery" && (
-                <div className="mt-4 p-4 rounded-[24px] bg-brand-green/5 border border-brand-green/10">
-                  <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest mb-2">
+                <div className="mt-2 px-3 py-2.5 rounded-2xl bg-brand-green/5 border border-brand-green/10">
+                  <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest mb-1.5">
                     <span className={subtotal >= FREE_THRESHOLD ? "text-brand-green" : "text-brand-dark/40"}>
                       {subtotal >= FREE_THRESHOLD ? "Free delivery unlocked!" : `Add $${toFreeDelivery.toFixed(2)} for free delivery`}
                     </span>
                     <span className="text-brand-green">{Math.min(100, Math.round((subtotal / FREE_THRESHOLD) * 100))}%</span>
                   </div>
-                  <div className="h-1.5 bg-brand-green/10 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-brand-green"
-                      initial={{ width: 0 }}
+                  <div className="h-1 bg-brand-green/10 rounded-full overflow-hidden">
+                    <motion.div className="h-full bg-brand-green" initial={{ width: 0 }}
                       animate={{ width: `${Math.min(100, (subtotal / FREE_THRESHOLD) * 100)}%` }}
-                      transition={{ type: "spring", stiffness: 40, damping: 20 }}
-                    />
+                      transition={{ type: "spring", stiffness: 40, damping: 20 }} />
                   </div>
                 </div>
               )}
@@ -263,7 +235,7 @@ export function SlidingCart() {
 
             {/* Footer */}
             {cart.length > 0 && (
-              <div className="px-6 pb-4 pt-2 border-t border-brand-green/10 bg-brand-earth/95 backdrop-blur-xl shrink-0 space-y-2.5">
+              <div className="px-4 pb-3 pt-2 border-t border-brand-green/10 bg-brand-earth/95 backdrop-blur-xl shrink-0 space-y-2">
                 {/* Promo code */}
                 <div className="relative">
                   {appliedPromo ? (
@@ -309,7 +281,7 @@ export function SlidingCart() {
                 </div>
 
                 {/* Totals */}
-                <div className="bg-white/40 rounded-[20px] p-3 space-y-1.5 border border-brand-green/5">
+                <div className="bg-white/40 rounded-2xl p-2.5 space-y-1 border border-brand-green/5">
                   <div className="flex justify-between text-[9px] font-black text-brand-dark/40 uppercase tracking-[0.2em]">
                     <span>Subtotal</span>
                     <span className="text-brand-dark font-black">${subtotal.toFixed(2)}</span>

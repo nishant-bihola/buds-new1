@@ -87,6 +87,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ? 0
       : deliveryFeeOverride !== null
       ? deliveryFeeOverride
+      : subtotal >= 75
+      ? 0
       : DELIVERY_FEE_FALLBACK;
 
   const discount = appliedPromo
