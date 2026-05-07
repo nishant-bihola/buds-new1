@@ -40,6 +40,9 @@ export function SlidingCart() {
   };
 
   const toFreeDelivery = Math.max(0, FREE_THRESHOLD - subtotal);
+  // Calculate savings: free delivery value + promo discount
+  const standardDeliveryFee = subtotal >= FREE_THRESHOLD && deliveryMethod === "delivery" ? 5.49 : 0;
+  const totalSaved = standardDeliveryFee + discount;
 
   return (
     <AnimatePresence>
@@ -187,7 +190,7 @@ export function SlidingCart() {
             </div>
 
             {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto px-6 pt-2 pb-24 space-y-4 custom-scrollbar isolate">
+            <div className="flex-1 overflow-y-auto min-h-0 px-6 pt-2 pb-4 space-y-3 custom-scrollbar isolate">
               <AnimatePresence mode="popLayout">
                 {cart.length === 0 ? (
                   <motion.div
@@ -217,44 +220,40 @@ export function SlidingCart() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                      className="group bg-white rounded-[28px] p-4 flex flex-col gap-4 border border-brand-green/5 shadow-sm hover:shadow-xl transition-all duration-500"
+                      className="group bg-white rounded-2xl p-3 flex items-center gap-3 border border-brand-green/5 shadow-sm hover:shadow-md transition-all duration-300"
                     >
-                      <div className="flex gap-4 items-center">
-                        <div className="w-16 h-16 rounded-2xl bg-brand-earth/50 shrink-0 overflow-hidden p-2 border border-brand-green/5">
-                          <img 
-                            src={item.image} 
-                            alt={item.name} 
-                            className="w-full h-full object-contain" 
-                            onError={(e) => (e.currentTarget.src = "/images/placeholder.png")}
-                            loading="lazy" 
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start gap-2">
-                            <h4 className="font-black text-brand-green text-[13px] uppercase tracking-tight truncate flex-1">{item.name}</h4>
-                            <span className="font-black text-brand-green text-[13px] whitespace-nowrap">${(item.price * item.quantity).toFixed(2)}</span>
-                          </div>
-                          <p className="text-[8px] text-brand-dark/30 font-black uppercase tracking-[0.2em] mt-1">{item.category}</p>
-                        </div>
+                      <div className="w-14 h-14 rounded-xl bg-brand-earth/50 shrink-0 overflow-hidden p-1.5 border border-brand-green/5">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-contain"
+                          onError={(e) => (e.currentTarget.src = "/images/placeholder.png")}
+                          loading="lazy"
+                        />
                       </div>
-                      
-                      <div className="flex items-center justify-between pt-3 border-t border-brand-green/[0.03]">
-                        <div className="flex items-center bg-brand-earth rounded-xl p-1 border border-brand-green/5">
-                          <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)} aria-label="Decrease quantity"
-                            className="w-7 h-7 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-lg transition-all duration-300 text-brand-green">
-                            <Minus size={12} strokeWidth={3} />
-                          </button>
-                          <span className="w-8 text-center text-xs font-black text-brand-green">{item.quantity}</span>
-                          <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)} aria-label="Increase quantity"
-                            className="w-7 h-7 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-lg transition-all duration-300 text-brand-green">
-                            <Plus size={12} strokeWidth={3} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-1">
+                          <h4 className="font-black text-brand-green text-[12px] uppercase tracking-tight leading-tight line-clamp-2 flex-1">{item.name}</h4>
+                          <span className="font-black text-brand-green text-[13px] whitespace-nowrap ml-1">${(item.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                        <p className="text-[8px] text-brand-dark/30 font-black uppercase tracking-[0.2em] mt-0.5">{item.category}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center bg-brand-earth rounded-lg p-0.5 border border-brand-green/5">
+                            <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)} aria-label="Decrease quantity"
+                              className="w-6 h-6 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-md transition-all text-brand-green">
+                              <Minus size={10} strokeWidth={3} />
+                            </button>
+                            <span className="w-7 text-center text-xs font-black text-brand-green">{item.quantity}</span>
+                            <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)} aria-label="Increase quantity"
+                              className="w-6 h-6 flex items-center justify-center hover:bg-brand-green hover:text-brand-earth rounded-md transition-all text-brand-green">
+                              <Plus size={10} strokeWidth={3} />
+                            </button>
+                          </div>
+                          <button type="button" onClick={() => removeFromCart(item.id)} aria-label="Remove item"
+                            className="text-brand-dark/20 hover:text-red-500 transition-colors p-1">
+                            <Trash2 size={13} />
                           </button>
                         </div>
-                        <button type="button" onClick={() => removeFromCart(item.id)}
-                          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-brand-dark/20 hover:text-red-500 transition-colors">
-                          <Trash2 size={12} />
-                          <span>Remove</span>
-                        </button>
                       </div>
                     </motion.div>
                   ))
@@ -324,7 +323,7 @@ export function SlidingCart() {
                   {discount > 0 && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
                       className="flex justify-between text-[9px] font-black text-brand-green uppercase tracking-[0.2em]">
-                      <span>Discount</span>
+                      <span>Promo Discount</span>
                       <span>−${discount.toFixed(2)}</span>
                     </motion.div>
                   )}
@@ -332,6 +331,13 @@ export function SlidingCart() {
                     <span className="font-black text-brand-green uppercase tracking-[0.3em] text-[8px]">Total</span>
                     <span className="text-xl font-black text-brand-green tracking-tighter leading-none">${totalPrice.toFixed(2)}</span>
                   </div>
+                  {totalSaved > 0 && (
+                    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                      className="flex justify-between items-center bg-brand-green/10 rounded-xl px-3 py-2 border border-brand-green/20">
+                      <span className="text-[9px] font-black text-brand-green uppercase tracking-widest">🎉 You saved</span>
+                      <span className="text-[13px] font-black text-brand-green">−${totalSaved.toFixed(2)}</span>
+                    </motion.div>
+                  )}
                 </div>
 
                 <Link
