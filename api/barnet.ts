@@ -27,6 +27,20 @@ async function barnetFetch(path: string): Promise<any> {
   return res.json();
 }
 
+function normalizeCategory(raw: string): string {
+  const s = (raw || "").toLowerCase().trim();
+  if (s.includes("flower") || s.includes("bud") || s.includes("cannabis") && !s.includes("oil")) return "Dried Flower";
+  if (s.includes("pre-roll") || s.includes("preroll") || s.includes("pre roll") || s.includes("joint") || s.includes("blunt")) return "Pre-Roll";
+  if (s.includes("vape") || s.includes("cartridge") || s.includes("disposable") || s.includes("pen")) return "Vape";
+  if (s.includes("edible") || s.includes("gummy") || s.includes("chocolate") || s.includes("candy") || s.includes("cookie") || s.includes("brownie")) return "Edible";
+  if (s.includes("beverage") || s.includes("drink") || s.includes("soda") || s.includes("tea") || s.includes("water")) return "Beverage";
+  if (s.includes("extract") || s.includes("concentrate") || s.includes("shatter") || s.includes("wax") || s.includes("rosin") || s.includes("resin") || s.includes("hash") || s.includes("oil")) return "Extract";
+  if (s.includes("accessory") || s.includes("accessories") || s.includes("gear") || s.includes("device") || s.includes("pipe") || s.includes("paper")) return "Accessories";
+  if (s.includes("topical") || s.includes("cream") || s.includes("lotion") || s.includes("patch")) return "Topical";
+  if (s.includes("capsule") || s.includes("pill") || s.includes("tablet") || s.includes("tincture") || s.includes("drop") || s.includes("spray")) return "Capsule";
+  return raw || "Other";
+}
+
 function mapBarnetProduct(item: any): any {
   const variations = Array.isArray(item.variations) ? item.variations : [];
   const variation = variations[0] ?? null;
@@ -67,7 +81,7 @@ function mapBarnetProduct(item: any): any {
     name,
     price,
     image: typeof image === "string" ? image : "",
-    category: item.category || "",
+    category: normalizeCategory(item.category || item.productType || item.type || ""),
     description: description + (terpenes ? `\n\nTerpenes: ${terpenes}` : ""),
     thc,
     cbd,

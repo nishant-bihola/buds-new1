@@ -26,13 +26,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // /api/products — list
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=3600");
     const { category, search, sort } = req.query;
-    let products = await getProducts(false);
-    if (category && category !== "All") products = products.filter(p => p.category === category);
-    if (search) { const s = String(search).toLowerCase(); products = products.filter(p => p.name.toLowerCase().includes(s)); }
-    if (sort === "price-low") products.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
-    else if (sort === "price-high") products.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
-    else products.sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0));
-    return res.status(200).json({ products });
+    let allProducts = await getProducts(false);
+
+    // Return distinct categories for the shop filter UI
+    const categories = Array.from(
+      new Set(allProducts.map(p => p.category).filter(Boolean))
+    ).sort();
+
+    let filtered = allProducts;
+    if (category && category !== "All") {
+      const catLower = String(category).toLowerCase().trim();
+      filtered = filtered.filter(p => (p.category ?? "").toLowerCase().trim() === catLower);
+    }
+    if (search) { const s = String(search).toLowerCase(); filtered = filtered.filter(p => p.name.toLowerCase().includes(s)); }
+    if (sort === "price-low") filtered.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+    else if (sort === "price-high") filtered.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+    else filtered.sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0));
+    return res.status(200).json({ products: filtered, categories });
   } catch (err: any) {
     console.error("[Products API Error]:", err);
     return res.status(500).json({ error: "Failed to fetch products" });

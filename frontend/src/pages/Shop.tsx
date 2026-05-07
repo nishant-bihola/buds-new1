@@ -10,9 +10,10 @@ import { api } from "../lib/api";
 
 export function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   const categoryParam = searchParams.get("category") || "All";
   const sortParam = searchParams.get("sort") || "newest";
   const searchParam = searchParams.get("q") || "";
@@ -21,13 +22,13 @@ export function ShopPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  const categories = ["All", "Dried Flower", "Edible", "Vape", "Pre-Roll", "Beverage", "Accessories"];
   const sortOptions = [
     { label: "Newest Arrivals", value: "newest" },
     { label: "Price: Low to High", value: "price-low" },
     { label: "Price: High to Low", value: "price-high" },
   ];
 
+  // Fetch all products without filter to get full category list, then fetch filtered
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
@@ -38,11 +39,21 @@ export function ShopPage() {
 
       const data = await api.products.getAll(params);
       setProducts(data.products || []);
+
+      // On first load (no filter active) use the returned categories list
+      if (data.categories?.length) {
+        setCategories(["All", ...data.categories]);
+      } else if (!categories.length) {
+        // Fallback: fetch all to get categories
+        const all = await api.products.getAll({});
+        if (all.categories?.length) setCategories(["All", ...all.categories]);
+      }
     } catch (err) {
       console.error("API Fetch Error:", err);
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryParam, searchParam, sortParam]);
 
   useEffect(() => {
@@ -112,22 +123,26 @@ export function ShopPage() {
               >
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-8">Categories</h3>
                 <div className="flex flex-col gap-3">
-                  {categories.map((cat, i) => (
-                    <motion.button
-                      key={cat}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.2 + i * 0.05 }}
-                      onClick={() => handleCategoryChange(cat)}
-                      className={`text-left px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all border ${
-                        categoryParam === cat
-                          ? "bg-brand-light-green/10 border-brand-light-green/30 text-brand-light-green shadow-xl shadow-brand-light-green/5"
-                          : "border-transparent text-white/40 hover:text-white hover:bg-white/5"
-                      }`}
-                    >
-                      {cat}
-                    </motion.button>
-                  ))}
+                  {categories.length === 0
+                    ? Array(6).fill(0).map((_, i) => (
+                        <div key={i} className="h-12 rounded-2xl bg-white/5 animate-pulse" />
+                      ))
+                    : categories.map((cat, i) => (
+                        <motion.button
+                          key={cat}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.04 }}
+                          onClick={() => handleCategoryChange(cat)}
+                          className={`text-left px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all border ${
+                            categoryParam === cat
+                              ? "bg-brand-light-green/10 border-brand-light-green/30 text-brand-light-green shadow-xl shadow-brand-light-green/5"
+                              : "border-transparent text-white/40 hover:text-white hover:bg-white/5"
+                          }`}
+                        >
+                          {cat}
+                        </motion.button>
+                      ))}
                 </div>
               </motion.div>
 
