@@ -1623,42 +1623,63 @@ function DriversTab() {
 /* ─────────────────────────────────────────────────────────────
    Barnet Tab
 ───────────────────────────────────────────────────────────── */
-const BARNET_CATEGORIES = ["Dried Flower", "Pre-Roll", "Edible", "Vape", "Beverage", "Extract", "Accessories", "Topical", "Capsule", "Other"];
+const BARNET_CATS = ["Dried Flower", "Pre-Roll", "Edible", "Vape", "Beverage", "Extract", "Accessories", "Topical", "Capsule", "Other"];
 
 function BarnetTab() {
-  const { data: productsData, mutate: mutateProducts } = useSWR("admin-products", api.admin.getProducts, { refreshInterval: 120000 });
-  const { data: statusData,   mutate: mutateStatus   } = useSWR("barnet-status",   api.admin.barnetStatus,   { refreshInterval: 60000 });
-  const { data: alertsData,   mutate: mutateAlerts   } = useSWR("barnet-alerts",   api.admin.barnetStockAlerts, { refreshInterval: 60000 });
-  const products: any[] = productsData?.products ?? [];
+  const { data: productsData, mutate: mutateProducts } = useSWR("admin-products",   api.admin.getProducts,       { refreshInterval: 120000 });
+  const { data: statusData,   mutate: mutateStatus   } = useSWR("barnet-status",    api.admin.barnetStatus,      { refreshInterval: 60000  });
+  const { data: alertsData,   mutate: mutateAlerts   } = useSWR("barnet-alerts",    api.admin.barnetStockAlerts, { refreshInterval: 60000  });
+  const { data: analyticsData, mutate: mutateAnalytics } = useSWR("barnet-analytics", api.admin.barnetAnalytics, { refreshInterval: 300000 });
+  const { data: brandsData,   mutate: mutateBrands   } = useSWR("barnet-brands",    api.admin.barnetBrands,      { refreshInterval: 300000 });
+  const products: any[]   = productsData?.products ?? [];
+  const analytics: any    = analyticsData ?? {};
+  const brands: string[]  = brandsData?.brands ?? [];
+  const brandMap: Record<string,string> = brandsData?.brandMap ?? {};
   const { success, error: toastErr } = useToast();
 
-  // ── sync state
+  // ── sync
   const [syncing, setSyncing]         = useState(false);
   const [removeStale, setRemoveStale] = useState(false);
   const [syncResult, setSyncResult]   = useState<{ synced: number; errors: number; removed: number } | null>(null);
 
-  // ── preview state
-  const [previewing, setPreviewing]   = useState(false);
+  // ── preview (live Barnet API)
+  const [previewing, setPreviewing]     = useState(false);
   const [previewItems, setPreviewItems] = useState<any[]>([]);
-  const [previewSearch, setPreviewSearch] = useState("");
-  const [previewCatFilter, setPreviewCatFilter] = useState("All");
+  const [previewMode, setPreviewMode]   = useState(false);
+  const [previewSearch, setPreviewSearch]     = useState("");
+
+  // ── product list filters
+  const [prodSearch, setProdSearch]   = useState("");
+  const [prodCat, setProdCat]         = useState("All");
+  const [prodBrand, setProdBrand]     = useState("All");
+  const [prodStock, setProdStock]     = useState<"all"|"in"|"out">("all");
+  const [sortBy, setSortBy]           = useState<"name"|"price"|"category">("name");
 
   // ── product detail drawer
   const [drawerProduct, setDrawerProduct] = useState<any | null>(null);
-  const [drawerOverride, setDrawerOverride] = useState<{ category?: string; price?: string; isBestSeller?: boolean }>({});
-  const [savingOverride, setSavingOverride] = useState(false);
+  const [drawerOv, setDrawerOv] = useState<{ category?: string; price?: string; isBestSeller?: boolean; hidden?: boolean; sortOrder?: string; name?: string }>({});
+  const [savingOv, setSavingOv] = useState(false);
 
   // ── bulk select
-  const [selected, setSelected]   = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
 
-  // ── auto-sync config
+  // ── auto-sync
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const [autoSyncHours, setAutoSyncHours]     = useState(6);
   const [savingAutoSync, setSavingAutoSync]   = useState(false);
 
-  // ── active sub-tab
-  const [subTab, setSubTab] = useState<"overview" | "products" | "alerts" | "history" | "settings">("overview");
+  // ── brand manager
+  const [brandFrom, setBrandFrom] = useState("");
+  const [brandTo, setBrandTo]     = useState("");
+  const [savingBrand, setSavingBrand] = useState(false);
+
+  // ── stock adjust modal
+  const [adjustProduct, setAdjustProduct] = useState<any|null>(null);
+  const [adjustReason, setAdjustReason]   = useState("");
+
+  // ── sub-tab
+  const [subTab, setSubTab] = useState<"overview"|"products"|"alerts"|"analytics"|"brands"|"history"|"settings">("overview");
 
   // Hydrate auto-sync from server status
   useEffect(() => {
@@ -1679,27 +1700,28 @@ function BarnetTab() {
     return acc;
   }, {});
 
-  const lastSync = statusData?.lastSync;
-  const history: any[] = statusData?.history ?? [];
-  const outAlerts: any[] = alertsData?.outOfStock ?? [];
+  const lastSync   = statusData?.lastSync;
+  const history: any[]    = statusData?.history ?? [];
+  const outAlerts: any[]  = alertsData?.outOfStock ?? [];
 
-  // ── handlers ────────────────────────────────────────────────────────────
+  // ── handlers ─────────────────────────────────────────────────────────────
   const handleSync = async () => {
     setSyncing(true); setSyncResult(null);
     try {
-      const res = await api.admin.syncBarnet(removeStale);
-      setSyncResult({ synced: res.synced, errors: res.errors, removed: res.removed ?? 0 });
-      success(`Synced ${res.synced} products from Barnet`);
-      mutateProducts(); mutateStatus(); mutateAlerts();
-    } catch (e: any) { toastErr(e.message || "Barnet sync failed"); }
+      const r = await api.admin.syncBarnet(removeStale);
+      setSyncResult({ synced: r.synced, errors: r.errors, removed: r.removed ?? 0 });
+      success(`Synced ${r.synced} products`);
+      mutateProducts(); mutateStatus(); mutateAlerts(); mutateAnalytics(); mutateBrands();
+    } catch (e: any) { toastErr(e.message || "Sync failed"); }
     setSyncing(false);
   };
 
   const handlePreview = async () => {
     setPreviewing(true); setPreviewItems([]);
     try {
-      const data = await api.admin.barnetPreview();
-      setPreviewItems(data.products || []);
+      const d = await api.admin.barnetPreview({ search: previewSearch, category: prodCat !== "All" ? prodCat : undefined });
+      setPreviewItems(d.products || []);
+      setPreviewMode(true);
       setSubTab("products");
     } catch (e: any) { toastErr(e.message || "Preview failed"); }
     setPreviewing(false);
@@ -1707,51 +1729,50 @@ function BarnetTab() {
 
   const openDrawer = (p: any) => {
     setDrawerProduct(p);
-    setDrawerOverride({ category: p.category, price: String(p.price), isBestSeller: p.isBestSeller });
+    setDrawerOv({ category: p.category, price: String(p.price), isBestSeller: p.isBestSeller, hidden: !p.inStock, sortOrder: String(p.sortOrder ?? 0), name: p.name });
   };
 
-  const saveOverride = async () => {
+  const saveOv = async () => {
     if (!drawerProduct) return;
-    setSavingOverride(true);
+    setSavingOv(true);
     try {
-      const payload: any = { productId: drawerProduct.id };
-      if (drawerOverride.category !== drawerProduct.category) payload.category = drawerOverride.category;
-      if (Number(drawerOverride.price) !== drawerProduct.price) payload.price = Number(drawerOverride.price);
-      if (drawerOverride.isBestSeller !== drawerProduct.isBestSeller) payload.isBestSeller = drawerOverride.isBestSeller;
-      await api.admin.barnetSetOverride(payload);
-      success("Override saved — will persist on next sync");
-      mutateProducts();
-      setDrawerProduct(null);
+      const pl: any = { productId: drawerProduct.id };
+      if (drawerOv.category   !== drawerProduct.category)     pl.category     = drawerOv.category;
+      if (Number(drawerOv.price) !== drawerProduct.price)     pl.price        = Number(drawerOv.price);
+      if (drawerOv.isBestSeller !== drawerProduct.isBestSeller) pl.isBestSeller = drawerOv.isBestSeller;
+      if (drawerOv.hidden     !== !drawerProduct.inStock)     pl.hidden       = drawerOv.hidden;
+      if (Number(drawerOv.sortOrder) !== (drawerProduct.sortOrder ?? 0)) pl.sortOrder = Number(drawerOv.sortOrder);
+      if (drawerOv.name       !== drawerProduct.name)         pl.name         = drawerOv.name;
+      await api.admin.barnetSetOverride(pl);
+      success("Override saved — persists on next sync");
+      mutateProducts(); setDrawerProduct(null);
     } catch (e: any) { toastErr(e.message); }
-    setSavingOverride(false);
+    setSavingOv(false);
   };
 
-  const clearOverride = async () => {
+  const clearOv = async () => {
     if (!drawerProduct) return;
-    setSavingOverride(true);
+    setSavingOv(true);
     try {
       await api.admin.barnetSetOverride({ productId: drawerProduct.id, clear: true });
-      success("Override cleared");
-      mutateProducts();
-      setDrawerProduct(null);
+      success("Override cleared — next sync restores Barnet values");
+      mutateProducts(); setDrawerProduct(null);
     } catch (e: any) { toastErr(e.message); }
-    setSavingOverride(false);
+    setSavingOv(false);
   };
 
-  const toggleSelect = (id: string) =>
-    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const toggleSelect  = (id: string) => setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const selectAll     = (ids: string[]) => setSelected(new Set(ids));
+  const clearSel      = () => setSelected(new Set());
 
-  const selectAll = (ids: string[]) => setSelected(new Set(ids));
-  const clearSelection = () => setSelected(new Set());
-
-  const handleBulk = async (action: "bestSeller" | "toggleStock" | "delete", value?: boolean) => {
+  const handleBulk = async (act: "bestSeller"|"toggleStock"|"delete"|"hide", val?: boolean) => {
     if (!selected.size) return;
-    if (action === "delete" && !confirm(`Delete ${selected.size} products?`)) return;
+    if (act === "delete" && !confirm(`Delete ${selected.size} products? Cannot be undone.`)) return;
     setBulkLoading(true);
     try {
-      const res = await api.admin.barnetBulk(action, [...selected], value);
-      success(`${res.affected} products updated`);
-      clearSelection(); mutateProducts(); mutateAlerts();
+      const r = await api.admin.barnetBulk(act, [...selected], val);
+      success(`${r.affected} products updated`);
+      clearSel(); mutateProducts(); mutateAlerts();
     } catch (e: any) { toastErr(e.message); }
     setBulkLoading(false);
   };
@@ -1760,33 +1781,56 @@ function BarnetTab() {
     setSavingAutoSync(true);
     try {
       await api.admin.barnetSetAutoSync(autoSyncEnabled, autoSyncHours);
-      success(autoSyncEnabled ? `Auto-sync enabled every ${autoSyncHours}h` : "Auto-sync disabled");
+      success(autoSyncEnabled ? `Auto-sync every ${autoSyncHours}h enabled` : "Auto-sync disabled");
       mutateStatus();
     } catch (e: any) { toastErr(e.message); }
     setSavingAutoSync(false);
   };
 
-  // ── filtered product list (from preview or synced) ──────────────────────
-  const displayProducts = previewItems.length > 0 ? previewItems : barnetProducts;
-  const cats = ["All", ...Array.from(new Set(displayProducts.map((p: any) => p.category || "Other")))];
-  const filtered = displayProducts.filter((p: any) => {
-    const matchCat = previewCatFilter === "All" || p.category === previewCatFilter;
-    const matchSearch = !previewSearch || p.name?.toLowerCase().includes(previewSearch.toLowerCase()) || p.brand?.toLowerCase().includes(previewSearch.toLowerCase());
-    return matchCat && matchSearch;
+  const saveBrandMap = async () => {
+    if (!brandFrom || !brandTo) return;
+    setSavingBrand(true);
+    try {
+      await api.admin.barnetSetBrandMap(brandFrom, brandTo);
+      success(`"${brandFrom}" → "${brandTo}" mapped`);
+      setBrandFrom(""); setBrandTo(""); mutateBrands(); mutateProducts();
+    } catch (e: any) { toastErr(e.message); }
+    setSavingBrand(false);
+  };
+
+  // ── filtered product list ────────────────────────────────────────────────
+  const displayProducts = previewMode && previewItems.length > 0 ? previewItems : barnetProducts;
+  const filteredProds   = displayProducts.filter((p: any) => {
+    const q = prodSearch.toLowerCase();
+    if (q && !p.name?.toLowerCase().includes(q) && !p.brand?.toLowerCase().includes(q) && !p.sku?.toLowerCase().includes(q)) return false;
+    if (prodCat   !== "All" && p.category !== prodCat)   return false;
+    if (prodBrand !== "All" && p.brand    !== prodBrand) return false;
+    if (prodStock === "in"  && !p.inStock)  return false;
+    if (prodStock === "out" &&  p.inStock)  return false;
+    return true;
+  }).sort((a: any, b: any) => {
+    if (sortBy === "price")    return Number(a.price) - Number(b.price);
+    if (sortBy === "category") return (a.category || "").localeCompare(b.category || "");
+    return (a.name || "").localeCompare(b.name || "");
   });
 
+  const prodBrands = ["All", ...Array.from(new Set(barnetProducts.map((p: any) => p.brand || "Unknown"))).sort() as string[]];
+  const prodCats   = ["All", ...Array.from(new Set(barnetProducts.map((p: any) => p.category || "Other"))).sort() as string[]];
+
   const SUB_TABS = [
-    { id: "overview",  label: "Overview",   icon: BarChart3 },
-    { id: "products",  label: "Products",   icon: Package },
-    { id: "alerts",    label: `Alerts${outAlerts.length ? ` (${outAlerts.length})` : ""}`, icon: Bell },
-    { id: "history",   label: "Sync Log",   icon: History },
-    { id: "settings",  label: "Settings",   icon: SlidersHorizontal },
+    { id: "overview",  label: "Overview",                                                             icon: BarChart3 },
+    { id: "products",  label: "Products",                                                             icon: Package },
+    { id: "alerts",    label: outAlerts.length ? `Alerts (${outAlerts.length})` : "Alerts",          icon: Bell },
+    { id: "analytics", label: "Analytics",                                                            icon: TrendingUp },
+    { id: "brands",    label: "Brands",                                                               icon: Layers },
+    { id: "history",   label: "Sync Log",                                                             icon: History },
+    { id: "settings",  label: "Settings",                                                             icon: SlidersHorizontal },
   ] as const;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-4xl font-black uppercase tracking-tighter">Barnet Portal</h1>
@@ -1847,45 +1891,40 @@ function BarnetTab() {
         ))}
       </div>
 
-      {/* ── OVERVIEW ────────────────────────────────────────────────────── */}
+      {/* ── OVERVIEW ── */}
       {subTab === "overview" && (
-        <div className="space-y-6">
-          {/* Stat cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { icon: Database,      label: "Total Products", value: barnetProducts.length,  color: "from-blue-500/10" },
-              { icon: TrendingUp,    label: "In Stock",        value: inStock,               color: "from-green-500/10" },
-              { icon: AlertTriangle, label: "Out of Stock",    value: outOfStock,            color: outOfStock > 0 ? "from-red-500/10" : "from-white/5" },
-              { icon: Star,          label: "Best Sellers",    value: bestSellers,           color: "from-amber-500/10" },
+              { icon: Database,      label: "Total",       value: barnetProducts.length, color: "from-blue-500/10",   tab: "products" },
+              { icon: TrendingUp,    label: "In Stock",    value: inStock,               color: "from-green-500/10",  tab: "products" },
+              { icon: AlertTriangle, label: "Out of Stock",value: outOfStock,            color: outOfStock > 0 ? "from-red-500/10" : "from-white/5", tab: "alerts" },
+              { icon: Star,          label: "Best Sellers",value: bestSellers,           color: "from-amber-500/10",  tab: "analytics" },
             ].map((k, i) => (
-              <motion.div key={i} initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.06 }}
-                className={`bg-gradient-to-br ${k.color} to-transparent border border-white/5 rounded-2xl p-5 cursor-pointer hover:border-white/15 transition-colors`}
-                onClick={() => setSubTab(k.label === "Out of Stock" ? "alerts" : "products")}>
-                <k.icon size={18} className="opacity-30 mb-3" />
+              <motion.div key={i} initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
+                onClick={() => setSubTab(k.tab as any)}
+                className={`bg-gradient-to-br ${k.color} to-transparent border border-white/5 rounded-2xl p-5 cursor-pointer hover:border-white/15 transition-all`}>
+                <k.icon size={16} className="opacity-30 mb-3" />
                 <p className="text-3xl font-black tracking-tighter">{k.value}</p>
                 <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] mt-1">{k.label}</p>
               </motion.div>
             ))}
           </div>
 
-          {/* Category breakdown */}
           {Object.keys(byCategory).length > 0 && (
             <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
-              <h2 className="font-black uppercase tracking-tight mb-5 flex items-center gap-2">
-                <Layers size={14} className="opacity-40" /> Category Breakdown
-              </h2>
-              <div className="space-y-3">
-                {Object.entries(byCategory).sort(([, a], [, b]) => b - a).map(([cat, count]) => {
+              <h2 className="font-black uppercase tracking-tight mb-4 flex items-center gap-2"><Layers size={13} className="opacity-40" /> Inventory by Category</h2>
+              <div className="space-y-2.5">
+                {Object.entries(byCategory).sort(([,a],[,b]) => b-a).map(([cat, count]) => {
                   const pct = Math.round((count / barnetProducts.length) * 100);
                   return (
                     <div key={cat} className="flex items-center gap-3">
-                      <span className="text-xs font-black uppercase tracking-wide text-white/60 w-28 shrink-0 truncate">{cat}</span>
+                      <span className="text-[10px] font-black uppercase tracking-wide text-white/50 w-28 shrink-0 truncate">{cat}</span>
                       <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }}
-                          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                          className="h-full bg-brand-light-green/60 rounded-full" />
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.7, ease: [0.16,1,0.3,1] }}
+                          className="h-full bg-brand-light-green/50 rounded-full" />
                       </div>
-                      <span className="text-xs font-black text-white/40 w-16 text-right">{count} · {pct}%</span>
+                      <span className="text-[10px] font-black text-white/35 w-16 text-right shrink-0">{count} · {pct}%</span>
                     </div>
                   );
                 })}
@@ -1893,7 +1932,6 @@ function BarnetTab() {
             </div>
           )}
 
-          {/* Last sync summary */}
           {lastSync && (
             <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
               <h2 className="font-black uppercase tracking-tight mb-4 flex items-center gap-2">
@@ -1929,10 +1967,10 @@ function BarnetTab() {
                 className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-light-green/40 text-white placeholder:text-white/20" />
             </div>
             <div className="flex gap-1 flex-wrap">
-              {cats.slice(0, 6).map(c => (
-                <button key={c} type="button" onClick={() => setPreviewCatFilter(c)}
+              {prodCats.slice(0, 6).map((c: string) => (
+                <button key={c} type="button" onClick={() => setProdCat(c)}
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                    previewCatFilter === c ? "bg-brand-light-green text-[#111815]" : "bg-white/5 text-white/40 hover:bg-white/10"
+                    prodCat === c ? "bg-brand-light-green text-[#111815]" : "bg-white/5 text-white/40 hover:bg-white/10"
                   }`}>{c}</button>
               ))}
             </div>
@@ -1951,7 +1989,7 @@ function BarnetTab() {
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-40">
                   <Trash2 size={10} /> Delete
                 </button>
-                <button type="button" title="Clear selection" onClick={clearSelection} className="text-white/30 hover:text-white transition-colors">
+                <button type="button" title="Clear selection" onClick={clearSel} className="text-white/30 hover:text-white transition-colors">
                   <X size={14} />
                 </button>
               </div>
@@ -1959,14 +1997,14 @@ function BarnetTab() {
           </div>
 
           {/* Select all row */}
-          {filtered.length > 0 && (
+          {filteredProds.length > 0 && (
             <div className="flex items-center gap-3 px-1">
-              <button type="button" onClick={() => selected.size === filtered.length ? clearSelection() : selectAll(filtered.map((p: any) => p.id))}
+              <button type="button" onClick={() => selected.size === filteredProds.length ? clearSel() : selectAll(filteredProds.map((p: any) => p.id))}
                 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">
-                {selected.size === filtered.length && filtered.length > 0
+                {selected.size === filteredProds.length && filteredProds.length > 0
                   ? <CheckSquare size={14} className="text-brand-light-green" />
                   : <Square size={14} />}
-                Select All ({filtered.length})
+                Select All ({filteredProds.length})
               </button>
               {previewItems.length > 0 && <span className="text-[9px] text-amber-400/60 font-black uppercase tracking-widest">Preview Mode — not saved</span>}
             </div>
@@ -1974,14 +2012,12 @@ function BarnetTab() {
 
           {/* Product list */}
           <div className="space-y-1.5 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
-            {filtered.map((p: any, i: number) => (
-              <motion.div key={p.id || i} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.02, 0.3) }}
-                className={`flex items-center gap-3 bg-[#1a2219] hover:bg-[#1e2a1d] rounded-xl px-4 py-3 border transition-all cursor-pointer group ${
-                  selected.has(p.id) ? "border-brand-light-green/30 bg-brand-light-green/5" : "border-white/5 hover:border-white/10"
-                }`}
-                onClick={() => openDrawer(p)}>
-                <button type="button" onClick={e => { e.stopPropagation(); toggleSelect(p.id); }}
-                  className="shrink-0 text-white/20 hover:text-white transition-colors">
+            {filteredProds.map((p: any, i: number) => (
+              <motion.div key={p.id || i} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.015, 0.25) }}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 border transition-all cursor-pointer group ${
+                  selected.has(p.id) ? "bg-brand-light-green/5 border-brand-light-green/30" : "bg-[#1a2219] border-white/5 hover:bg-[#1e2a1d] hover:border-white/10"
+                }`} onClick={() => openDrawer(p)}>
+                <button type="button" title="Select" onClick={e => { e.stopPropagation(); toggleSelect(p.id); }} className="shrink-0 text-white/20 hover:text-white transition-colors">
                   {selected.has(p.id) ? <CheckSquare size={14} className="text-brand-light-green" /> : <Square size={14} />}
                 </button>
                 {p.image && <img src={p.image} alt="" className="w-10 h-10 rounded-lg object-cover bg-white/5 shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />}
@@ -1990,64 +2026,66 @@ function BarnetTab() {
                     <p className="text-sm font-bold truncate">{p.name || "Unnamed"}</p>
                     {p.isBestSeller && <Star size={10} className="text-amber-400 shrink-0 fill-amber-400" />}
                   </div>
-                  <p className="text-white/30 text-[10px] font-black uppercase tracking-widest">{p.brand} · {p.category} {p.weight ? `· ${p.weight}` : ""}</p>
+                  <p className="text-white/30 text-[10px] font-black uppercase tracking-widest truncate">{p.brand} · {p.category}{p.weight ? ` · ${p.weight}` : ""}</p>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  {p.thc && <span className="text-[9px] font-black text-green-400/60 uppercase">THC {p.thc}</span>}
-                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${
-                    p.inStock ? "bg-green-500/10 text-green-300 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
-                  }`}>{p.inStock ? "In Stock" : "Out"}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {p.thc && <span className="text-[9px] font-black text-green-400/50 hidden sm:block">THC {p.thc}</span>}
+                  <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-lg border ${p.inStock ? "bg-green-500/10 text-green-300 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}`}>
+                    {p.inStock ? "In" : "Out"}
+                  </span>
                   <span className="font-black text-sm tabular-nums">${Number(p.price || 0).toFixed(2)}</span>
                   <ChevronRight size={13} className="opacity-0 group-hover:opacity-30 transition-opacity" />
                 </div>
               </motion.div>
             ))}
-            {filtered.length === 0 && (
+            {filteredProds.length === 0 && (
               <div className="text-center py-16 text-white/20 text-sm font-black uppercase tracking-widest">
-                {displayProducts.length === 0 ? "No products synced yet — run a sync or preview" : "No products match filter"}
+                {displayProducts.length === 0 ? "No products — run Sync Now or Preview API" : "No products match filters"}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ── ALERTS ──────────────────────────────────────────────────────── */}
+      {/* ── ALERTS ── */}
       {subTab === "alerts" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <h2 className="font-black uppercase tracking-tight text-lg">Stock Alerts</h2>
-              <p className="text-white/30 text-xs mt-0.5">{outAlerts.length} Barnet products currently out of stock</p>
+              <p className="text-white/30 text-xs mt-0.5">{outAlerts.length} out of stock · {alertsData?.inCount ?? 0} in stock</p>
             </div>
-            <button type="button" onClick={() => mutateAlerts()}
-              className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+            <button type="button" onClick={() => mutateAlerts()} className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
               <RefreshCw size={11} /> Refresh
             </button>
           </div>
-
           {outAlerts.length === 0 ? (
             <div className="text-center py-16 bg-[#1a2219] rounded-2xl border border-white/5">
               <TrendingUp size={32} className="mx-auto mb-3 text-green-400/40" />
-              <p className="text-white/30 text-sm font-black uppercase tracking-widest">All Barnet products in stock</p>
+              <p className="text-white/30 text-sm font-black uppercase tracking-widest">All clear — every product is in stock</p>
             </div>
           ) : (
             <div className="space-y-2">
               {outAlerts.map((p: any) => (
-                <div key={p.id} className="flex items-center gap-4 bg-red-500/5 border border-red-500/15 rounded-xl px-4 py-3">
-                  <PackageX size={16} className="text-red-400 shrink-0" />
+                <div key={p.id} className="flex items-center gap-3 bg-red-500/5 border border-red-500/15 rounded-xl px-4 py-3 flex-wrap">
+                  <PackageX size={15} className="text-red-400 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold truncate">{p.name}</p>
                     <p className="text-white/30 text-[10px] font-black uppercase tracking-widest">{p.brand} · {p.category}</p>
                   </div>
-                  <span className="text-sm font-black tabular-nums text-white/50">${Number(p.price || 0).toFixed(2)}</span>
-                  <button type="button" onClick={async () => {
-                    try {
-                      await api.admin.barnetBulk("toggleStock", [p.id], true);
-                      success("Marked in stock"); mutateAlerts(); mutateProducts();
-                    } catch (e: any) { toastErr(e.message); }
-                  }} className="px-3 py-1.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-green-500/20 transition-all shrink-0">
-                    Mark In Stock
-                  </button>
+                  <span className="text-sm font-black tabular-nums text-white/40">${Number(p.price || 0).toFixed(2)}</span>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => { setAdjustProduct(p); setAdjustReason(""); }}
+                      className="px-3 py-1.5 bg-white/5 border border-white/10 text-white/50 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+                      Adjust
+                    </button>
+                    <button type="button" onClick={async () => {
+                      try { await api.admin.barnetStockAdjust(p.id, true, "admin mark in stock"); success("Marked in stock"); mutateAlerts(); mutateProducts(); }
+                      catch (e: any) { toastErr(e.message); }
+                    }} className="px-3 py-1.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-green-500/20 transition-all">
+                      Mark In Stock
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -2055,40 +2093,160 @@ function BarnetTab() {
         </div>
       )}
 
-      {/* ── SYNC HISTORY ────────────────────────────────────────────────── */}
+      {/* ── ANALYTICS ── */}
+      {subTab === "analytics" && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="font-black uppercase tracking-tight text-lg">Barnet Analytics</h2>
+              <p className="text-white/30 text-xs mt-0.5">Revenue and top sellers from your order history</p>
+            </div>
+            <button type="button" onClick={() => mutateAnalytics()} className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+              <RefreshCw size={11} /> Refresh
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {[
+              { label: "Barnet Revenue",  value: `$${(analytics.barnetRevenue ?? 0).toFixed(2)}`, color: "from-brand-light-green/10" },
+              { label: "Products",        value: analytics.totalProducts ?? 0,                    color: "from-blue-500/10" },
+              { label: "Best Sellers",    value: analytics.bestSellers ?? 0,                      color: "from-amber-500/10" },
+            ].map((s, i) => (
+              <div key={i} className={`bg-gradient-to-br ${s.color} to-transparent border border-white/5 rounded-2xl p-5`}>
+                <p className="text-2xl font-black tracking-tighter">{s.value}</p>
+                <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Top sellers */}
+          {(analytics.topSellers ?? []).length > 0 && (
+            <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
+              <h3 className="font-black uppercase tracking-tight mb-4 flex items-center gap-2"><Star size={13} className="text-amber-400" /> Top Selling Barnet Products</h3>
+              <div className="space-y-2">
+                {(analytics.topSellers ?? []).map((p: any, i: number) => (
+                  <div key={p.id} className="flex items-center gap-3">
+                    <span className="text-[10px] font-black text-white/20 w-4 shrink-0">#{i+1}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold truncate">{p.name}</p>
+                    </div>
+                    <span className="text-[10px] font-black text-white/40 shrink-0">{p.qty} sold</span>
+                    <span className="text-[10px] font-black text-brand-light-green/70 shrink-0">${p.revenue.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Category revenue breakdown */}
+          {Object.keys(analytics.byCategory ?? {}).length > 0 && (
+            <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
+              <h3 className="font-black uppercase tracking-tight mb-4">Category Inventory</h3>
+              <div className="space-y-2.5">
+                {Object.entries(analytics.byCategory ?? {}).sort(([,a]: any,[,b]: any) => b.count - a.count).map(([cat, d]: any) => (
+                  <div key={cat} className="flex items-center gap-3">
+                    <span className="text-[10px] font-black uppercase text-white/50 w-28 shrink-0 truncate">{cat}</span>
+                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-brand-light-green/40 rounded-full" style={{ width: `${Math.round((d.inStock / d.count) * 100)}%` }} />
+                    </div>
+                    <span className="text-[10px] font-black text-white/30 shrink-0">{d.inStock}/{d.count} · avg ${d.avgPrice}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── BRANDS ── */}
+      {subTab === "brands" && (
+        <div className="space-y-5">
+          <div>
+            <h2 className="font-black uppercase tracking-tight text-lg">Brand Manager</h2>
+            <p className="text-white/30 text-xs mt-0.5">Remap Barnet brand names — changes apply immediately and persist through future syncs</p>
+          </div>
+          <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-4">
+            <h3 className="font-black uppercase tracking-tight flex items-center gap-2"><Layers size={13} className="opacity-40" /> Add Brand Mapping</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto] gap-3 items-end">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Barnet Brand Name</label>
+                <input list="brand-list" aria-label="Barnet brand name" value={brandFrom} onChange={e => setBrandFrom(e.target.value)} placeholder="e.g. 1964 Supply Co."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-brand-light-green/50" />
+                <datalist id="brand-list">{brands.map(b => <option key={b} value={b} />)}</datalist>
+              </div>
+              <div className="text-white/30 font-black pb-2 text-center">→</div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Display As</label>
+                <input value={brandTo} onChange={e => setBrandTo(e.target.value)} placeholder="e.g. 1964"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-brand-light-green/50" />
+              </div>
+              <button type="button" onClick={saveBrandMap} disabled={savingBrand || !brandFrom || !brandTo}
+                className="flex items-center gap-2 px-5 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40">
+                {savingBrand ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />} Save
+              </button>
+            </div>
+          </div>
+          {Object.keys(brandMap).length > 0 && (
+            <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
+              <h3 className="font-black uppercase tracking-tight mb-4">Active Mappings ({Object.keys(brandMap).length})</h3>
+              <div className="space-y-2">
+                {Object.entries(brandMap).map(([from, to]) => (
+                  <div key={from} className="flex items-center gap-3 bg-black/20 rounded-xl px-4 py-2.5 border border-white/5">
+                    <span className="text-sm font-bold text-white/50 flex-1 truncate">{from}</span>
+                    <span className="text-white/20 font-black">→</span>
+                    <span className="text-sm font-bold text-brand-light-green flex-1 truncate">{to}</span>
+                    <button type="button" title="Remove mapping" onClick={async () => {
+                      try { await api.admin.barnetSetBrandMap(from, to, true); success(`Mapping "${from}" removed`); mutateBrands(); mutateProducts(); }
+                      catch (e: any) { toastErr(e.message); }
+                    }} className="text-red-400/40 hover:text-red-400 transition-colors shrink-0"><Trash2 size={13} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
+            <h3 className="font-black uppercase tracking-tight mb-4">All Barnet Brands ({brands.length})</h3>
+            <div className="flex flex-wrap gap-2">
+              {brands.map(b => (
+                <button key={b} type="button" onClick={() => { setBrandFrom(b); setBrandTo(brandMap[b] ?? ""); }}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
+                    brandMap[b] ? "bg-brand-light-green/10 border-brand-light-green/20 text-brand-light-green" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                  }`}>{brandMap[b] ? `${b} → ${brandMap[b]}` : b}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SYNC HISTORY ── */}
       {subTab === "history" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <h2 className="font-black uppercase tracking-tight text-lg">Sync History</h2>
-              <p className="text-white/30 text-xs mt-0.5">Last 50 sync events</p>
+              <h2 className="font-black uppercase tracking-tight text-lg">Sync Log</h2>
+              <p className="text-white/30 text-xs mt-0.5">Last 100 sync events stored in database</p>
             </div>
-            <button type="button" onClick={() => mutateStatus()}
-              className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+            <button type="button" onClick={() => mutateStatus()} className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
               <RefreshCw size={11} /> Refresh
             </button>
           </div>
           {history.length === 0 ? (
             <div className="text-center py-16 bg-[#1a2219] rounded-2xl border border-white/5">
               <History size={32} className="mx-auto mb-3 text-white/10" />
-              <p className="text-white/30 text-sm font-black uppercase tracking-widest">No sync history yet</p>
+              <p className="text-white/30 text-sm font-black uppercase tracking-widest">No syncs yet — run your first sync</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {history.map((h: any, i: number) => (
-                <div key={i} className="flex items-center gap-4 bg-[#1a2219] border border-white/5 rounded-xl px-4 py-3">
+                <div key={i} className="flex items-center gap-3 bg-[#1a2219] border border-white/5 rounded-xl px-4 py-3 flex-wrap">
                   <div className={`w-2 h-2 rounded-full shrink-0 ${h.errors > 0 ? "bg-amber-400" : "bg-green-400"}`} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-white/70">{new Date(h.timestamp).toLocaleString()}</p>
-                    <p className="text-[10px] text-white/30 font-black uppercase tracking-widest mt-0.5">
-                      {h.source === "manual" ? "Manual" : "Auto"} · {h.synced} synced · {h.removed} removed
-                      {h.errors > 0 && <span className="text-red-400 ml-2">{h.errors} errors</span>}
+                    <p className="text-xs font-black text-white/60">{new Date(h.timestamp).toLocaleString()}</p>
+                    <p className="text-[10px] text-white/30 font-black uppercase tracking-widest">
+                      {h.synced} synced · {h.removed} removed{h.errors > 0 && <span className="text-red-400 ml-2">{h.errors} errors</span>}
                     </p>
                   </div>
-                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${
-                    h.source === "manual"
-                      ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                      : "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                  <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-lg border shrink-0 ${
+                    h.source === "manual" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-purple-500/10 text-purple-400 border-purple-500/20"
                   }`}>{h.source}</span>
                 </div>
               ))}
@@ -2097,174 +2255,183 @@ function BarnetTab() {
         </div>
       )}
 
-      {/* ── SETTINGS ────────────────────────────────────────────────────── */}
+      {/* ── SETTINGS ── */}
       {subTab === "settings" && (
-        <div className="space-y-6">
-          {/* Auto-sync */}
+        <div className="space-y-5">
           <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-5">
             <div>
-              <h2 className="font-black uppercase tracking-tight text-lg flex items-center gap-2">
-                <Clock size={15} className="opacity-40" /> Auto-Sync Schedule
-              </h2>
-              <p className="text-white/30 text-xs mt-1">Automatically pull from Barnet on a schedule</p>
+              <h2 className="font-black uppercase tracking-tight text-lg flex items-center gap-2"><Clock size={14} className="opacity-40" /> Auto-Sync</h2>
+              <p className="text-white/30 text-xs mt-1">Automatically pull from Barnet POS on a schedule</p>
             </div>
             <div className="flex items-center gap-4 flex-wrap">
-              <button type="button" onClick={() => setAutoSyncEnabled(v => !v)}
-                className="flex items-center gap-2 text-sm font-black">
-                {autoSyncEnabled
-                  ? <ToggleRight size={28} className="text-brand-light-green" />
-                  : <ToggleLeft  size={28} className="text-white/20" />}
-                <span className={autoSyncEnabled ? "text-brand-light-green" : "text-white/40"}>
-                  {autoSyncEnabled ? "Enabled" : "Disabled"}
-                </span>
+              <button type="button" onClick={() => setAutoSyncEnabled(v => !v)} className="flex items-center gap-2 font-black text-sm">
+                {autoSyncEnabled ? <ToggleRight size={26} className="text-brand-light-green" /> : <ToggleLeft size={26} className="text-white/20" />}
+                <span className={autoSyncEnabled ? "text-brand-light-green" : "text-white/40"}>{autoSyncEnabled ? "Enabled" : "Disabled"}</span>
               </button>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Every</span>
-                {[2, 4, 6, 12, 24].map(h => (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Every</span>
+                {[2,4,6,12,24].map(h => (
                   <button key={h} type="button" onClick={() => setAutoSyncHours(h)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${
-                      autoSyncHours === h ? "bg-brand-light-green text-[#111815]" : "bg-white/5 text-white/40 hover:bg-white/10"
-                    }`}>{h}h</button>
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${autoSyncHours === h ? "bg-brand-light-green text-[#111815]" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>{h}h</button>
                 ))}
               </div>
             </div>
             <button type="button" onClick={saveAutoSync} disabled={savingAutoSync}
               className="flex items-center gap-2 px-5 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40">
-              {savingAutoSync ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
-              Save Schedule
+              {savingAutoSync ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />} Save Schedule
             </button>
           </div>
 
-          {/* Danger zone */}
           <div className="bg-red-500/5 border border-red-500/15 rounded-2xl p-6 space-y-4">
-            <h2 className="font-black uppercase tracking-tight text-red-400 flex items-center gap-2">
-              <AlertTriangle size={15} /> Danger Zone
-            </h2>
+            <h2 className="font-black uppercase tracking-tight text-red-400 flex items-center gap-2"><AlertTriangle size={14} /> Danger Zone</h2>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <p className="text-sm font-bold text-white/70">Remove All Barnet Products</p>
-                <p className="text-white/30 text-xs">Deletes all products sourced from Barnet. Cannot be undone.</p>
+                <p className="text-sm font-bold text-white/70">Wipe All Barnet Products</p>
+                <p className="text-white/30 text-xs">Removes all {barnetProducts.length} Barnet products from database. Cannot be undone.</p>
               </div>
               <button type="button" onClick={async () => {
-                if (!confirm("Delete ALL Barnet products from your database? This cannot be undone.")) return;
+                if (!confirm(`Delete ALL ${barnetProducts.length} Barnet products? This cannot be undone.`)) return;
                 const ids = barnetProducts.map((p: any) => p.id);
-                if (!ids.length) return toastErr("No Barnet products to delete");
-                try {
-                  await api.admin.barnetBulk("delete", ids);
-                  success("All Barnet products removed");
-                  mutateProducts(); mutateAlerts();
-                } catch (e: any) { toastErr(e.message); }
+                if (!ids.length) return toastErr("No Barnet products found");
+                try { await api.admin.barnetBulk("delete", ids); success("All Barnet products deleted"); mutateProducts(); mutateAlerts(); mutateAnalytics(); }
+                catch (e: any) { toastErr(e.message); }
               }} className="px-4 py-2.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all shrink-0">
-                Delete All Barnet Products
+                Delete All ({barnetProducts.length})
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── PRODUCT DETAIL DRAWER ────────────────────────────────────────── */}
+      {/* ── PRODUCT DRAWER ── */}
       <AnimatePresence>
         {drawerProduct && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[500]"
-              onClick={() => setDrawerProduct(null)} />
-            <motion.div
-              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[500]" onClick={() => setDrawerProduct(null)} />
+            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="fixed right-0 top-0 h-full w-full max-w-md bg-[#111815] border-l border-white/10 z-[501] overflow-y-auto custom-scrollbar flex flex-col">
-              {/* Drawer header */}
-              <div className="flex items-center justify-between p-6 border-b border-white/5 sticky top-0 bg-[#111815] z-10">
+              className="fixed right-0 top-0 h-full w-full max-w-md bg-[#111815] border-l border-white/10 z-[501] flex flex-col">
+              <div className="shrink-0 flex items-center justify-between p-6 border-b border-white/5">
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Product Detail</p>
-                  <h3 className="font-black text-lg tracking-tight line-clamp-1">{drawerProduct.name}</h3>
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Product Override</p>
+                  <h3 className="font-black text-base tracking-tight line-clamp-1">{drawerProduct.name}</h3>
                 </div>
-                <button type="button" title="Close" onClick={() => setDrawerProduct(null)} className="text-white/30 hover:text-white transition-colors">
-                  <X size={20} />
-                </button>
+                <button type="button" title="Close" onClick={() => setDrawerProduct(null)} className="text-white/30 hover:text-white transition-colors"><X size={20} /></button>
               </div>
-
-              <div className="p-6 space-y-6 flex-1">
-                {/* Product image */}
-                {drawerProduct.image && (
-                  <img src={drawerProduct.image} alt={drawerProduct.name} className="w-full h-40 object-contain rounded-xl bg-white/5" />
-                )}
-
-                {/* Read-only info */}
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Brand",   value: drawerProduct.brand || "—" },
-                    { label: "Weight",  value: drawerProduct.weight || "—" },
-                    { label: "THC",     value: drawerProduct.thc   || "—" },
-                    { label: "CBD",     value: drawerProduct.cbd   || "—" },
-                    { label: "Strain",  value: drawerProduct.strain || "—" },
-                    { label: "Source",  value: drawerProduct.source || "barnet" },
-                  ].map(f => (
-                    <div key={f.label} className="bg-white/5 rounded-xl p-3">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">{f.label}</p>
-                      <p className="text-sm font-bold text-white/80">{f.value}</p>
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5">
+                {drawerProduct.image && <img src={drawerProduct.image} alt={drawerProduct.name} className="w-full h-36 object-contain rounded-xl bg-white/5" />}
+                <div className="grid grid-cols-3 gap-2">
+                  {[["Brand", drawerProduct.brand], ["Weight", drawerProduct.weight], ["THC", drawerProduct.thc], ["CBD", drawerProduct.cbd], ["Strain", drawerProduct.strain], ["Price", `$${Number(drawerProduct.price).toFixed(2)}`]].map(([l,v]) => (
+                    <div key={l} className="bg-white/5 rounded-xl p-2.5">
+                      <p className="text-[8px] font-black uppercase tracking-widest text-white/25 mb-0.5">{l}</p>
+                      <p className="text-xs font-bold text-white/70 truncate">{v || "—"}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* Editable overrides */}
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-light-green/60 flex items-center gap-2">
-                    <SlidersHorizontal size={11} /> Overrides (persist on next sync)
-                  </h4>
+                <div className="space-y-1 border-t border-white/5 pt-4">
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-light-green/60 mb-3 flex items-center gap-2"><SlidersHorizontal size={10} /> Overrides · persist through syncs</p>
 
                   <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Display Name</label>
+                    <input value={drawerOv.name ?? ""} onChange={e => setDrawerOv(v => ({ ...v, name: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-light-green/50" />
+                  </div>
+
+                  <div className="pt-2">
                     <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Category</label>
                     <div className="grid grid-cols-2 gap-1.5">
-                      {BARNET_CATEGORIES.map(c => (
-                        <button key={c} type="button" onClick={() => setDrawerOverride(v => ({ ...v, category: c }))}
-                          className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-left ${
-                            drawerOverride.category === c ? "bg-brand-light-green text-[#111815]" : "bg-white/5 text-white/50 hover:bg-white/10"
-                          }`}>{c}</button>
+                      {BARNET_CATS.map((c: string) => (
+                        <button key={c} type="button" onClick={() => setDrawerOv(v => ({ ...v, category: c }))}
+                          className={`px-2.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all text-left ${drawerOv.category === c ? "bg-brand-light-green text-[#111815]" : "bg-white/5 text-white/40 hover:bg-white/10"}`}>{c}</button>
                       ))}
                     </div>
                   </div>
 
-                  <div>
+                  <div className="pt-2">
                     <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Price Override ($)</label>
-                    <input type="number" step="0.01" min="0" aria-label="Price override"
-                      placeholder={String(drawerProduct?.price ?? "0.00")}
-                      value={drawerOverride.price ?? ""}
-                      onChange={e => setDrawerOverride(v => ({ ...v, price: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-light-green/50 transition-colors" />
+                    <input type="number" step="0.01" min="0" aria-label="Price override" placeholder={String(drawerProduct.price)}
+                      value={drawerOv.price ?? ""} onChange={e => setDrawerOv(v => ({ ...v, price: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-light-green/50" />
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <button type="button" onClick={() => setDrawerOverride(v => ({ ...v, isBestSeller: !v.isBestSeller }))}
-                      className="flex items-center gap-2 text-sm font-black">
-                      {drawerOverride.isBestSeller
-                        ? <ToggleRight size={24} className="text-amber-400" />
-                        : <ToggleLeft  size={24} className="text-white/20" />}
-                      <span className={drawerOverride.isBestSeller ? "text-amber-400" : "text-white/40"}>Best Seller</span>
+                  <div className="pt-2">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Sort Order</label>
+                    <input type="number" min="0" aria-label="Sort order" placeholder="0"
+                      value={drawerOv.sortOrder ?? ""} onChange={e => setDrawerOv(v => ({ ...v, sortOrder: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-light-green/50" />
+                  </div>
+
+                  <div className="flex gap-6 pt-3">
+                    <button type="button" onClick={() => setDrawerOv(v => ({ ...v, isBestSeller: !v.isBestSeller }))} className="flex items-center gap-2 font-black text-sm">
+                      {drawerOv.isBestSeller ? <ToggleRight size={22} className="text-amber-400" /> : <ToggleLeft size={22} className="text-white/20" />}
+                      <span className={drawerOv.isBestSeller ? "text-amber-400" : "text-white/40"}>Best Seller</span>
+                    </button>
+                    <button type="button" onClick={() => setDrawerOv(v => ({ ...v, hidden: !v.hidden }))} className="flex items-center gap-2 font-black text-sm">
+                      {drawerOv.hidden ? <ToggleRight size={22} className="text-red-400" /> : <ToggleLeft size={22} className="text-white/20" />}
+                      <span className={drawerOv.hidden ? "text-red-400" : "text-white/40"}>Hide from Site</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Description */}
                 {drawerProduct.description && (
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Description</p>
-                    <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap line-clamp-6">{drawerProduct.description}</p>
+                  <div className="border-t border-white/5 pt-4">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/25 mb-2">Description</p>
+                    <p className="text-xs text-white/40 leading-relaxed line-clamp-5">{drawerProduct.description}</p>
                   </div>
                 )}
               </div>
-
-              {/* Drawer footer */}
-              <div className="p-6 border-t border-white/5 flex gap-3 sticky bottom-0 bg-[#111815]">
-                <button type="button" onClick={clearOverride} disabled={savingOverride}
+              <div className="shrink-0 p-5 border-t border-white/5 flex gap-3">
+                <button type="button" onClick={clearOv} disabled={savingOv}
                   className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-40">
                   Clear Override
                 </button>
-                <button type="button" onClick={saveOverride} disabled={savingOverride}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40 shadow-lg shadow-brand-light-green/20">
-                  {savingOverride ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
-                  Save Override
+                <button type="button" onClick={saveOv} disabled={savingOv}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40">
+                  {savingOv ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />} Save Override
                 </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── STOCK ADJUST MODAL ── */}
+      <AnimatePresence>
+        {adjustProduct && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[500]" onClick={() => setAdjustProduct(null)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed inset-0 flex items-center justify-center z-[501] p-4">
+              <div className="bg-[#111815] border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-black uppercase tracking-tight">Stock Adjustment</h3>
+                    <p className="text-white/30 text-xs mt-0.5 line-clamp-1">{adjustProduct.name}</p>
+                  </div>
+                  <button type="button" title="Close" onClick={() => setAdjustProduct(null)} className="text-white/30 hover:text-white"><X size={18} /></button>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Reason / Note</label>
+                  <input value={adjustReason} onChange={e => setAdjustReason(e.target.value)} placeholder="e.g. received shipment, damaged goods…"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-brand-light-green/50" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button type="button" onClick={async () => {
+                    try { await api.admin.barnetStockAdjust(adjustProduct.id, false, adjustReason || "manual out"); success("Marked out of stock"); mutateAlerts(); mutateProducts(); setAdjustProduct(null); }
+                    catch (e: any) { toastErr(e.message); }
+                  }} className="py-2.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all">
+                    Mark Out
+                  </button>
+                  <button type="button" onClick={async () => {
+                    try { await api.admin.barnetStockAdjust(adjustProduct.id, true, adjustReason || "manual in"); success("Marked in stock"); mutateAlerts(); mutateProducts(); setAdjustProduct(null); }
+                    catch (e: any) { toastErr(e.message); }
+                  }} className="py-2.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-500/20 transition-all">
+                    Mark In
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>

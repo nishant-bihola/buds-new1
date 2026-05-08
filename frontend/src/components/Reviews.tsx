@@ -295,7 +295,7 @@ export function Reviews() {
   } as any;
 
   return (
-    <section ref={sectionRef} className="relative bg-[#060b08] overflow-hidden isolate">
+    <section id="reviews" ref={sectionRef} className="relative bg-[#060b08] overflow-hidden isolate">
 
       {/* Ambient glow that follows active review color */}
       <motion.div

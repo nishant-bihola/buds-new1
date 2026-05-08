@@ -22,7 +22,7 @@ export function DeliveryZones() {
   ];
 
   return (
-    <section className="bg-[#060b08] border-t border-white/5 py-20 md:py-32 px-6">
+    <section id="delivery-zones" className="bg-[#060b08] border-t border-white/5 py-20 md:py-32 px-6">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 12 }}

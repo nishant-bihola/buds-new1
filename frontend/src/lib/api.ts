@@ -90,15 +90,24 @@ export const api = {
     syncBarnet: (removeStale = false) =>
       fetchWithAuth("/api/barnet/sync", { method: "POST", body: JSON.stringify({ removeStale }) }),
     barnetStatus: () => fetchWithAuth("/api/barnet/status"),
-    barnetPreview: () => fetchWithAuth("/api/barnet/preview"),
+    barnetPreview: (params?: { page?: number; search?: string; category?: string }) => {
+      const qs = params ? "?" + new URLSearchParams(Object.entries(params).filter(([,v]) => v !== undefined).map(([k,v]) => [k, String(v)])) : "";
+      return fetchWithAuth(`/api/barnet/preview${qs}`);
+    },
     barnetStockAlerts: () => fetchWithAuth("/api/barnet/stock-alerts"),
+    barnetAnalytics: () => fetchWithAuth("/api/barnet/analytics"),
     barnetOverrides: () => fetchWithAuth("/api/barnet/overrides"),
-    barnetSetOverride: (data: { productId: string; category?: string; price?: number; isBestSeller?: boolean; clear?: boolean }) =>
+    barnetSetOverride: (data: { productId: string; category?: string; price?: number; isBestSeller?: boolean; hidden?: boolean; sortOrder?: number; name?: string; clear?: boolean }) =>
       fetchWithAuth("/api/barnet/override", { method: "POST", body: JSON.stringify(data) }),
     barnetSetAutoSync: (enabled: boolean, intervalHours: number) =>
       fetchWithAuth("/api/barnet/auto-sync", { method: "POST", body: JSON.stringify({ enabled, intervalHours }) }),
-    barnetBulk: (action: "bestSeller" | "toggleStock" | "delete", ids: string[], value?: boolean) =>
+    barnetBulk: (action: "bestSeller" | "toggleStock" | "delete" | "hide" | "sortOrder", ids: string[], value?: boolean | number) =>
       fetchWithAuth("/api/barnet/bulk", { method: "POST", body: JSON.stringify({ action, ids, value }) }),
+    barnetStockAdjust: (productId: string, inStock: boolean, reason?: string) =>
+      fetchWithAuth("/api/barnet/stock-adjust", { method: "POST", body: JSON.stringify({ productId, inStock, reason }) }),
+    barnetBrands: () => fetchWithAuth("/api/barnet/brands"),
+    barnetSetBrandMap: (from: string, to: string, clear?: boolean) =>
+      fetchWithAuth("/api/barnet/brand-map", { method: "POST", body: JSON.stringify({ from, to, clear }) }),
     clearData: (target: "orders" | "products" | "customers" | "all") =>
       fetchWithAuth("/api/admin/clear", { method: "POST", body: JSON.stringify({ target }) }),
   },

@@ -1,34 +1,38 @@
 import { Instagram, Leaf } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useStore } from "../context/StoreContext";
 
 export function Footer() {
   const store = useStore();
-  const links = [
-    {
-      title: "Navigation",
-      items: [
-        { name: "Home", path: "/" },
-        { name: "Shop", path: "/shop" },
-        { name: "About", path: "/about" },
-      ],
-    },
-    {
-      title: "Discover",
-      items: [
-        { name: "Dried Flower", path: "/shop?category=Dried Flower" },
-        { name: "Edibles", path: "/shop?category=Edible" },
-        { name: "Vapes", path: "/shop?category=Vape" },
-        { name: "Pre-Rolls", path: "/shop?category=Pre-Roll" },
-      ],
-    },
-    {
-      title: "Community",
-      items: [
-        { name: "Reviews", path: "/#reviews" },
-        { name: "Our Story", path: "/about" },
-      ],
-    },
+  const navigate = useNavigate();
+
+  function scrollToSection(sectionId: string) {
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    } else {
+      navigate("/");
+      setTimeout(() => {
+        document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+      }, 400);
+    }
+  }
+
+  const navLinks = [
+    { name: "Home", path: "/" },
+    { name: "Shop", path: "/shop" },
+    { name: "About", path: "/about" },
+  ];
+  const discoverLinks = [
+    { name: "Dried Flower", path: "/shop?category=Dried Flower" },
+    { name: "Edibles", path: "/shop?category=Edible" },
+    { name: "Vapes", path: "/shop?category=Vape" },
+    { name: "Pre-Rolls", path: "/shop?category=Pre-Roll" },
+  ];
+  const communityActions = [
+    { name: "Reviews", action: () => scrollToSection("reviews") },
+    { name: "Our Story", action: () => navigate("/about") },
+    { name: "Delivery", action: () => scrollToSection("delivery-zones") },
   ];
 
   return (
@@ -62,25 +66,42 @@ export function Footer() {
 
           {/* Links */}
           <div className="sm:col-span-2 lg:col-span-5 grid grid-cols-3 gap-4 sm:gap-8">
-            {links.map((group, i) => (
-              <div key={i}>
-                <h4 className="text-white/40 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-4 sm:mb-6">
-                  {group.title}
-                </h4>
-                <ul className="space-y-3 font-bold text-xs sm:text-sm uppercase tracking-wide">
-                  {group.items.map((item, j) => (
-                    <li key={j}>
-                      <Link
-                        to={item.path}
-                        className="hover:translate-x-1 hover:text-white transition-all inline-block"
-                      >
-                        {item.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            <div>
+              <h4 className="text-white/40 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-4 sm:mb-6">Navigation</h4>
+              <ul className="space-y-3 font-bold text-xs sm:text-sm uppercase tracking-wide">
+                {navLinks.map((item, j) => (
+                  <li key={j}>
+                    <Link to={item.path} className="hover:translate-x-1 hover:text-white transition-all inline-block">
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-white/40 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-4 sm:mb-6">Discover</h4>
+              <ul className="space-y-3 font-bold text-xs sm:text-sm uppercase tracking-wide">
+                {discoverLinks.map((item, j) => (
+                  <li key={j}>
+                    <Link to={item.path} className="hover:translate-x-1 hover:text-white transition-all inline-block">
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-white/40 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-4 sm:mb-6">Community</h4>
+              <ul className="space-y-3 font-bold text-xs sm:text-sm uppercase tracking-wide">
+                {communityActions.map((item, j) => (
+                  <li key={j}>
+                    <button type="button" onClick={item.action} className="hover:translate-x-1 hover:text-white transition-all inline-block text-left">
+                      {item.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           {/* Community box */}

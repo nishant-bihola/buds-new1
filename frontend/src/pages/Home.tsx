@@ -3,6 +3,7 @@ import { Hero } from "../components/Hero";
 import type { Product } from "../types";
 
 // Lazy load sections below the fold for lighting fast performance
+const ImageSequence = lazy(() => import("../components/ImageSequence").then(m => ({ default: m.ImageSequence })));
 const BrandStatement = lazy(() => import("../components/BrandStatement").then(m => ({ default: m.BrandStatement })));
 const Intro = lazy(() => import("../components/Intro").then(m => ({ default: m.Intro })));
 const MemberPerks = lazy(() => import("../components/MemberPerks"));
@@ -46,7 +47,12 @@ export function Home() {
       <Hero />
 
       <div className="space-y-0">
-        {/* Fresh Menu (Product Grid) right under Hero */}
+        {/* Scroll-driven image sequence */}
+        <Suspense fallback={<SectionSkeleton />}>
+          <ImageSequence />
+        </Suspense>
+
+        {/* Fresh Menu (Product Grid) */}
         <Suspense fallback={<SectionSkeleton />}>
           <ProductGrid products={products} loading={loading} />
         </Suspense>
