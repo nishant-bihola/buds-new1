@@ -1,5 +1,5 @@
 import { Children, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { motion, useAnimationFrame } from "motion/react"
+import { motion, AnimatePresence, useAnimationFrame } from "motion/react"
 import { v4 as uuidv4 } from "uuid"
 import { useMouseVector } from "@/components/hooks/use-mouse-vector"
 
@@ -76,9 +76,11 @@ const ImageTrail = ({
 
   return (
     <div className="relative w-full h-full pointer-events-none">
-      {trail.map((item) => (
-        <TrailItem key={item.id} item={item} onComplete={removeFromTrail} />
-      ))}
+      <AnimatePresence>
+        {trail.map((item) => (
+          <TrailItem key={item.id} item={item} onComplete={removeFromTrail} />
+        ))}
+      </AnimatePresence>
     </div>
   )
 }
@@ -88,37 +90,44 @@ interface TrailItemProps {
   onComplete: (id: string) => void
 }
 
+const TRAIL_SCALE_VARIANTS = [1, 0.9, 1.1, 0.95] as const
+const TRAIL_DURATION = 0.85
+
 const TrailItem = ({ item, onComplete }: TrailItemProps) => {
   const mountedRef = useRef(true)
+  const scaleVariant = useRef(TRAIL_SCALE_VARIANTS[Math.floor(Math.random() * TRAIL_SCALE_VARIANTS.length)]).current
 
   useEffect(() => {
     mountedRef.current = true
-    return () => { mountedRef.current = false }
-  }, [])
-
-  // Use CSS animation instead of motion/react animate() to avoid null-ref crash
-  const onAnimationEnd = useCallback(() => {
-    if (mountedRef.current) {
-      onComplete(item.id)
+    // Remove after animation completes (enter + hold + exit)
+    const timeout = setTimeout(() => {
+      if (mountedRef.current) onComplete(item.id)
+    }, TRAIL_DURATION * 1000)
+    return () => {
+      mountedRef.current = false
+      clearTimeout(timeout)
     }
   }, [item.id, onComplete])
 
   return (
-    <div
-      className="trail-item-animate absolute w-16 h-16 pointer-events-none"
-      style={
-        {
-          left: `${item.x}px`,
-          top: `${item.y}px`,
-          "--trail-rotate": `${item.rotation}deg`,
-        } as React.CSSProperties
-      }
-      onAnimationEnd={onAnimationEnd}
+    <motion.div
+      className="absolute pointer-events-none"
+      style={{
+        left: `${item.x}px`,
+        top: `${item.y}px`,
+        x: "-50%",
+        y: "-50%",
+        rotate: item.rotation,
+      }}
+      initial={{ opacity: 0, scale: 0.4, rotate: item.rotation - 10 }}
+      animate={{ opacity: 1, scale: scaleVariant, rotate: item.rotation }}
+      exit={{ opacity: 0, scale: 0.15, rotate: item.rotation + 12 }}
+      transition={{ duration: TRAIL_DURATION, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="w-full h-full flex items-center justify-center">
         {item.child}
       </div>
-    </div>
+    </motion.div>
   )
 }
 

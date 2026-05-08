@@ -50,10 +50,11 @@ export function BestSellerFeature() {
             transition={{ delay: 0.1 }}
           >
             <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter mb-4 text-brand-dark">
-              The right way to grow.
+              No shortcuts. Ever.
             </h3>
-            <p className="text-brand-dark/70 text-lg mb-10 max-w-md leading-relaxed font-medium">
-              Our products are grown without shortcuts. Pure, potent, and hand-selected for our buddies in Sherwood Park.
+            <p className="text-brand-dark/70 text-base sm:text-lg mb-10 max-w-md leading-[1.7] font-medium">
+              Every product on our shelves is hand-selected for quality, potency, and value.
+              We carry organic, craft, and small-batch flower — so you get the real thing every time.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

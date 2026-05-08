@@ -6,6 +6,7 @@ import {
   LogOut, Menu, X, Search, Plus, Pencil, Trash2, Upload,
   Truck, Store, Copy, Check, Lock, RefreshCw, Home, FileUp,
   DollarSign, ToggleLeft, ToggleRight, FileText, Users, ChevronDown,
+  Database, AlertTriangle, TrendingUp, Zap, Eye,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
@@ -13,7 +14,7 @@ import { useToast } from "../context/ToastContext";
 /* ─────────────────────────────────────────────────────────────
    Constants
 ───────────────────────────────────────────────────────────── */
-const TABS = ["Dashboard", "Orders", "Inventory", "Promos", "Drivers", "Content", "Settings"] as const;
+const TABS = ["Dashboard", "Orders", "Inventory", "Promos", "Drivers", "Barnet", "Content", "Settings"] as const;
 type Tab = typeof TABS[number];
 
 const STATUS_META: Record<string, { label: string; cls: string; pulse?: boolean }> = {
@@ -1618,6 +1619,225 @@ function DriversTab() {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Barnet Tab
+───────────────────────────────────────────────────────────── */
+function BarnetTab() {
+  const { data: productsData, mutate } = useSWR("admin-products", api.admin.getProducts, { refreshInterval: 120000 });
+  const products: any[] = productsData?.products ?? [];
+  const { success, error: toastErr } = useToast();
+
+  const [syncing, setSyncing]         = useState(false);
+  const [removeStale, setRemoveStale] = useState(false);
+  const [lastSync, setLastSync]       = useState<string | null>(null);
+  const [syncResult, setSyncResult]   = useState<{ synced: number; errors: number; removed: number } | null>(null);
+  const [previewing, setPreviewing]   = useState(false);
+  const [previewItems, setPreviewItems] = useState<any[]>([]);
+  const [previewSearch, setPreviewSearch] = useState("");
+
+  // Derived stats from current synced products
+  const barnetProducts = products.filter(p => p.source === "barnet");
+  const inStock        = barnetProducts.filter(p => p.inStock).length;
+  const outOfStock     = barnetProducts.length - inStock;
+  const byCategory     = barnetProducts.reduce((acc: Record<string, number>, p) => {
+    acc[p.category || "Other"] = (acc[p.category || "Other"] || 0) + 1;
+    return acc;
+  }, {});
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await api.admin.syncBarnet(removeStale);
+      setSyncResult({ synced: res.synced, errors: res.errors, removed: res.removed ?? 0 });
+      setLastSync(new Date().toLocaleTimeString());
+      success(`Synced ${res.synced} products from Barnet`);
+      mutate();
+    } catch (e: any) {
+      toastErr(e.message || "Barnet sync failed");
+    }
+    setSyncing(false);
+  };
+
+  const handlePreview = async () => {
+    setPreviewing(true);
+    setPreviewItems([]);
+    try {
+      const secret = sessionStorage.getItem("admin_secret") ?? localStorage.getItem("admin_secret") ?? "";
+      const res = await fetch("/api/barnet/preview", {
+        headers: { Authorization: `Bearer ${secret}` },
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setPreviewItems(data.products || []);
+    } catch (e: any) {
+      toastErr(e.message || "Preview failed");
+    }
+    setPreviewing(false);
+  };
+
+  const filteredPreview = previewItems.filter(p =>
+    !previewSearch || p.name?.toLowerCase().includes(previewSearch.toLowerCase()) ||
+    p.category?.toLowerCase().includes(previewSearch.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-4xl font-black uppercase tracking-tighter">Barnet Portal</h1>
+        <p className="text-white/30 text-sm mt-1">Sync inventory from Barnet POS · store_id=5</p>
+      </div>
+
+      {/* Status Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { icon: Database,      label: "Barnet Products", value: barnetProducts.length, color: "from-blue-500/10" },
+          { icon: TrendingUp,    label: "In Stock",         value: inStock,              color: "from-green-500/10" },
+          { icon: AlertTriangle, label: "Out of Stock",     value: outOfStock,           color: "from-red-500/10" },
+          { icon: Zap,           label: "Categories",       value: Object.keys(byCategory).length, color: "from-amber-500/10" },
+        ].map((k, i) => (
+          <motion.div key={i}
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.06 }}
+            className={`bg-gradient-to-br ${k.color} to-transparent border border-white/5 rounded-2xl p-5`}>
+            <k.icon size={18} className="opacity-30 mb-3" />
+            <p className="text-3xl font-black tracking-tighter">{k.value}</p>
+            <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] mt-1">{k.label}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Sync Panel */}
+      <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="font-black uppercase tracking-tight text-lg">Sync Inventory</h2>
+            <p className="text-white/30 text-xs mt-0.5">
+              Pull latest products from Barnet and upsert into your database
+              {lastSync && <span className="ml-2 text-brand-light-green">· Last sync: {lastSync}</span>}
+            </p>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button type="button"
+              onClick={() => setRemoveStale(v => !v)}
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors">
+              {removeStale
+                ? <ToggleRight size={22} className="text-brand-light-green" />
+                : <ToggleLeft  size={22} className="text-white/20" />}
+              Remove stale
+            </button>
+            <button type="button" onClick={handlePreview} disabled={previewing}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-40">
+              {previewing ? <RefreshCw size={13} className="animate-spin" /> : <Eye size={13} />}
+              Preview
+            </button>
+            <button type="button" onClick={handleSync} disabled={syncing}
+              className="flex items-center gap-2 px-5 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40 shadow-lg shadow-brand-light-green/20">
+              {syncing ? <RefreshCw size={13} className="animate-spin" /> : <Zap size={13} />}
+              {syncing ? "Syncing…" : "Sync Now"}
+            </button>
+          </div>
+        </div>
+
+        {/* Sync result */}
+        <AnimatePresence>
+          {syncResult && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Synced",  value: syncResult.synced,  cls: "text-green-400" },
+                { label: "Errors",  value: syncResult.errors,  cls: "text-red-400" },
+                { label: "Removed", value: syncResult.removed, cls: "text-amber-400" },
+              ].map(s => (
+                <div key={s.label} className="bg-black/20 rounded-xl p-4 text-center border border-white/5">
+                  <p className={`text-2xl font-black tracking-tighter ${s.cls}`}>{s.value}</p>
+                  <p className="text-white/30 text-[9px] uppercase tracking-widest font-black mt-1">{s.label}</p>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Category breakdown */}
+      {Object.keys(byCategory).length > 0 && (
+        <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
+          <h2 className="font-black uppercase tracking-tight mb-4">Category Breakdown</h2>
+          <div className="space-y-2.5">
+            {Object.entries(byCategory)
+              .sort(([, a], [, b]) => b - a)
+              .map(([cat, count]) => {
+                const pct = Math.round((count / barnetProducts.length) * 100);
+                return (
+                  <div key={cat} className="flex items-center gap-3">
+                    <span className="text-xs font-black uppercase tracking-wide text-white/60 w-32 shrink-0 truncate">{cat}</span>
+                    <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                        className="h-full bg-brand-light-green/60 rounded-full"
+                      />
+                    </div>
+                    <span className="text-xs font-black text-white/40 w-8 text-right">{count}</span>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Live Preview from Barnet API */}
+      <AnimatePresence>
+        {previewItems.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="font-black uppercase tracking-tight">Barnet Live Preview</h2>
+                <p className="text-white/30 text-xs">{previewItems.length} products from API (not yet saved)</p>
+              </div>
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30" />
+                <input
+                  type="text"
+                  placeholder="Filter…"
+                  value={previewSearch}
+                  onChange={e => setPreviewSearch(e.target.value)}
+                  className="bg-black/20 border border-white/10 rounded-xl pl-8 pr-4 py-2 text-xs focus:outline-none focus:border-brand-light-green/40 w-48"
+                />
+              </div>
+            </div>
+            <div className="max-h-96 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
+              {filteredPreview.map((p: any, i: number) => (
+                <div key={i} className="flex items-center justify-between bg-black/20 rounded-xl px-4 py-3 border border-white/5 gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold truncate">{p.name || "Unnamed"}</p>
+                    <p className="text-white/30 text-[10px] uppercase tracking-wide font-black">{p.category}</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${
+                      p.inStock ? "bg-green-500/10 text-green-300 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
+                    }`}>{p.inStock ? "In Stock" : "Out"}</span>
+                    <span className="font-black text-sm">${Number(p.price || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
    Root Admin Layout
 ───────────────────────────────────────────────────────────── */
 const NAV = [
@@ -1626,6 +1846,7 @@ const NAV = [
   { id: "Inventory", icon: Package },
   { id: "Promos",    icon: Tag },
   { id: "Drivers",   icon: Users },
+  { id: "Barnet",    icon: Database },
   { id: "Content",   icon: FileText },
   { id: "Settings",  icon: Gear },
 ] as const;
@@ -1734,6 +1955,7 @@ export default function Admin() {
                 {tab === "Inventory" && <InventoryTab />}
                 {tab === "Promos"    && <PromosTab />}
                 {tab === "Drivers"   && <DriversTab />}
+                {tab === "Barnet"    && <BarnetTab />}
                 {tab === "Content"   && <ContentTab />}
                 {tab === "Settings"  && <SettingsTab />}
               </motion.div>
