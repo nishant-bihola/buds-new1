@@ -106,6 +106,7 @@ export const api = {
     barnetStockAdjust: (productId: string, inStock: boolean, reason?: string) =>
       fetchWithAuth("/api/barnet/stock-adjust", { method: "POST", body: JSON.stringify({ productId, inStock, reason }) }),
     barnetBrands: () => fetchWithAuth("/api/barnet/brands"),
+    barnetCategories: () => fetchWithAuth("/api/barnet/categories"),
     barnetSetBrandMap: (from: string, to: string, clear?: boolean) =>
       fetchWithAuth("/api/barnet/brand-map", { method: "POST", body: JSON.stringify({ from, to, clear }) }),
     clearData: (target: "orders" | "products" | "customers" | "all") =>

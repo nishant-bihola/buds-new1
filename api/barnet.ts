@@ -20,18 +20,67 @@ async function barnetFetch(path: string): Promise<any> {
   return res.json();
 }
 
-// ── Category normalizer ─────────────────────────────────────────────────────
+// ── Category normalizer — maps 20+ Barnet categories to storefront display categories ──
 function normalizeCategory(raw: string): string {
   const s = (raw || "").toLowerCase().trim();
-  if (s.includes("flower") || s.includes("bud") || (s.includes("cannabis") && !s.includes("oil"))) return "Dried Flower";
+
+  // Dried Flower / Cannabis
+  if (s.includes("flower") || s.includes("bud") || s === "dried flower" || (s.includes("cannabis") && !s.includes("oil"))) return "Dried Flower";
+
+  // Pre-Rolls
   if (s.includes("pre-roll") || s.includes("preroll") || s.includes("pre roll") || s.includes("joint") || s.includes("blunt")) return "Pre-Roll";
+
+  // Vapes
   if (s.includes("vape") || s.includes("cartridge") || s.includes("disposable") || s.includes("pen")) return "Vape";
+
+  // Soft Gels & Capsules
+  if (s.includes("soft gel") || s.includes("softgel") || s.includes("capsule") || s.includes("pill") || s.includes("tablet")) return "Capsule";
+
+  // Soaps, Bath, Salves & Balms, Skin Care — group as Topical
+  if (s.includes("soap") || s.includes("bath") || s.includes("salve") || s.includes("balm") || s.includes("skin care") || s.includes("skincare") || s.includes("topical") || s.includes("cream") || s.includes("lotion") || s.includes("patch")) return "Topical";
+
+  // Caviar (cannabis product type)
+  if (s.includes("caviar")) return "Extract";
+
+  // Distillate & Distillate Powder
+  if (s.includes("distillate")) return "Extract";
+
+  // Isolate
+  if (s.includes("isolate")) return "Extract";
+
+  // Edibles (gummies, chocolate, candy, cookies, brownies, etc.)
   if (s.includes("edible") || s.includes("gummy") || s.includes("chocolate") || s.includes("candy") || s.includes("cookie") || s.includes("brownie")) return "Edible";
+
+  // Beverages
   if (s.includes("beverage") || s.includes("drink") || s.includes("soda") || s.includes("tea") || s.includes("water")) return "Beverage";
+
+  // Extract / Concentrate (shatter, wax, rosin, resin, hash, oil)
   if (s.includes("extract") || s.includes("concentrate") || s.includes("shatter") || s.includes("wax") || s.includes("rosin") || s.includes("resin") || s.includes("hash") || s.includes("oil")) return "Extract";
+
+  // Tinctures & Drops (oral drops)
+  if (s.includes("tincture") || s.includes("drop") || s.includes("spray")) return "Capsule";
+
+  // Accessories
   if (s.includes("accessory") || s.includes("accessories") || s.includes("gear") || s.includes("device") || s.includes("pipe") || s.includes("paper")) return "Accessories";
-  if (s.includes("topical") || s.includes("cream") || s.includes("lotion") || s.includes("patch")) return "Topical";
-  if (s.includes("capsule") || s.includes("pill") || s.includes("tablet") || s.includes("tincture") || s.includes("drop") || s.includes("spray")) return "Capsule";
+
+  // Top Shelf Pantry (specialty/premium category)
+  if (s.includes("top shelf pantry")) return "Extract";
+
+  // Kief (cannabis concentrate)
+  if (s.includes("kief")) return "Extract";
+
+  // Sublingual Strips
+  if (s.includes("sublingual")) return "Capsule";
+
+  // Infused (infused items — edibles/concentrates)
+  if (s.includes("infused")) return "Edible";
+
+  // Badder (cannabis concentrate)
+  if (s.includes("badder") || s.includes("budder")) return "Extract";
+
+  // Seeds
+  if (s.includes("seed")) return "Accessories";
+
   return raw || "Other";
 }
 
@@ -407,6 +456,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const brands = [...new Set(barnet.map((p: any) => p.brand || "Unknown"))].sort();
       return json(res as any, { brands, brandMap });
     } catch (err: any) { return json(res as any, { error: err.message }, 500); }
+  }
+
+  // ── GET /api/barnet/categories — all categories from live Barnet API ──────
+  if (action === "categories" && req.method === "GET") {
+    try {
+      let page = 1, allItems: any[] = [], totalPages = 1;
+      do {
+        const data = await barnetFetch(`/products?store_id=${BARNET_STORE_ID}&page_size=200&page=${page}`);
+        allItems = allItems.concat(data.items || []);
+        totalPages = data.paginator?.pages ?? 1;
+        page++;
+      } while (page <= totalPages);
+
+      const rawCategories = [...new Set(allItems.map((item: any) => item.category || item.productType || item.type || ""))].filter(Boolean) as string[];
+      const normalized = [...new Set(rawCategories.map(cat => normalizeCategory(cat)))].sort();
+      return json(res as any, { raw: rawCategories, normalized });
+    } catch (err: any) { return json(res as any, { error: err.message }, 502); }
   }
 
   // ── GET /api/barnet/cron-sync — Vercel cron job (every 6h) ────────────────
