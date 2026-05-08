@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   base: "/",
-  plugins: [react(), tailwindcss()],
+  plugins: [react({ babel: { compact: true } }), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -15,25 +15,22 @@ export default defineConfig({
     drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
   },
   build: {
-    target: ['es2020', 'chrome80', 'safari14', 'firefox78', 'edge88'],
+    target: ['es2020'],
     minify: 'esbuild',
     cssMinify: true,
     sourcemap: false,
-    chunkSizeWarningLimit: 900,
-    assetsInlineLimit: 4096,
+    chunkSizeWarningLimit: 600,
+    assetsInlineLimit: 8192,
     reportCompressedSize: false,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
-            return 'react-vendor';
-          }
-          if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) {
-            return 'motion-vendor';
-          }
-          if (id.includes('node_modules/lucide')) {
-            return 'icons-vendor';
-          }
+          if (id.includes('node_modules/react')) return 'react-vendor';
+          if (id.includes('node_modules/react-dom')) return 'react-dom-vendor';
+          if (id.includes('node_modules/react-router-dom')) return 'router-vendor';
+          if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) return 'motion-vendor';
+          if (id.includes('node_modules/lucide')) return 'icons-vendor';
+          if (id.includes('node_modules/swr')) return 'swr-vendor';
         },
       },
     },

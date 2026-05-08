@@ -56,7 +56,12 @@ const fetcher = (url: string) => fetch(url).then(r => r.json());
 const ContentContext = createContext<SiteContent>(CONTENT_DEFAULTS);
 
 export function ContentProvider({ children }: { children: React.ReactNode }) {
-  const { data } = useSWR("/api/content", fetcher, { revalidateOnFocus: false, dedupingInterval: 60000 });
+  const { data } = useSWR("/api/content", fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 600000,
+    focusThrottleInterval: 600000,
+    errorRetryCount: 2,
+  });
   const content: SiteContent = data?.content
     ? Object.fromEntries(
         Object.entries(CONTENT_DEFAULTS).map(([k, defaults]) => [

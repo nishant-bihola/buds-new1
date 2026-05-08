@@ -38,7 +38,10 @@ const fetcher = (url: string) => fetch(url).then(r => r.json());
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { data } = useSWR("/api/store", fetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 300000,
+    dedupingInterval: 600000,
+    focusThrottleInterval: 600000,
+    errorRetryCount: 2,
+    errorRetryInterval: 3000,
   });
   const store: StoreInfo = data?.store ? { ...STORE_DEFAULTS, ...data.store } : STORE_DEFAULTS;
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;

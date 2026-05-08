@@ -50,9 +50,10 @@ export function ImageSequence() {
     });
   }, [smoothProgress]);
 
-  // Parallax transforms
-  const imgScale = useTransform(smoothProgress, [0, 1], [1.08, 0.96]);
-  const imgY     = useTransform(smoothProgress, [0, 1], ["0%", "-4%"]);
+  // Parallax transforms — reduced on mobile for performance
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const imgScale = useTransform(smoothProgress, [0, 1], isMobile ? [1.02, 0.98] : [1.08, 0.96]);
+  const imgY     = useTransform(smoothProgress, [0, 1], isMobile ? ["0%", "-1%"] : ["0%", "-4%"]);
 
   const frame = FRAMES[activeFrame];
 

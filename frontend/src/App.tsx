@@ -15,13 +15,13 @@ import { StoreProvider } from "./context/StoreContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const Home = React.lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
-const AboutPage = React.lazy(() => import("./pages/About").then(m => ({ default: m.AboutPage })));
 const ShopPage = React.lazy(() => import("./pages/Shop").then(m => ({ default: m.ShopPage })));
 const ProductDetails = React.lazy(() => import("./pages/ProductDetails").then(m => ({ default: m.ProductDetails })));
 const Checkout = React.lazy(() => import("./pages/Checkout").then(m => ({ default: m.Checkout })));
+const OrderTracking = React.lazy(() => import("./pages/OrderTracking").then(m => ({ default: m.OrderTracking })));
+const AboutPage = React.lazy(() => import("./pages/About").then(m => ({ default: m.AboutPage })));
 const Admin = React.lazy(() => import("./pages/Admin"));
 const Till = React.lazy(() => import("./pages/Till").then(m => ({ default: m.Till })));
-const OrderTracking = React.lazy(() => import("./pages/OrderTracking").then(m => ({ default: m.OrderTracking })));
 const SherwoodPark = React.lazy(() => import("./pages/seo/SherwoodPark").then(m => ({ default: m.SherwoodPark })));
 
 function ScrollToTop() {
@@ -46,8 +46,8 @@ function AppInner() {
         <main>
           <React.Suspense
             fallback={
-              <div className="h-screen bg-brand-earth flex items-center justify-center">
-                <div className="w-12 h-12 border-4 border-brand-green border-t-transparent rounded-full animate-spin" />
+              <div className="h-screen bg-[#060b08] flex items-center justify-center">
+                <div className="w-10 h-10 border-3 border-brand-light-green/20 border-t-brand-light-green rounded-full animate-spin" />
               </div>
             }
           >

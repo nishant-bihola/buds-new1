@@ -6,11 +6,13 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const secret = sessionStorage.getItem("admin_secret") ?? localStorage.getItem("admin_secret");
   if (secret) {
     headers["Authorization"] = `Bearer ${secret}`;
-  } else {
-    console.warn("[API] No admin secret found in storage");
   }
 
-  const response = await fetch(url, { ...options, headers });
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    signal: AbortSignal.timeout(10000),
+  });
 
   const contentType = response.headers.get("content-type") ?? "";
   let data: any;
@@ -26,7 +28,6 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const errorMsg = data?.error || `HTTP ${response.status}`;
-    console.error(`[API Error] ${url}:`, errorMsg, data);
     throw new Error(errorMsg);
   }
   return data;

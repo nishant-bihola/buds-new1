@@ -3,15 +3,15 @@ import { Hero } from "../components/Hero";
 import type { Product } from "../types";
 
 // Lazy load sections below the fold for lightning fast performance
+const ProductGrid = lazy(() => import("../components/ProductGrid").then(m => ({ default: m.ProductGrid })));
 const ImageSequence = lazy(() => import("../components/ImageSequence").then(m => ({ default: m.ImageSequence })));
 const BrandStatement = lazy(() => import("../components/BrandStatement").then(m => ({ default: m.BrandStatement })));
-const Intro = lazy(() => import("../components/Intro").then(m => ({ default: m.Intro })));
+const DeliveryZones = lazy(() => import("../components/DeliveryZones").then(m => ({ default: m.DeliveryZones })));
 const MemberPerks = lazy(() => import("../components/MemberPerks"));
-const ProductGrid = lazy(() => import("../components/ProductGrid").then(m => ({ default: m.ProductGrid })));
+const StorySection = lazy(() => import("../components/StorySection").then(m => ({ default: m.StorySection })));
+const Intro = lazy(() => import("../components/Intro").then(m => ({ default: m.Intro })));
 const Reviews = lazy(() => import("../components/Reviews").then(m => ({ default: m.Reviews })));
 const About = lazy(() => import("../components/About").then(m => ({ default: m.About })));
-const StorySection = lazy(() => import("../components/StorySection").then(m => ({ default: m.StorySection })));
-const DeliveryZones = lazy(() => import("../components/DeliveryZones").then(m => ({ default: m.DeliveryZones })));
 
 // Premium Skeleton Loader for Sections
 const SectionSkeleton = () => (

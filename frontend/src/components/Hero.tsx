@@ -2,7 +2,7 @@
  * (c) 2024-2026 Nishant Bihola & Aura Labs. All Rights Reserved.
  * Unauthorized copying or distribution of this file is strictly prohibited.
  */
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { motion, useSpring } from "motion/react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Star, Clock, Calendar } from "lucide-react";
@@ -10,6 +10,18 @@ import { ImageTrail } from "@/components/ui/image-trail";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useMouseVector } from "@/components/hooks/use-mouse-vector";
 import { useSection } from "../context/ContentContext";
+
+const MemoHero = ({ c }: any) => {
+  return (
+    <>
+      {[c.stat_rating, c.stat_hours, c.stat_days].map((s: string, i: number) => (
+        <div key={i} className="text-center">
+          <p className="text-2xl sm:text-3xl font-black tracking-tight text-white">{s}</p>
+        </div>
+      ))}
+    </>
+  );
+};
 
 export function Hero() {
   const c = useSection("hero");
