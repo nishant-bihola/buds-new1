@@ -2,10 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "motion/react";
 import useSWR from "swr";
 import { Star, ArrowRight, ArrowLeft, ExternalLink } from "lucide-react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
 
 // ── Real verified Google reviews for Bud n' Buddies (budnbuddies.ca) ────────
 const REAL_REVIEWS = [
@@ -226,50 +222,6 @@ export function Reviews() {
   const [active, setActive] = useState(0);
   const [dir, setDir]       = useState(1);
 
-  const sectionRef  = useRef<HTMLDivElement>(null);
-  const eyebrowRef  = useRef<HTMLDivElement>(null);
-  const headlineRef = useRef<HTMLDivElement>(null);
-  const quoteRef    = useRef<HTMLDivElement>(null);
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const ctaRef      = useRef<HTMLDivElement>(null);
-
-  // ── GSAP ScrollTrigger entrance animations ──────────────────────────────
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Eyebrow fades + slides up
-      gsap.fromTo(eyebrowRef.current,
-        { opacity: 0, y: 24 },
-        { opacity: 1, y: 0, duration: 0.7, ease: "power3.out",
-          scrollTrigger: { trigger: eyebrowRef.current, start: "top 85%", toggleActions: "play none none none" } }
-      );
-      // Headline clips in character by character (word split)
-      gsap.fromTo(headlineRef.current,
-        { opacity: 0, y: 40, skewY: 2 },
-        { opacity: 1, y: 0, skewY: 0, duration: 0.9, ease: "expo.out",
-          scrollTrigger: { trigger: headlineRef.current, start: "top 85%", toggleActions: "play none none none" } }
-      );
-      // Quote block parallax as you scroll
-      gsap.fromTo(quoteRef.current,
-        { opacity: 0, y: 32 },
-        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out", delay: 0.1,
-          scrollTrigger: { trigger: quoteRef.current, start: "top 88%", toggleActions: "play none none none" } }
-      );
-      // Carousel slides up
-      gsap.fromTo(carouselRef.current,
-        { opacity: 0, y: 48 },
-        { opacity: 1, y: 0, duration: 1, ease: "expo.out",
-          scrollTrigger: { trigger: carouselRef.current, start: "top 90%", toggleActions: "play none none none" } }
-      );
-      // CTA
-      gsap.fromTo(ctaRef.current,
-        { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, duration: 0.7, ease: "power2.out",
-          scrollTrigger: { trigger: ctaRef.current, start: "top 92%", toggleActions: "play none none none" } }
-      );
-    }, sectionRef);
-    return () => ctx.revert();
-  }, []);
-
   // ── Auto-advance ───────────────────────────────────────────────────────
   useEffect(() => {
     const t = setInterval(() => {
@@ -295,7 +247,7 @@ export function Reviews() {
   } as any;
 
   return (
-    <section id="reviews" ref={sectionRef} className="relative bg-[#060b08] overflow-hidden isolate">
+    <section id="reviews" className="relative bg-[#060b08] overflow-hidden isolate">
 
       {/* Ambient glow that follows active review color */}
       <motion.div
@@ -313,7 +265,13 @@ export function Reviews() {
       <div className="max-w-7xl mx-auto px-6 pt-24 sm:pt-32 lg:pt-40 pb-8">
 
         {/* ── Eyebrow ── */}
-        <div ref={eyebrowRef} className="flex items-center gap-4 mb-14 sm:mb-18 opacity-0">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7 }}
+          className="flex items-center gap-4 mb-14 sm:mb-18"
+        >
           <div className="flex gap-0.5">
             {[0,1,2,3,4].map(i => <GoogleStar key={i} />)}
           </div>
@@ -321,10 +279,16 @@ export function Reviews() {
             4.9 · Verified Google Reviews · Sherwood Park
           </span>
           <div className="h-px flex-1 bg-white/[0.05] max-w-24 hidden sm:block" />
-        </div>
+        </motion.div>
 
         {/* ── Headline ── */}
-        <div ref={headlineRef} className="mb-16 sm:mb-20 opacity-0 overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.9, ease: [0.23, 1, 0.32, 1] }}
+          className="mb-16 sm:mb-20 overflow-hidden"
+        >
           <h2 className="text-5xl sm:text-7xl md:text-8xl font-black uppercase tracking-tighter leading-[0.85] text-white">
             Real Words.<br />
             <span
@@ -334,10 +298,15 @@ export function Reviews() {
               Real Buddies.
             </span>
           </h2>
-        </div>
+        </motion.div>
 
         {/* ── Large featured quote (carousel center) ── */}
-        <div ref={quoteRef} className="opacity-0">
+        <motion.div
+          initial={{ opacity: 0, y: 32 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+        >
           <div className="min-h-[220px] sm:min-h-[180px] flex flex-col justify-center mb-10">
             <AnimatePresence custom={dir} mode="wait">
               <motion.div
@@ -388,6 +357,7 @@ export function Reviews() {
               </motion.div>
             </AnimatePresence>
           </div>
+        </motion.div>
 
           {/* ── Controls ── */}
           <div className="flex items-center justify-between pt-7 border-t border-white/[0.06] mb-14">
@@ -435,15 +405,26 @@ export function Reviews() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* ── Drag carousel ── */}
-      <div ref={carouselRef} className="px-6 mb-10 opacity-0">
+      <motion.div
+        initial={{ opacity: 0, y: 48 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 1, ease: [0.23, 1, 0.32, 1] }}
+        className="px-6 mb-10"
+      >
         <DragCarousel reviews={reviews} active={active} onSelect={go} />
-      </div>
+      </motion.div>
 
       {/* ── CTA strip ── */}
-      <div ref={ctaRef} className="max-w-7xl mx-auto px-6 pb-20 sm:pb-28 opacity-0">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.7 }}
+        className="max-w-7xl mx-auto px-6 pb-20 sm:pb-28"
+      >
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-8 border-t border-white/[0.06]">
           {/* Stats */}
           <div className="flex items-center gap-8 flex-wrap justify-center sm:justify-start">
@@ -478,7 +459,7 @@ export function Reviews() {
             <ExternalLink size={12} />
           </motion.a>
         </div>
-      </div>
+      </motion.div>
     </section>
   );
 }
