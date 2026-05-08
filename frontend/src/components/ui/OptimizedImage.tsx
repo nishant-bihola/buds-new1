@@ -18,9 +18,9 @@ export function OptimizedImage({ src, alt, className, onLoad, ...props }: Optimi
     <img
       src={src}
       alt={alt}
-      loading="lazy"
-      decoding="async"
-      fetchPriority="low"
+      loading="eager"
+      decoding="sync"
+      fetchPriority="high"
       className={`${className} ${!isLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
       onLoad={handleLoad}
       {...props}

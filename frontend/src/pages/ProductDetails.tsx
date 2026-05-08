@@ -61,8 +61,8 @@ export function ProductDetails() {
     );
 
   const trust = [
-    { icon: ShieldCheck, title: "Lab Tested", sub: "Quality Verified" },
-    { icon: Leaf, title: "Organic", sub: "No Synthetic Pesticides" },
+    { icon: ShieldCheck, title: "Premium Selection", sub: "Hand-Curated Quality" },
+    { icon: Leaf, title: "Pure Craft", sub: "Trusted Brands Only" },
   ];
 
   return (
@@ -157,7 +157,7 @@ export function ProductDetails() {
             )}
 
             <p className="text-base sm:text-lg text-brand-dark/55 leading-relaxed mb-8 font-medium">
-              {product.description || "Hand-selected and lab-tested for quality. Available in-store at 130-75 Salisbury Way, Sherwood Park. Open every day until 2 AM."}
+              {product.description || "Premium hand-selected quality. Trusted craft products. Available in-store at 130-75 Salisbury Way, Sherwood Park. Open every day until 2 AM."}
             </p>
 
             {/* Quantity + Add to cart */}

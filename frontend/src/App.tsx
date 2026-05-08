@@ -47,7 +47,7 @@ function AppInner() {
           <React.Suspense
             fallback={
               <div className="h-screen bg-[#060b08] flex items-center justify-center">
-                <div className="w-10 h-10 border-3 border-brand-light-green/20 border-t-brand-light-green rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2.5 border-brand-light-green/20 border-t-brand-light-green rounded-full animate-spin" />
               </div>
             }
           >
