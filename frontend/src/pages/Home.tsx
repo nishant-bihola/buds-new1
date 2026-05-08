@@ -2,7 +2,7 @@ import { useEffect, useState, lazy, Suspense } from "react";
 import { Hero } from "../components/Hero";
 import type { Product } from "../types";
 
-// Lazy load sections below the fold for lighting fast performance
+// Lazy load sections below the fold for lightning fast performance
 const ImageSequence = lazy(() => import("../components/ImageSequence").then(m => ({ default: m.ImageSequence })));
 const BrandStatement = lazy(() => import("../components/BrandStatement").then(m => ({ default: m.BrandStatement })));
 const Intro = lazy(() => import("../components/Intro").then(m => ({ default: m.Intro })));
