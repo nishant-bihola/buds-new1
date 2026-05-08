@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "motion/react";
 import type { Product } from "../types";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, Plus, Leaf, Zap, Coffee, Package, Droplets, ShoppingBag } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { OptimizedImage } from "./ui/OptimizedImage";
 
 function CategoryIcon({ category }: { category: string }) {
   const cls = "w-12 h-12 opacity-30";
@@ -25,7 +26,7 @@ function ProductImage({ src, alt, category, className }: { src?: string; alt: st
       </div>
     );
   }
-  return <img src={src} alt={alt} onError={() => setFailed(true)} className={className} />;
+  return <OptimizedImage src={src} alt={alt} onLoad={() => {}} onError={() => setFailed(true)} className={className} />;
 }
 
 interface ProductGridProps {
