@@ -1,4 +1,4 @@
-import { Instagram, Twitter, Facebook, Leaf } from "lucide-react";
+import { Instagram, Leaf } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useStore } from "../context/StoreContext";
 
@@ -48,20 +48,15 @@ export function Footer() {
               Sherwood Park's favourite dispensary. {store.hoursShort}.
             </p>
             <div className="flex gap-3">
-              {[
-                { Icon: Instagram, href: store.instagram, label: "Instagram" },
-                { Icon: Twitter, href: store.twitter, label: "Twitter / X" },
-                { Icon: Facebook, href: store.facebook, label: "Facebook" },
-              ].map(({ Icon, href, label }, i) => (
-                href
-                  ? <a key={i} href={href} target="_blank" rel="noopener noreferrer" aria-label={label}
-                      className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-white/10 rounded-full hover:bg-white hover:text-brand-green transition-colors">
-                      <Icon size={17} />
-                    </a>
-                  : <div key={i} aria-label={label} className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-white/10 rounded-full opacity-40">
-                      <Icon size={17} />
-                    </div>
-              ))}
+              <a
+                href="https://www.instagram.com/budnbuddiessherwoodpark/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-white/10 rounded-full hover:bg-white hover:text-brand-green transition-colors"
+              >
+                <Instagram size={17} />
+              </a>
             </div>
           </div>
 
