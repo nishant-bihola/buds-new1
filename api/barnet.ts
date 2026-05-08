@@ -4,7 +4,6 @@ import { upsertProduct, getProducts, deleteProduct, logStockChange } from "./_li
 import { db } from "./_lib/db.js";
 import * as schema from "./_lib/schema.js";
 import { eq, desc } from "drizzle-orm";
-import crypto from "crypto";
 
 const BARNET_BASE     = (process.env.BARNET_API_URL || "http://budnbuddies.barnetportal.com/ht").replace(/^http:\/\//, "https://");
 const BARNET_KEY      = process.env.BARNET_API_KEY  || "";
@@ -202,12 +201,13 @@ async function runSync(removeStale = false, source = "manual") {
 
 // ── Handler ─────────────────────────────────────────────────────────────────
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  cors(res as any);
-  if (req.method === "OPTIONS") return res.status(200).end();
-  if (!requireAdmin(req as any, res as any)) return;
+  try {
+    cors(res as any);
+    if (req.method === "OPTIONS") return res.status(200).end();
+    if (!requireAdmin(req as any, res as any)) return;
 
-  const action = (req.query._path as string) || "";
-  const body   = typeof req.body === "string" ? JSON.parse(req.body) : (req.body ?? {});
+    const action = (req.query._path as string) || "";
+    const body   = typeof req.body === "string" ? JSON.parse(req.body) : (req.body ?? {});
 
   // ── GET /api/barnet/preview — live Barnet data (not saved) ──────────────
   if (action === "preview" && req.method === "GET") {
@@ -493,5 +493,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (err: any) { return json(res as any, { error: err.message }, 502); }
   }
 
-  return json(res as any, { error: "Not found" }, 404);
+    return json(res as any, { error: "Not found" }, 404);
+  } catch (error: any) {
+    console.error("[barnet] Unhandled error:", error);
+    return json(res as any, { error: error.message || "Internal Server Error" }, 500);
+  }
 }
