@@ -5,11 +5,12 @@
 import { useRef, useEffect, useMemo } from "react";
 import { motion, useSpring } from "motion/react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Star, Clock, Calendar } from "lucide-react";
+import { ArrowRight, Star, Clock, Calendar, MapPin } from "lucide-react";
 import { ImageTrail } from "@/components/ui/image-trail";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useMouseVector } from "@/components/hooks/use-mouse-vector";
 import { useSection } from "../context/ContentContext";
+import { useStore } from "../context/StoreContext";
 
 const MemoHero = ({ c }: any) => {
   return (
@@ -25,6 +26,7 @@ const MemoHero = ({ c }: any) => {
 
 export function Hero() {
   const c = useSection("hero");
+  const store = useStore();
   const sectionRef = useRef<HTMLDivElement>(null);
 
   const { vector: mouseVector } = useMouseVector(sectionRef);
@@ -114,26 +116,35 @@ export function Hero() {
       </div>
 
       {/* ── Content ──────────────────────────────────────────────── */}
-      <div className="relative z-10 flex-1 flex flex-col px-6 sm:px-12 md:px-20 lg:px-32 max-w-[1600px] mx-auto pointer-events-none pt-[125px] sm:pt-[150px] pb-8 sm:pb-12">
-        <div className="w-full pointer-events-auto max-w-6xl flex-1 flex flex-col justify-between items-start">
+      <div className="relative z-10 flex-1 flex flex-col px-4 sm:px-12 md:px-20 lg:px-32 max-w-[1600px] mx-auto pointer-events-none pt-20 sm:pt-[150px] pb-8 sm:pb-12">
+        <div className="w-full pointer-events-auto max-w-4xl flex-1 flex flex-col justify-between items-start">
           <div className="flex-1 flex flex-col justify-center py-2 sm:py-0 w-full">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2.5 bg-white/5 border border-white/10 px-4 py-2 rounded-full backdrop-blur-xl mb-4 sm:mb-8 self-start shadow-lg shadow-black/20"
+              className="inline-flex items-center gap-2.5 bg-white/5 border border-white/10 px-4 py-2.5 rounded-full backdrop-blur-xl mb-6 sm:mb-8 self-start shadow-lg shadow-black/20 flex-wrap"
             >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inset-0 rounded-full bg-brand-light-green opacity-75" />
-                <span className="relative rounded-full h-2 w-2 bg-brand-light-green" />
-              </span>
-              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] text-white">
-                {c.badge}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2 flex-shrink-0">
+                  <span className="animate-ping absolute inset-0 rounded-full bg-brand-light-green opacity-75" />
+                  <span className="relative rounded-full h-2 w-2 bg-brand-light-green" />
+                </span>
+                <span className="text-[9px] sm:text-[11px] font-black uppercase tracking-[0.25em] text-white">
+                  {c.badge}
+                </span>
+              </div>
+              <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] text-white/60 hidden sm:inline">•</span>
+              <div className="flex items-center gap-1.5">
+                <MapPin size={12} className="text-brand-light-green flex-shrink-0" />
+                <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.15em] text-white/80">
+                  {store?.addressShort || "Sherwood Park, AB"}
+                </span>
+              </div>
             </motion.div>
 
             <h1
-              className="font-black uppercase tracking-tighter leading-[0.75] sm:leading-[0.8] text-white perspective-1000 mb-5 sm:mb-10"
-              style={{ fontSize: "clamp(2.6rem, 11vw, 11rem)" }}
+              className="font-black uppercase tracking-tighter leading-[0.7] sm:leading-[0.8] text-white perspective-1000 mb-4 sm:mb-10 w-full"
+              style={{ fontSize: "clamp(2.2rem, 9.5vw, 11rem)" }}
             >
               {([c.headline_1, c.headline_2, c.headline_3] as const).map((word, i) => (
                 <div key={word} className="overflow-hidden py-0.5">
@@ -154,18 +165,18 @@ export function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.5 }}
-              className="flex flex-col gap-6 sm:gap-12"
+              className="flex flex-col gap-5 sm:gap-12 w-full"
             >
-              <p className="text-white/90 text-[13px] sm:text-2xl leading-[1.3] font-medium max-w-xl text-pretty drop-shadow-2xl">
+              <p className="text-white/85 text-[13px] sm:text-xl leading-[1.35] font-medium max-w-2xl text-left drop-shadow-2xl">
                 {c.subtitle}
               </p>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-8">
-                <Link to="/shop">
+              <div className="flex flex-col gap-3 sm:gap-4 w-full sm:w-auto">
+                <Link to="/shop" className="w-full sm:w-auto">
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full sm:w-auto bg-brand-light-green text-brand-green px-12 py-4 sm:py-5 rounded-full text-[11px] sm:text-[12px] font-black uppercase tracking-[0.25em] shadow-2xl shadow-brand-light-green/20"
+                    className="w-full sm:w-auto bg-brand-light-green text-brand-green px-10 sm:px-12 py-3.5 sm:py-5 rounded-full text-[11px] sm:text-[12px] font-black uppercase tracking-[0.25em] shadow-2xl shadow-brand-light-green/20"
                   >
                     {c.cta_shop}
                   </motion.button>
@@ -173,32 +184,32 @@ export function Hero() {
 
                 <Link
                   to="/about"
-                  className="group flex items-center justify-center sm:justify-start gap-3 text-white/60 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.4em] hover:text-white transition-all duration-300"
+                  className="group flex items-center justify-start gap-2.5 text-white/60 text-[9px] sm:text-[11px] font-black uppercase tracking-[0.35em] hover:text-white transition-all duration-300"
                 >
                   {c.cta_about}
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform duration-300 text-brand-light-green" />
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform duration-300 text-brand-light-green" />
                 </Link>
               </div>
             </motion.div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 w-full max-w-2xl pt-6 sm:pt-10 border-t border-white/5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-6 w-full max-w-3xl pt-5 sm:pt-10 border-t border-white/5">
             {brandStats.map(({ value, label, icon: Icon, color }, i) => (
               <motion.div
                 key={label}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.8 + i * 0.1, duration: 0.8 }}
-                className="group flex items-center gap-4 bg-white/[0.03] border border-white/10 backdrop-blur-md p-3 sm:p-5 rounded-[20px] sm:rounded-[32px] hover:bg-white/[0.08] hover:border-white/20 transition-all duration-500"
+                className="group flex items-center gap-3 sm:gap-4 bg-white/[0.03] border border-white/10 backdrop-blur-md p-2.5 sm:p-5 rounded-2xl sm:rounded-[32px] hover:bg-white/[0.08] hover:border-white/20 transition-all duration-500"
               >
-                <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center group-hover:bg-brand-light-green group-hover:text-brand-green transition-all duration-500">
-                  <Icon className={`${color} group-hover:text-inherit transition-transform duration-500`} size={18} />
+                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-light-green group-hover:text-brand-green transition-all duration-500">
+                  <Icon className={`${color} group-hover:text-inherit transition-transform duration-500`} size={16} />
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-white text-lg sm:text-2xl font-black leading-none tracking-tighter">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-white text-base sm:text-2xl font-black leading-none tracking-tighter">
                     {value}
                   </span>
-                  <span className="text-white/30 text-[8px] sm:text-[10px] uppercase tracking-[0.2em] font-black group-hover:text-white/60 transition-colors">
+                  <span className="text-white/30 text-[7px] sm:text-[10px] uppercase tracking-[0.15em] font-black group-hover:text-white/60 transition-colors whitespace-nowrap">
                     {label}
                   </span>
                 </div>
