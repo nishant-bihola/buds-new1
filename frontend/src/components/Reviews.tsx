@@ -104,9 +104,9 @@ export function Reviews() {
 
   const slideVariants = {
     enter: (d: number) => ({ opacity: 0, y: d > 0 ? 32 : -32, scale: 0.97 }),
-    center: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] } },
-    exit: (d: number) => ({ opacity: 0, y: d > 0 ? -24 : 24, scale: 0.97, transition: { duration: 0.3, ease: [0.4, 0, 1, 1] } }),
-  };
+    center: { opacity: 1, y: 0, scale: 1 },
+    exit: (d: number) => ({ opacity: 0, y: d > 0 ? -24 : 24, scale: 0.97 }),
+  } as any;
 
   return (
     <section ref={sectionRef} className="relative bg-[#060b08] overflow-hidden isolate">

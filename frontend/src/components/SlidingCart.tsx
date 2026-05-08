@@ -34,9 +34,9 @@ export function SlidingCart() {
   };
 
   const toFreeDelivery = Math.max(0, FREE_THRESHOLD - subtotal);
-  // Calculate savings: free delivery (what they would have paid) + promo discount
+  // Savings: waived delivery (5.49 standard rate) + promo discount
   const deliveryWaived = subtotal >= FREE_THRESHOLD && deliveryMethod === "delivery" ? 5.49 : 0;
-  const totalSaved = deliveryWaived + discount;
+  const totalSaved = Number((deliveryWaived + discount).toFixed(2));
 
   return (
     <AnimatePresence>

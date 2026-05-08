@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { code } = body;
     if (!code) return res.status(400).json({ error: "Missing promo code" });
 
-    const promo = await getPromoByCode(code.trim());
+    const promo = await getPromoByCode(String(code).trim().toUpperCase());
     if (!promo) return res.status(404).json({ error: "Invalid promo code" });
     if (!promo.active) return res.status(400).json({ error: "This promo code is no longer active" });
     if (promo.maxUses && promo.usageCount !== null && promo.usageCount >= promo.maxUses) {
