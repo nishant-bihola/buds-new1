@@ -89,6 +89,16 @@ export const api = {
       fetchWithAuth(`/api/admin/reviews?id=${id}`, { method: "DELETE" }),
     syncBarnet: (removeStale = false) =>
       fetchWithAuth("/api/barnet/sync", { method: "POST", body: JSON.stringify({ removeStale }) }),
+    barnetStatus: () => fetchWithAuth("/api/barnet/status"),
+    barnetPreview: () => fetchWithAuth("/api/barnet/preview"),
+    barnetStockAlerts: () => fetchWithAuth("/api/barnet/stock-alerts"),
+    barnetOverrides: () => fetchWithAuth("/api/barnet/overrides"),
+    barnetSetOverride: (data: { productId: string; category?: string; price?: number; isBestSeller?: boolean; clear?: boolean }) =>
+      fetchWithAuth("/api/barnet/override", { method: "POST", body: JSON.stringify(data) }),
+    barnetSetAutoSync: (enabled: boolean, intervalHours: number) =>
+      fetchWithAuth("/api/barnet/auto-sync", { method: "POST", body: JSON.stringify({ enabled, intervalHours }) }),
+    barnetBulk: (action: "bestSeller" | "toggleStock" | "delete", ids: string[], value?: boolean) =>
+      fetchWithAuth("/api/barnet/bulk", { method: "POST", body: JSON.stringify({ action, ids, value }) }),
     clearData: (target: "orders" | "products" | "customers" | "all") =>
       fetchWithAuth("/api/admin/clear", { method: "POST", body: JSON.stringify({ target }) }),
   },

@@ -6,7 +6,9 @@ import {
   LogOut, Menu, X, Search, Plus, Pencil, Trash2, Upload,
   Truck, Store, Copy, Check, Lock, RefreshCw, Home, FileUp,
   DollarSign, ToggleLeft, ToggleRight, FileText, Users, ChevronDown,
-  Database, AlertTriangle, TrendingUp, Zap, Eye,
+  Database, AlertTriangle, TrendingUp, Zap, Eye, History, Bell,
+  Star, StarOff, PackageX, BarChart3, Filter, Clock, ChevronRight,
+  Layers, SlidersHorizontal, CheckSquare, Square,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
@@ -1621,216 +1623,651 @@ function DriversTab() {
 /* ─────────────────────────────────────────────────────────────
    Barnet Tab
 ───────────────────────────────────────────────────────────── */
+const BARNET_CATEGORIES = ["Dried Flower", "Pre-Roll", "Edible", "Vape", "Beverage", "Extract", "Accessories", "Topical", "Capsule", "Other"];
+
 function BarnetTab() {
-  const { data: productsData, mutate } = useSWR("admin-products", api.admin.getProducts, { refreshInterval: 120000 });
+  const { data: productsData, mutate: mutateProducts } = useSWR("admin-products", api.admin.getProducts, { refreshInterval: 120000 });
+  const { data: statusData,   mutate: mutateStatus   } = useSWR("barnet-status",   api.admin.barnetStatus,   { refreshInterval: 60000 });
+  const { data: alertsData,   mutate: mutateAlerts   } = useSWR("barnet-alerts",   api.admin.barnetStockAlerts, { refreshInterval: 60000 });
   const products: any[] = productsData?.products ?? [];
   const { success, error: toastErr } = useToast();
 
+  // ── sync state
   const [syncing, setSyncing]         = useState(false);
   const [removeStale, setRemoveStale] = useState(false);
-  const [lastSync, setLastSync]       = useState<string | null>(null);
   const [syncResult, setSyncResult]   = useState<{ synced: number; errors: number; removed: number } | null>(null);
+
+  // ── preview state
   const [previewing, setPreviewing]   = useState(false);
   const [previewItems, setPreviewItems] = useState<any[]>([]);
   const [previewSearch, setPreviewSearch] = useState("");
+  const [previewCatFilter, setPreviewCatFilter] = useState("All");
 
-  // Derived stats from current synced products
+  // ── product detail drawer
+  const [drawerProduct, setDrawerProduct] = useState<any | null>(null);
+  const [drawerOverride, setDrawerOverride] = useState<{ category?: string; price?: string; isBestSeller?: boolean }>({});
+  const [savingOverride, setSavingOverride] = useState(false);
+
+  // ── bulk select
+  const [selected, setSelected]   = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // ── auto-sync config
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+  const [autoSyncHours, setAutoSyncHours]     = useState(6);
+  const [savingAutoSync, setSavingAutoSync]   = useState(false);
+
+  // ── active sub-tab
+  const [subTab, setSubTab] = useState<"overview" | "products" | "alerts" | "history" | "settings">("overview");
+
+  // Hydrate auto-sync from server status
+  useEffect(() => {
+    const autoSync = statusData?.autoSync;
+    if (autoSync) {
+      setAutoSyncEnabled(autoSync.enabled ?? false);
+      setAutoSyncHours(autoSync.intervalHours ?? 6);
+    }
+  }, [statusData]);
+
+  // Derived stats
   const barnetProducts = products.filter(p => p.source === "barnet");
   const inStock        = barnetProducts.filter(p => p.inStock).length;
   const outOfStock     = barnetProducts.length - inStock;
+  const bestSellers    = barnetProducts.filter(p => p.isBestSeller).length;
   const byCategory     = barnetProducts.reduce((acc: Record<string, number>, p) => {
     acc[p.category || "Other"] = (acc[p.category || "Other"] || 0) + 1;
     return acc;
   }, {});
 
+  const lastSync = statusData?.lastSync;
+  const history: any[] = statusData?.history ?? [];
+  const outAlerts: any[] = alertsData?.outOfStock ?? [];
+
+  // ── handlers ────────────────────────────────────────────────────────────
   const handleSync = async () => {
-    setSyncing(true);
-    setSyncResult(null);
+    setSyncing(true); setSyncResult(null);
     try {
       const res = await api.admin.syncBarnet(removeStale);
       setSyncResult({ synced: res.synced, errors: res.errors, removed: res.removed ?? 0 });
-      setLastSync(new Date().toLocaleTimeString());
       success(`Synced ${res.synced} products from Barnet`);
-      mutate();
-    } catch (e: any) {
-      toastErr(e.message || "Barnet sync failed");
-    }
+      mutateProducts(); mutateStatus(); mutateAlerts();
+    } catch (e: any) { toastErr(e.message || "Barnet sync failed"); }
     setSyncing(false);
   };
 
   const handlePreview = async () => {
-    setPreviewing(true);
-    setPreviewItems([]);
+    setPreviewing(true); setPreviewItems([]);
     try {
-      const secret = sessionStorage.getItem("admin_secret") ?? localStorage.getItem("admin_secret") ?? "";
-      const res = await fetch("/api/barnet/preview", {
-        headers: { Authorization: `Bearer ${secret}` },
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      const data = await api.admin.barnetPreview();
       setPreviewItems(data.products || []);
-    } catch (e: any) {
-      toastErr(e.message || "Preview failed");
-    }
+      setSubTab("products");
+    } catch (e: any) { toastErr(e.message || "Preview failed"); }
     setPreviewing(false);
   };
 
-  const filteredPreview = previewItems.filter(p =>
-    !previewSearch || p.name?.toLowerCase().includes(previewSearch.toLowerCase()) ||
-    p.category?.toLowerCase().includes(previewSearch.toLowerCase())
-  );
+  const openDrawer = (p: any) => {
+    setDrawerProduct(p);
+    setDrawerOverride({ category: p.category, price: String(p.price), isBestSeller: p.isBestSeller });
+  };
+
+  const saveOverride = async () => {
+    if (!drawerProduct) return;
+    setSavingOverride(true);
+    try {
+      const payload: any = { productId: drawerProduct.id };
+      if (drawerOverride.category !== drawerProduct.category) payload.category = drawerOverride.category;
+      if (Number(drawerOverride.price) !== drawerProduct.price) payload.price = Number(drawerOverride.price);
+      if (drawerOverride.isBestSeller !== drawerProduct.isBestSeller) payload.isBestSeller = drawerOverride.isBestSeller;
+      await api.admin.barnetSetOverride(payload);
+      success("Override saved — will persist on next sync");
+      mutateProducts();
+      setDrawerProduct(null);
+    } catch (e: any) { toastErr(e.message); }
+    setSavingOverride(false);
+  };
+
+  const clearOverride = async () => {
+    if (!drawerProduct) return;
+    setSavingOverride(true);
+    try {
+      await api.admin.barnetSetOverride({ productId: drawerProduct.id, clear: true });
+      success("Override cleared");
+      mutateProducts();
+      setDrawerProduct(null);
+    } catch (e: any) { toastErr(e.message); }
+    setSavingOverride(false);
+  };
+
+  const toggleSelect = (id: string) =>
+    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  const selectAll = (ids: string[]) => setSelected(new Set(ids));
+  const clearSelection = () => setSelected(new Set());
+
+  const handleBulk = async (action: "bestSeller" | "toggleStock" | "delete", value?: boolean) => {
+    if (!selected.size) return;
+    if (action === "delete" && !confirm(`Delete ${selected.size} products?`)) return;
+    setBulkLoading(true);
+    try {
+      const res = await api.admin.barnetBulk(action, [...selected], value);
+      success(`${res.affected} products updated`);
+      clearSelection(); mutateProducts(); mutateAlerts();
+    } catch (e: any) { toastErr(e.message); }
+    setBulkLoading(false);
+  };
+
+  const saveAutoSync = async () => {
+    setSavingAutoSync(true);
+    try {
+      await api.admin.barnetSetAutoSync(autoSyncEnabled, autoSyncHours);
+      success(autoSyncEnabled ? `Auto-sync enabled every ${autoSyncHours}h` : "Auto-sync disabled");
+      mutateStatus();
+    } catch (e: any) { toastErr(e.message); }
+    setSavingAutoSync(false);
+  };
+
+  // ── filtered product list (from preview or synced) ──────────────────────
+  const displayProducts = previewItems.length > 0 ? previewItems : barnetProducts;
+  const cats = ["All", ...Array.from(new Set(displayProducts.map((p: any) => p.category || "Other")))];
+  const filtered = displayProducts.filter((p: any) => {
+    const matchCat = previewCatFilter === "All" || p.category === previewCatFilter;
+    const matchSearch = !previewSearch || p.name?.toLowerCase().includes(previewSearch.toLowerCase()) || p.brand?.toLowerCase().includes(previewSearch.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  const SUB_TABS = [
+    { id: "overview",  label: "Overview",   icon: BarChart3 },
+    { id: "products",  label: "Products",   icon: Package },
+    { id: "alerts",    label: `Alerts${outAlerts.length ? ` (${outAlerts.length})` : ""}`, icon: Bell },
+    { id: "history",   label: "Sync Log",   icon: History },
+    { id: "settings",  label: "Settings",   icon: SlidersHorizontal },
+  ] as const;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-black uppercase tracking-tighter">Barnet Portal</h1>
-        <p className="text-white/30 text-sm mt-1">Sync inventory from Barnet POS · store_id=5</p>
+    <div className="space-y-6">
+
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-4xl font-black uppercase tracking-tighter">Barnet Portal</h1>
+          <p className="text-white/30 text-sm mt-1">
+            Live POS sync · store_id=5
+            {lastSync && <span className="ml-2 text-brand-light-green/60">· Last: {new Date(lastSync.timestamp).toLocaleString()}</span>}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button type="button"
+            onClick={() => setRemoveStale(v => !v)}
+            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors px-3 py-2 rounded-xl border border-white/10 hover:border-white/20">
+            {removeStale ? <ToggleRight size={16} className="text-brand-light-green" /> : <ToggleLeft size={16} className="text-white/20" />}
+            Remove Stale
+          </button>
+          <button type="button" onClick={handlePreview} disabled={previewing}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-40">
+            {previewing ? <RefreshCw size={13} className="animate-spin" /> : <Eye size={13} />}
+            Preview API
+          </button>
+          <button type="button" onClick={handleSync} disabled={syncing}
+            className="flex items-center gap-2 px-5 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40 shadow-lg shadow-brand-light-green/20">
+            {syncing ? <RefreshCw size={13} className="animate-spin" /> : <Zap size={13} />}
+            {syncing ? "Syncing…" : "Sync Now"}
+          </button>
+        </div>
       </div>
 
-      {/* Status Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { icon: Database,      label: "Barnet Products", value: barnetProducts.length, color: "from-blue-500/10" },
-          { icon: TrendingUp,    label: "In Stock",         value: inStock,              color: "from-green-500/10" },
-          { icon: AlertTriangle, label: "Out of Stock",     value: outOfStock,           color: "from-red-500/10" },
-          { icon: Zap,           label: "Categories",       value: Object.keys(byCategory).length, color: "from-amber-500/10" },
-        ].map((k, i) => (
-          <motion.div key={i}
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.06 }}
-            className={`bg-gradient-to-br ${k.color} to-transparent border border-white/5 rounded-2xl p-5`}>
-            <k.icon size={18} className="opacity-30 mb-3" />
-            <p className="text-3xl font-black tracking-tighter">{k.value}</p>
-            <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] mt-1">{k.label}</p>
+      {/* Sync result flash */}
+      <AnimatePresence>
+        {syncResult && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Synced",  value: syncResult.synced,  cls: "text-green-400",  bg: "from-green-500/10" },
+              { label: "Errors",  value: syncResult.errors,  cls: "text-red-400",    bg: "from-red-500/10" },
+              { label: "Removed", value: syncResult.removed, cls: "text-amber-400",  bg: "from-amber-500/10" },
+            ].map(s => (
+              <div key={s.label} className={`bg-gradient-to-br ${s.bg} to-transparent rounded-xl p-4 text-center border border-white/5`}>
+                <p className={`text-2xl font-black tracking-tighter ${s.cls}`}>{s.value}</p>
+                <p className="text-white/30 text-[9px] uppercase tracking-widest font-black mt-1">{s.label}</p>
+              </div>
+            ))}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sub-tab nav */}
+      <div className="flex gap-1 p-1 bg-white/[0.03] rounded-xl border border-white/5 overflow-x-auto">
+        {SUB_TABS.map(t => (
+          <button key={t.id} type="button" onClick={() => setSubTab(t.id as any)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+              subTab === t.id ? "bg-brand-light-green text-[#111815] shadow" : "text-white/40 hover:text-white"
+            }`}>
+            <t.icon size={12} />
+            {t.label}
+          </button>
         ))}
       </div>
 
-      {/* Sync Panel */}
-      <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-5">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h2 className="font-black uppercase tracking-tight text-lg">Sync Inventory</h2>
-            <p className="text-white/30 text-xs mt-0.5">
-              Pull latest products from Barnet and upsert into your database
-              {lastSync && <span className="ml-2 text-brand-light-green">· Last sync: {lastSync}</span>}
-            </p>
+      {/* ── OVERVIEW ────────────────────────────────────────────────────── */}
+      {subTab === "overview" && (
+        <div className="space-y-6">
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { icon: Database,      label: "Total Products", value: barnetProducts.length,  color: "from-blue-500/10" },
+              { icon: TrendingUp,    label: "In Stock",        value: inStock,               color: "from-green-500/10" },
+              { icon: AlertTriangle, label: "Out of Stock",    value: outOfStock,            color: outOfStock > 0 ? "from-red-500/10" : "from-white/5" },
+              { icon: Star,          label: "Best Sellers",    value: bestSellers,           color: "from-amber-500/10" },
+            ].map((k, i) => (
+              <motion.div key={i} initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.06 }}
+                className={`bg-gradient-to-br ${k.color} to-transparent border border-white/5 rounded-2xl p-5 cursor-pointer hover:border-white/15 transition-colors`}
+                onClick={() => setSubTab(k.label === "Out of Stock" ? "alerts" : "products")}>
+                <k.icon size={18} className="opacity-30 mb-3" />
+                <p className="text-3xl font-black tracking-tighter">{k.value}</p>
+                <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] mt-1">{k.label}</p>
+              </motion.div>
+            ))}
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <button type="button"
-              onClick={() => setRemoveStale(v => !v)}
-              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors">
-              {removeStale
-                ? <ToggleRight size={22} className="text-brand-light-green" />
-                : <ToggleLeft  size={22} className="text-white/20" />}
-              Remove stale
-            </button>
-            <button type="button" onClick={handlePreview} disabled={previewing}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-40">
-              {previewing ? <RefreshCw size={13} className="animate-spin" /> : <Eye size={13} />}
-              Preview
-            </button>
-            <button type="button" onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-2 px-5 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40 shadow-lg shadow-brand-light-green/20">
-              {syncing ? <RefreshCw size={13} className="animate-spin" /> : <Zap size={13} />}
-              {syncing ? "Syncing…" : "Sync Now"}
-            </button>
-          </div>
-        </div>
 
-        {/* Sync result */}
-        <AnimatePresence>
-          {syncResult && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-3 gap-3">
-              {[
-                { label: "Synced",  value: syncResult.synced,  cls: "text-green-400" },
-                { label: "Errors",  value: syncResult.errors,  cls: "text-red-400" },
-                { label: "Removed", value: syncResult.removed, cls: "text-amber-400" },
-              ].map(s => (
-                <div key={s.label} className="bg-black/20 rounded-xl p-4 text-center border border-white/5">
-                  <p className={`text-2xl font-black tracking-tighter ${s.cls}`}>{s.value}</p>
-                  <p className="text-white/30 text-[9px] uppercase tracking-widest font-black mt-1">{s.label}</p>
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Category breakdown */}
-      {Object.keys(byCategory).length > 0 && (
-        <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
-          <h2 className="font-black uppercase tracking-tight mb-4">Category Breakdown</h2>
-          <div className="space-y-2.5">
-            {Object.entries(byCategory)
-              .sort(([, a], [, b]) => b - a)
-              .map(([cat, count]) => {
-                const pct = Math.round((count / barnetProducts.length) * 100);
-                return (
-                  <div key={cat} className="flex items-center gap-3">
-                    <span className="text-xs font-black uppercase tracking-wide text-white/60 w-32 shrink-0 truncate">{cat}</span>
-                    <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                        className="h-full bg-brand-light-green/60 rounded-full"
-                      />
+          {/* Category breakdown */}
+          {Object.keys(byCategory).length > 0 && (
+            <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
+              <h2 className="font-black uppercase tracking-tight mb-5 flex items-center gap-2">
+                <Layers size={14} className="opacity-40" /> Category Breakdown
+              </h2>
+              <div className="space-y-3">
+                {Object.entries(byCategory).sort(([, a], [, b]) => b - a).map(([cat, count]) => {
+                  const pct = Math.round((count / barnetProducts.length) * 100);
+                  return (
+                    <div key={cat} className="flex items-center gap-3">
+                      <span className="text-xs font-black uppercase tracking-wide text-white/60 w-28 shrink-0 truncate">{cat}</span>
+                      <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                          className="h-full bg-brand-light-green/60 rounded-full" />
+                      </div>
+                      <span className="text-xs font-black text-white/40 w-16 text-right">{count} · {pct}%</span>
                     </div>
-                    <span className="text-xs font-black text-white/40 w-8 text-right">{count}</span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Last sync summary */}
+          {lastSync && (
+            <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6">
+              <h2 className="font-black uppercase tracking-tight mb-4 flex items-center gap-2">
+                <Clock size={14} className="opacity-40" /> Last Sync Summary
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                {[
+                  { label: "Synced",    value: lastSync.synced,  cls: "text-green-400" },
+                  { label: "Errors",    value: lastSync.errors,  cls: "text-red-400" },
+                  { label: "Removed",   value: lastSync.removed, cls: "text-amber-400" },
+                  { label: "Triggered", value: lastSync.source,  cls: "text-white/60" },
+                ].map(s => (
+                  <div key={s.label} className="bg-black/20 rounded-xl p-3 border border-white/5">
+                    <p className={`text-xl font-black tracking-tighter ${s.cls}`}>{s.value}</p>
+                    <p className="text-white/30 text-[9px] uppercase tracking-widest font-black mt-1">{s.label}</p>
                   </div>
-                );
-              })}
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── PRODUCTS ────────────────────────────────────────────────────── */}
+      {subTab === "products" && (
+        <div className="space-y-4">
+          {/* Toolbar */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30" />
+              <input type="text" placeholder="Search name, brand…" value={previewSearch}
+                onChange={e => setPreviewSearch(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-light-green/40 text-white placeholder:text-white/20" />
+            </div>
+            <div className="flex gap-1 flex-wrap">
+              {cats.slice(0, 6).map(c => (
+                <button key={c} type="button" onClick={() => setPreviewCatFilter(c)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                    previewCatFilter === c ? "bg-brand-light-green text-[#111815]" : "bg-white/5 text-white/40 hover:bg-white/10"
+                  }`}>{c}</button>
+              ))}
+            </div>
+            {selected.size > 0 && (
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-[10px] text-white/40 font-black">{selected.size} selected</span>
+                <button type="button" disabled={bulkLoading} onClick={() => handleBulk("bestSeller", true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all disabled:opacity-40">
+                  <Star size={10} /> Best Seller
+                </button>
+                <button type="button" disabled={bulkLoading} onClick={() => handleBulk("toggleStock", false)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition-all disabled:opacity-40">
+                  <PackageX size={10} /> Mark Out
+                </button>
+                <button type="button" disabled={bulkLoading} onClick={() => handleBulk("delete")}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-40">
+                  <Trash2 size={10} /> Delete
+                </button>
+                <button type="button" title="Clear selection" onClick={clearSelection} className="text-white/30 hover:text-white transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Select all row */}
+          {filtered.length > 0 && (
+            <div className="flex items-center gap-3 px-1">
+              <button type="button" onClick={() => selected.size === filtered.length ? clearSelection() : selectAll(filtered.map((p: any) => p.id))}
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">
+                {selected.size === filtered.length && filtered.length > 0
+                  ? <CheckSquare size={14} className="text-brand-light-green" />
+                  : <Square size={14} />}
+                Select All ({filtered.length})
+              </button>
+              {previewItems.length > 0 && <span className="text-[9px] text-amber-400/60 font-black uppercase tracking-widest">Preview Mode — not saved</span>}
+            </div>
+          )}
+
+          {/* Product list */}
+          <div className="space-y-1.5 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
+            {filtered.map((p: any, i: number) => (
+              <motion.div key={p.id || i} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.02, 0.3) }}
+                className={`flex items-center gap-3 bg-[#1a2219] hover:bg-[#1e2a1d] rounded-xl px-4 py-3 border transition-all cursor-pointer group ${
+                  selected.has(p.id) ? "border-brand-light-green/30 bg-brand-light-green/5" : "border-white/5 hover:border-white/10"
+                }`}
+                onClick={() => openDrawer(p)}>
+                <button type="button" onClick={e => { e.stopPropagation(); toggleSelect(p.id); }}
+                  className="shrink-0 text-white/20 hover:text-white transition-colors">
+                  {selected.has(p.id) ? <CheckSquare size={14} className="text-brand-light-green" /> : <Square size={14} />}
+                </button>
+                {p.image && <img src={p.image} alt="" className="w-10 h-10 rounded-lg object-cover bg-white/5 shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold truncate">{p.name || "Unnamed"}</p>
+                    {p.isBestSeller && <Star size={10} className="text-amber-400 shrink-0 fill-amber-400" />}
+                  </div>
+                  <p className="text-white/30 text-[10px] font-black uppercase tracking-widest">{p.brand} · {p.category} {p.weight ? `· ${p.weight}` : ""}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {p.thc && <span className="text-[9px] font-black text-green-400/60 uppercase">THC {p.thc}</span>}
+                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${
+                    p.inStock ? "bg-green-500/10 text-green-300 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
+                  }`}>{p.inStock ? "In Stock" : "Out"}</span>
+                  <span className="font-black text-sm tabular-nums">${Number(p.price || 0).toFixed(2)}</span>
+                  <ChevronRight size={13} className="opacity-0 group-hover:opacity-30 transition-opacity" />
+                </div>
+              </motion.div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="text-center py-16 text-white/20 text-sm font-black uppercase tracking-widest">
+                {displayProducts.length === 0 ? "No products synced yet — run a sync or preview" : "No products match filter"}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Live Preview from Barnet API */}
-      <AnimatePresence>
-        {previewItems.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <h2 className="font-black uppercase tracking-tight">Barnet Live Preview</h2>
-                <p className="text-white/30 text-xs">{previewItems.length} products from API (not yet saved)</p>
-              </div>
-              <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30" />
-                <input
-                  type="text"
-                  placeholder="Filter…"
-                  value={previewSearch}
-                  onChange={e => setPreviewSearch(e.target.value)}
-                  className="bg-black/20 border border-white/10 rounded-xl pl-8 pr-4 py-2 text-xs focus:outline-none focus:border-brand-light-green/40 w-48"
-                />
-              </div>
+      {/* ── ALERTS ──────────────────────────────────────────────────────── */}
+      {subTab === "alerts" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-black uppercase tracking-tight text-lg">Stock Alerts</h2>
+              <p className="text-white/30 text-xs mt-0.5">{outAlerts.length} Barnet products currently out of stock</p>
             </div>
-            <div className="max-h-96 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
-              {filteredPreview.map((p: any, i: number) => (
-                <div key={i} className="flex items-center justify-between bg-black/20 rounded-xl px-4 py-3 border border-white/5 gap-3">
+            <button type="button" onClick={() => mutateAlerts()}
+              className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+              <RefreshCw size={11} /> Refresh
+            </button>
+          </div>
+
+          {outAlerts.length === 0 ? (
+            <div className="text-center py-16 bg-[#1a2219] rounded-2xl border border-white/5">
+              <TrendingUp size={32} className="mx-auto mb-3 text-green-400/40" />
+              <p className="text-white/30 text-sm font-black uppercase tracking-widest">All Barnet products in stock</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {outAlerts.map((p: any) => (
+                <div key={p.id} className="flex items-center gap-4 bg-red-500/5 border border-red-500/15 rounded-xl px-4 py-3">
+                  <PackageX size={16} className="text-red-400 shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold truncate">{p.name || "Unnamed"}</p>
-                    <p className="text-white/30 text-[10px] uppercase tracking-wide font-black">{p.category}</p>
+                    <p className="text-sm font-bold truncate">{p.name}</p>
+                    <p className="text-white/30 text-[10px] font-black uppercase tracking-widest">{p.brand} · {p.category}</p>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${
-                      p.inStock ? "bg-green-500/10 text-green-300 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
-                    }`}>{p.inStock ? "In Stock" : "Out"}</span>
-                    <span className="font-black text-sm">${Number(p.price || 0).toFixed(2)}</span>
-                  </div>
+                  <span className="text-sm font-black tabular-nums text-white/50">${Number(p.price || 0).toFixed(2)}</span>
+                  <button type="button" onClick={async () => {
+                    try {
+                      await api.admin.barnetBulk("toggleStock", [p.id], true);
+                      success("Marked in stock"); mutateAlerts(); mutateProducts();
+                    } catch (e: any) { toastErr(e.message); }
+                  }} className="px-3 py-1.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-green-500/20 transition-all shrink-0">
+                    Mark In Stock
+                  </button>
                 </div>
               ))}
             </div>
-          </motion.div>
+          )}
+        </div>
+      )}
+
+      {/* ── SYNC HISTORY ────────────────────────────────────────────────── */}
+      {subTab === "history" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-black uppercase tracking-tight text-lg">Sync History</h2>
+              <p className="text-white/30 text-xs mt-0.5">Last 50 sync events</p>
+            </div>
+            <button type="button" onClick={() => mutateStatus()}
+              className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+              <RefreshCw size={11} /> Refresh
+            </button>
+          </div>
+          {history.length === 0 ? (
+            <div className="text-center py-16 bg-[#1a2219] rounded-2xl border border-white/5">
+              <History size={32} className="mx-auto mb-3 text-white/10" />
+              <p className="text-white/30 text-sm font-black uppercase tracking-widest">No sync history yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {history.map((h: any, i: number) => (
+                <div key={i} className="flex items-center gap-4 bg-[#1a2219] border border-white/5 rounded-xl px-4 py-3">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${h.errors > 0 ? "bg-amber-400" : "bg-green-400"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-white/70">{new Date(h.timestamp).toLocaleString()}</p>
+                    <p className="text-[10px] text-white/30 font-black uppercase tracking-widest mt-0.5">
+                      {h.source === "manual" ? "Manual" : "Auto"} · {h.synced} synced · {h.removed} removed
+                      {h.errors > 0 && <span className="text-red-400 ml-2">{h.errors} errors</span>}
+                    </p>
+                  </div>
+                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${
+                    h.source === "manual"
+                      ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      : "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                  }`}>{h.source}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── SETTINGS ────────────────────────────────────────────────────── */}
+      {subTab === "settings" && (
+        <div className="space-y-6">
+          {/* Auto-sync */}
+          <div className="bg-[#1a2219] border border-white/5 rounded-2xl p-6 space-y-5">
+            <div>
+              <h2 className="font-black uppercase tracking-tight text-lg flex items-center gap-2">
+                <Clock size={15} className="opacity-40" /> Auto-Sync Schedule
+              </h2>
+              <p className="text-white/30 text-xs mt-1">Automatically pull from Barnet on a schedule</p>
+            </div>
+            <div className="flex items-center gap-4 flex-wrap">
+              <button type="button" onClick={() => setAutoSyncEnabled(v => !v)}
+                className="flex items-center gap-2 text-sm font-black">
+                {autoSyncEnabled
+                  ? <ToggleRight size={28} className="text-brand-light-green" />
+                  : <ToggleLeft  size={28} className="text-white/20" />}
+                <span className={autoSyncEnabled ? "text-brand-light-green" : "text-white/40"}>
+                  {autoSyncEnabled ? "Enabled" : "Disabled"}
+                </span>
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Every</span>
+                {[2, 4, 6, 12, 24].map(h => (
+                  <button key={h} type="button" onClick={() => setAutoSyncHours(h)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${
+                      autoSyncHours === h ? "bg-brand-light-green text-[#111815]" : "bg-white/5 text-white/40 hover:bg-white/10"
+                    }`}>{h}h</button>
+                ))}
+              </div>
+            </div>
+            <button type="button" onClick={saveAutoSync} disabled={savingAutoSync}
+              className="flex items-center gap-2 px-5 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40">
+              {savingAutoSync ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
+              Save Schedule
+            </button>
+          </div>
+
+          {/* Danger zone */}
+          <div className="bg-red-500/5 border border-red-500/15 rounded-2xl p-6 space-y-4">
+            <h2 className="font-black uppercase tracking-tight text-red-400 flex items-center gap-2">
+              <AlertTriangle size={15} /> Danger Zone
+            </h2>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-sm font-bold text-white/70">Remove All Barnet Products</p>
+                <p className="text-white/30 text-xs">Deletes all products sourced from Barnet. Cannot be undone.</p>
+              </div>
+              <button type="button" onClick={async () => {
+                if (!confirm("Delete ALL Barnet products from your database? This cannot be undone.")) return;
+                const ids = barnetProducts.map((p: any) => p.id);
+                if (!ids.length) return toastErr("No Barnet products to delete");
+                try {
+                  await api.admin.barnetBulk("delete", ids);
+                  success("All Barnet products removed");
+                  mutateProducts(); mutateAlerts();
+                } catch (e: any) { toastErr(e.message); }
+              }} className="px-4 py-2.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all shrink-0">
+                Delete All Barnet Products
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PRODUCT DETAIL DRAWER ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {drawerProduct && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[500]"
+              onClick={() => setDrawerProduct(null)} />
+            <motion.div
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed right-0 top-0 h-full w-full max-w-md bg-[#111815] border-l border-white/10 z-[501] overflow-y-auto custom-scrollbar flex flex-col">
+              {/* Drawer header */}
+              <div className="flex items-center justify-between p-6 border-b border-white/5 sticky top-0 bg-[#111815] z-10">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Product Detail</p>
+                  <h3 className="font-black text-lg tracking-tight line-clamp-1">{drawerProduct.name}</h3>
+                </div>
+                <button type="button" title="Close" onClick={() => setDrawerProduct(null)} className="text-white/30 hover:text-white transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6 flex-1">
+                {/* Product image */}
+                {drawerProduct.image && (
+                  <img src={drawerProduct.image} alt={drawerProduct.name} className="w-full h-40 object-contain rounded-xl bg-white/5" />
+                )}
+
+                {/* Read-only info */}
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Brand",   value: drawerProduct.brand || "—" },
+                    { label: "Weight",  value: drawerProduct.weight || "—" },
+                    { label: "THC",     value: drawerProduct.thc   || "—" },
+                    { label: "CBD",     value: drawerProduct.cbd   || "—" },
+                    { label: "Strain",  value: drawerProduct.strain || "—" },
+                    { label: "Source",  value: drawerProduct.source || "barnet" },
+                  ].map(f => (
+                    <div key={f.label} className="bg-white/5 rounded-xl p-3">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1">{f.label}</p>
+                      <p className="text-sm font-bold text-white/80">{f.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Editable overrides */}
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-light-green/60 flex items-center gap-2">
+                    <SlidersHorizontal size={11} /> Overrides (persist on next sync)
+                  </h4>
+
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Category</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {BARNET_CATEGORIES.map(c => (
+                        <button key={c} type="button" onClick={() => setDrawerOverride(v => ({ ...v, category: c }))}
+                          className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-left ${
+                            drawerOverride.category === c ? "bg-brand-light-green text-[#111815]" : "bg-white/5 text-white/50 hover:bg-white/10"
+                          }`}>{c}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">Price Override ($)</label>
+                    <input type="number" step="0.01" min="0" aria-label="Price override"
+                      placeholder={String(drawerProduct?.price ?? "0.00")}
+                      value={drawerOverride.price ?? ""}
+                      onChange={e => setDrawerOverride(v => ({ ...v, price: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-light-green/50 transition-colors" />
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => setDrawerOverride(v => ({ ...v, isBestSeller: !v.isBestSeller }))}
+                      className="flex items-center gap-2 text-sm font-black">
+                      {drawerOverride.isBestSeller
+                        ? <ToggleRight size={24} className="text-amber-400" />
+                        : <ToggleLeft  size={24} className="text-white/20" />}
+                      <span className={drawerOverride.isBestSeller ? "text-amber-400" : "text-white/40"}>Best Seller</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {drawerProduct.description && (
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-2">Description</p>
+                    <p className="text-xs text-white/50 leading-relaxed whitespace-pre-wrap line-clamp-6">{drawerProduct.description}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Drawer footer */}
+              <div className="p-6 border-t border-white/5 flex gap-3 sticky bottom-0 bg-[#111815]">
+                <button type="button" onClick={clearOverride} disabled={savingOverride}
+                  className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-40">
+                  Clear Override
+                </button>
+                <button type="button" onClick={saveOverride} disabled={savingOverride}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-light-green text-[#111815] rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40 shadow-lg shadow-brand-light-green/20">
+                  {savingOverride ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
+                  Save Override
+                </button>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
@@ -1890,8 +2327,8 @@ export default function Admin() {
 
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-[60] w-64 bg-[#111815] border-r border-white/5 flex flex-col transition-transform duration-300 lg:relative lg:translate-x-0 ${sideOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        {/* Logo */}
-        <div className="px-6 py-7 border-b border-white/5">
+        {/* Logo — fixed height, never shrinks */}
+        <div className="shrink-0 px-6 py-7 border-b border-white/5">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-brand-light-green rounded-xl flex items-center justify-center text-[#111815] font-black text-base shadow-lg shadow-brand-light-green/20">B</div>
             <div>
@@ -1901,8 +2338,8 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        {/* Nav — scrollable middle section */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
           {NAV.map(n => (
             <button key={n.id} type="button"
               onClick={() => { setTab(n.id as Tab); setSideOpen(false); }}
@@ -1917,8 +2354,8 @@ export default function Admin() {
           ))}
         </nav>
 
-        {/* Bottom */}
-        <div className="px-3 py-4 border-t border-white/5 space-y-2">
+        {/* Bottom — fixed height, always visible */}
+        <div className="shrink-0 px-3 py-4 border-t border-white/5 space-y-1">
           <a href="/" target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:bg-white/5 transition-all">
             <Home size={14} /> View Site
